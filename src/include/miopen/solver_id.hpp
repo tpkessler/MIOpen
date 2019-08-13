@@ -37,6 +37,9 @@
 namespace miopen {
 namespace solver {
 
+template<class TContext>
+struct SolverBase;
+
 struct Id
 {
     static constexpr uint64_t invalid_value = 0;
@@ -47,7 +50,7 @@ struct Id
     Id(const char* str);
 
     std::string ToString() const;
-    AnySolver GetSolver() const;
+    const SolverBase<ConvolutionContext>& GetSolver() const;
     std::string GetAlgo(miopenConvDirection_t dir) const;
 
     bool IsValid() const { return is_valid; }

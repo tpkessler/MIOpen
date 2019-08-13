@@ -451,7 +451,8 @@ inline ConvSolution BaseGetSolution(const ConvolutionContext& params,
 }
 
 ConvSolution ConvOclDirectFwd::GetSolution(const ConvolutionContext& params,
-                                           const LegacyPerformanceConfig& searched_params) const
+                                           const LegacyPerformanceConfig& searched_params,
+                                           bool) const
 {
     ConvSolution result = BaseGetSolution(params, searched_params);
 
@@ -465,9 +466,9 @@ ConvSolution ConvOclDirectFwd::GetSolution(const ConvolutionContext& params,
     return result;
 }
 
-ConvSolution
-ConvOclDirectFwdFused::GetSolution(const ConvolutionContext& params,
-                                   const LegacyPerformanceConfig& searched_params) const
+ConvSolution ConvOclDirectFwdFused::GetSolution(const ConvolutionContext& params,
+                                                const LegacyPerformanceConfig& searched_params,
+                                                bool) const
 {
     ConvSolution result = BaseGetSolution(params, searched_params);
     if(result.Succeeded())

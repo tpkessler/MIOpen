@@ -60,7 +60,7 @@ struct IdRegistryData
 {
     std::unordered_map<uint64_t, std::string> value_to_str;
     std::unordered_map<std::string, uint64_t> str_to_value;
-    std::unordered_map<uint64_t, AnySolver> value_to_solver;
+    std::unordered_map<uint64_t, std::unique_ptr<SolverBase<ConvolutionContext>>> value_to_solver;
     std::unordered_map<uint64_t, miopenConvAlgorithm_t> value_to_algo;
 };
 
@@ -98,10 +98,11 @@ std::string Id::ToString() const
     return IdRegistry().value_to_str[value];
 }
 
-AnySolver Id::GetSolver() const
+const SolverBase<ConvolutionContext>& Id::GetSolver() const
 {
     const auto it = IdRegistry().value_to_solver.find(value);
-    return it != IdRegistry().value_to_solver.end() ? it->second : AnySolver{};
+    assert(it != IdRegistry().value_to_solver.end());
+	return *it->second;
 }
 
 std::string Id::GetAlgo(miopenConvDirection_t dir) const

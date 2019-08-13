@@ -29,9 +29,10 @@ miopenStatus_t
 ConvForwardOpDescriptor::GetCompileParms(std::string& compile_config,
                                          Handle& handle,
                                          FusionKernelSourceType source,
-                                         const std::vector<solver::AnySolver>& solvers)
+                                         const std::vector<SolverBase<ConvolutionContext>*>& solvers)
 {
     mlo_construct_direct2D_fusion construct_params = ConstructParams(handle);
+    const auto sc                                  = solver::SolverContainer<ConvolutionContext>(solvers);
     const auto solution                            = FindFirstSolution(construct_params, solvers);
     if(!solution.Succeeded())
     {

@@ -66,13 +66,13 @@ operator==(const PerformanceConfigConvBiasActivAsm1x1U& other) const
                 && use_spare_set == other.use_spare_set; // clang-format on
 }
 
-PerformanceConfigConvBiasActivAsm1x1U
+std::unique_ptr<PerformanceConfigConvAsm1x1U>
 ConvBiasActivAsm1x1U::GetPerformanceConfig(const ConvolutionContext& params) const
 {
     PerformanceConfigConvBiasActivAsm1x1U pp;
     pp.EuristicInit(params);
     MIOPEN_LOG_I(pp.ToString());
-    return pp;
+    return std::make_unique<PerformanceConfigConvAsm1x1U>(pp);
 }
 
 template <typename B, typename T>

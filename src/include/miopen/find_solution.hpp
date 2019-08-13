@@ -40,92 +40,12 @@ MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_AMD_ASM_KERNELS_PERF_FILTERING)
 namespace miopen {
 namespace solver {
 
-template <class Solver, class Context, class Db>
-auto FindSolutionImpl(rank<1>, Solver s, const Context& context, Db& db)
-    -> decltype(s.GetSolution(context, s.Search(context)))
+template<class TContext>
+struct Container
 {
-    const FindEnforce enforce;
-    MIOPEN_LOG_I(SolverDbId(s));
-    if(enforce.IsDbClean(context))
-    {
-        if(db.Remove(context, SolverDbId(s)))
-            MIOPEN_LOG_W("Perf Db: record removed: " << SolverDbId(s) << ", enforce: " << enforce);
-    }
-    else
-    {
-        if((context.do_search || enforce.IsSearch(context)) && enforce.IsDbUpdate(context))
-        {
-            MIOPEN_LOG_W("Perf Db: load skipped: " << SolverDbId(s) << ", enforce: " << enforce);
-        }
-        else
-        {
-            using PerformanceConfig = decltype(s.GetPerformanceConfig(context));
-            PerformanceConfig config{};
-            if(db.Load(context, SolverDbId(s), config))
-            {
-                MIOPEN_LOG_I2("Perf Db: record loaded: " << SolverDbId(s));
-                if(s.IsValidPerformanceConfig(context, config))
-                {
-                    return s.GetSolution(context, config);
-                }
-                MIOPEN_LOG(
-                    (MIOPEN_INSTALLABLE ? LoggingLevel::Warning : miopen::LoggingLevel::Error),
-                    "Invalid config loaded from Perf Db: " << SolverDbId(s) << ": " << config
-                                                           << ". Performance may degrade.");
-            }
-            else
-            {
-                MIOPEN_LOG_I("Perf Db: record not found for: " << SolverDbId(s));
-            }
-        }
+    Container(std::initializer_list<SolverBase<TContext>*> solvers_) : solvers(solvers_) {}
+    Container(std::vector<SolverBase<TContext>*> solvers_) : solvers(solvers_) {}
 
-        if(context.do_search || enforce.IsSearch(context)) // TODO: Make it a customization point
-        {
-            MIOPEN_LOG_I("Starting search: " << SolverDbId(s) << ", enforce: " << enforce);
-            try
-            {
-                auto c = s.Search(context);
-                db.Update(context, SolverDbId(s), c);
-                return s.GetSolution(context, c);
-            }
-            catch(const miopen::Exception& ex)
-            {
-                MIOPEN_LOG_E("Search failed for: " << SolverDbId(s) << ": " << ex.what());
-            }
-        }
-    }
-
-    return s.GetSolution(context, s.GetPerformanceConfig(context));
-}
-
-template <class Solver, class Context, class Db>
-auto FindSolutionImpl(rank<0>, Solver s, const Context& context, Db&)
-    -> decltype(s.GetSolution(context))
-{
-    MIOPEN_LOG_I(SolverDbId(s) << " (not searchable)");
-    return s.GetSolution(context);
-}
-
-/// Finds optimized Solution. Generic method.
-///
-/// Given the specific problem config, finds (hopefully) optimal
-/// solution-specific parameters and returns the Solution object.
-/// Could take long if an exhaustive search is requested/performed.
-/// May read/write perfDb.
-template <class Solver, class Context, class Db>
-ConvSolution FindSolution(Solver s, const Context& context, Db& db)
-{
-    static_assert(std::is_empty<Solver>{} && std::is_trivially_constructible<Solver>{},
-                  "Solver must be stateless");
-    // TODO: This assumes all solutions are ConvSolution
-    auto solution      = FindSolutionImpl(rank<1>{}, s, context, db);
-    solution.solver_id = SolverDbId(s);
-    return solution;
-}
-
-template <class... Solvers>
-struct SolverContainer
-{
     template <class Context, class Db>
     auto SearchForSolution(const Context& search_params, Db&& db) const
     {
@@ -203,6 +123,9 @@ struct SolverContainer
             Solvers{}...);
         return ss;
     }
+
+	private:
+    std::vector<SolverBase<TContext>*> solvers;
 };
 
 } // namespace solver

@@ -82,57 +82,75 @@ mlo_construct_direct2D_fusion::FindSolution(const std::vector<miopen::solver::An
     return solution;
 }
 
-static auto GetDirectSolvers()
+static const auto& GetDirectSolvers()
 {
-    return miopen::solver::SolverContainer<miopen::solver::ConvAsm3x3U,
-                                           miopen::solver::ConvAsm1x1U,
-                                           miopen::solver::ConvAsm1x1UV2,
-                                           miopen::solver::ConvAsm5x10u2v2f1,
-                                           miopen::solver::ConvAsm7x7c3h224w224k64u2v2p3q3f1,
-                                           miopen::solver::ConvAsm5x10u2v2b1,
-                                           miopen::solver::ConvOclDirectFwd11x11,
-                                           miopen::solver::ConvOclDirectFwdGen,
-                                           miopen::solver::ConvOclDirectFwd3x3,
-                                           miopen::solver::ConvOclDirectFwd1x1,
-                                           miopen::solver::ConvOclDirectFwd>{};
+    static const auto inst = miopen::solver::Container<miopen::ConvolutionContext>{{
+        &miopen::StaticContainer<miopen::solver::ConvAsm3x3U>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvAsm1x1U>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvAsm1x1UV2>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvAsm5x10u2v2f1>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvAsm7x7c3h224w224k64u2v2p3q3f1>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvAsm5x10u2v2b1>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvOclDirectFwd11x11>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvOclDirectFwdGen>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvOclDirectFwd3x3>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvOclDirectFwd1x1>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvOclDirectFwd>::Instance(),
+    }};
+	return inst;
 }
 
-static auto GetImplicitGemmSolvers()
+static const auto& GetImplicitGemmSolvers()
 {
-    return miopen::solver::SolverContainer<miopen::solver::ConvHipImplicitGemmV4Fwd,
-                                           miopen::solver::ConvHipImplicitGemmV4_1x1>{};
+    static const auto inst = miopen::solver::Container<miopen::ConvolutionContext>{{
+        &miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4Fwd>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4_1x1>::Instance(),
+    }};
+    return inst;
 }
 
-static auto GetWindogradSolvers()
+static const auto& GetWindogradSolvers()
 {
-    return miopen::solver::SolverContainer<miopen::solver::ConvBinWinograd3x3U,
-                                           miopen::solver::ConvBinWinogradRxSf3x2,
-                                           miopen::solver::ConvBinWinogradRxS>{};
+    static const auto inst = miopen::solver::Container<miopen::ConvolutionContext>{{
+        &miopen::StaticContainer<miopen::solver::ConvBinWinograd3x3U>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvBinWinogradRxSf3x2>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvBinWinogradRxS>::Instance(),
+    }};
+    return inst;
 }
 
-static auto GetWindogradWrWSolvers()
+static const auto& GetWindogradWrWSolvers()
 {
-    return miopen::solver::SolverContainer<miopen::solver::ConvBinWinogradRxS,
-                                           miopen::solver::ConvWinograd3x3MultipassWrW>{};
+    static const auto inst = miopen::solver::Container<miopen::ConvolutionContext>{{
+        &miopen::StaticContainer<miopen::solver::ConvBinWinogradRxS>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvWinograd3x3MultipassWrW>::Instance(),
+    }};
+    return inst;
 }
 
-static auto GetBwdWrW2DSolvers()
+static const auto& GetBwdWrW2DSolvers()
 {
-    return miopen::solver::SolverContainer<miopen::solver::ConvAsmBwdWrW1x1,
-                                           miopen::solver::ConvAsmBwdWrW3x3,
-                                           miopen::solver::ConvOclBwdWrW2<1>,
-                                           miopen::solver::ConvOclBwdWrW2<2>,
-                                           miopen::solver::ConvOclBwdWrW2<4>,
-                                           miopen::solver::ConvOclBwdWrW2<8>,
-                                           miopen::solver::ConvOclBwdWrW2<16>,
-                                           miopen::solver::ConvOclBwdWrW2NonTunable,
-                                           miopen::solver::ConvOclBwdWrW53,
-                                           miopen::solver::ConvOclBwdWrW1x1>{};
+    static const auto inst = miopen::solver::Container<miopen::ConvolutionContext>{{
+        &miopen::StaticContainer<miopen::solver::ConvAsmBwdWrW1x1>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvAsmBwdWrW3x3>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvOclBwdWrW2<1>>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvOclBwdWrW2<2>>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvOclBwdWrW2<4>>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvOclBwdWrW2<8>>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvOclBwdWrW2<16>>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvOclBwdWrW2NonTunable>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvOclBwdWrW53>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvOclBwdWrW1x1>::Instance(),
+    }};
+    return inst;
 }
 
-static auto GetFwdSCGemmSolvers()
+static const auto& GetFwdSCGemmSolvers()
 {
-    return miopen::solver::SolverContainer<miopen::solver::ConvSCGemmFwd<miopen::SCGemmOpFGemm>>{};
+    static const auto inst = miopen::solver::Container<miopen::ConvolutionContext>{{
+        &miopen::StaticContainer<miopen::solver::ConvSCGemmFwd<miopen::SCGemmOpFGemm>>::Instance(),
+    }};
+    return inst;
 }
 
 std::vector<miopen::solver::ConvSolution>
