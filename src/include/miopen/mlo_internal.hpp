@@ -447,6 +447,7 @@ struct mlo_construct_base
         _search_params.deconvolution = 0;
     }
 
+	const miopen::ConvolutionContext& GetConvContext() const { return _search_params; }
     void detectRocm() { _search_params.DetectRocm(); }
     void setupFloats() { _search_params.SetupFloats(); }
 

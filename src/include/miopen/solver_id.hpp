@@ -28,7 +28,7 @@
 #define MIOPEN_GUARD_MLOPEN_SOLVER_ID_HPP
 
 #include <miopen/logger.hpp>
-#include <miopen/any_solver.hpp>
+#include <miopen/solver.hpp>
 #include <miopen/conv_algo_name.hpp>
 
 #include <cstdint>

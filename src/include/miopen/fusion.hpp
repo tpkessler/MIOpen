@@ -71,7 +71,7 @@ struct FusionOpDescriptor : miopenFusionOpDescriptor
     virtual miopenStatus_t GetCompileParms(std::string& compile_config,
                                            Handle& handle,
                                            FusionKernelSourceType source,
-                                           const std::vector<solver::AnySolver>& solvers);
+                                           const std::vector<ConvSolver*>& solvers);
     friend std::ostream& operator<<(std::ostream& stream, const FusionOpDescriptor& x);
     virtual miopenFusionOp_t kind() const = 0;
     virtual std::vector<std::pair<std::string, OpKernelArg>> GetArgs() const = 0;
@@ -96,7 +96,7 @@ struct BiasFusionOpDescriptor : FusionOpDescriptor
     miopenStatus_t GetCompileParms(std::string& compile_config,
                                    Handle& handle,
                                    FusionKernelSourceType source,
-                                   const std::vector<solver::AnySolver>& solvers) override;
+                                   const std::vector<ConvSolver*>& solvers) override;
     miopenStatus_t
     SetArgs(OperatorArgs& args, const void* alpha, const void* beta, ConstData_t bdata);
     std::vector<std::pair<std::string, OpKernelArg>> GetArgs() const override;
@@ -116,7 +116,7 @@ struct ActivFwdFusionOpDescriptor : FusionOpDescriptor
     miopenStatus_t GetCompileParms(std::string& compile_config,
                                    Handle& handle,
                                    FusionKernelSourceType source,
-                                   const std::vector<solver::AnySolver>& solvers) override;
+                                   const std::vector<ConvSolver*>& solvers) override;
     miopenStatus_t SetArgs(OperatorArgs& args,
                            const void* alpha,
                            const void* beta,
@@ -141,7 +141,7 @@ struct ActivBwdFusionOpDescriptor : FusionOpDescriptor
     miopenStatus_t GetCompileParms(std::string& compile_config,
                                    Handle& handle,
                                    FusionKernelSourceType source,
-                                   const std::vector<solver::AnySolver>& solvers) override;
+                                   const std::vector<ConvSolver*>& solvers) override;
     miopenStatus_t SetArgs(OperatorArgs& args,
                            const void* alpha,
                            const void* beta,
@@ -168,7 +168,7 @@ struct BatchNormInferenceFusionOpDescriptor : FusionOpDescriptor
     miopenStatus_t GetCompileParms(std::string& compile_config,
                                    Handle& handle,
                                    FusionKernelSourceType source,
-                                   const std::vector<solver::AnySolver>& solvers) override;
+                                   const std::vector<ConvSolver*>& solvers) override;
     miopenStatus_t SetArgs(OperatorArgs& args,
                            const void* alpha,
                            const void* beta,
@@ -198,7 +198,7 @@ struct BatchNormFwdTrainFusionOpDescriptor : FusionOpDescriptor
     miopenStatus_t GetCompileParms(std::string& compile_config,
                                    Handle& handle,
                                    FusionKernelSourceType source,
-                                   const std::vector<solver::AnySolver>& solvers) override;
+                                   const std::vector<ConvSolver*>& solvers) override;
     miopenStatus_t SetArgs(OperatorArgs& args,
                            const void* alpha,
                            const void* beta,
@@ -239,7 +239,7 @@ struct BatchNormBwdTrainFusionOpDescriptor : FusionOpDescriptor
     miopenStatus_t GetCompileParms(std::string& compile_config,
                                    Handle& handle,
                                    FusionKernelSourceType source,
-                                   const std::vector<solver::AnySolver>& solvers) override;
+                                   const std::vector<ConvSolver*>& solvers) override;
     miopenStatus_t SetArgs(OperatorArgs& args,
                            const void* alpha,
                            const void* beta,
@@ -288,7 +288,7 @@ struct ConvForwardOpDescriptor : FusionOpDescriptor
     miopenStatus_t GetCompileParms(std::string& compile_config,
                                    Handle& handle,
                                    FusionKernelSourceType source,
-                                   const std::vector<solver::AnySolver>& solvers) override;
+                                   const std::vector<ConvSolver*>& solvers) override;
     bool isASMApplicable(Handle& handle);
     miopenFusionOp_t kind() const override { return miopenFusionOpConvForward; };
     std::vector<size_t> GetLocalWGSz(Handle& handle, std::string algorithm_name) override;
@@ -306,7 +306,7 @@ struct ConvForwardOpDescriptor : FusionOpDescriptor
 
 namespace fusion {
 
-bool IsWinograd(const std::vector<solver::AnySolver>& ss);
+bool IsWinograd(const std::vector<ConvSolver*>& ss);
 
 } // namespace fusion
 

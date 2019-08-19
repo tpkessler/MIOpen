@@ -1,5 +1,6 @@
 #include <miopen/fusion.hpp>
 #include <miopen/solver.hpp>
+#include <miopen/find_solution.hpp>
 #include <miopen/gcn_asm_utils.hpp>
 
 namespace miopen {
@@ -29,11 +30,11 @@ miopenStatus_t
 ConvForwardOpDescriptor::GetCompileParms(std::string& compile_config,
                                          Handle& handle,
                                          FusionKernelSourceType source,
-                                         const std::vector<SolverBase<ConvolutionContext>*>& solvers)
+                                         const std::vector<ConvSolver*>& solvers)
 {
     mlo_construct_direct2D_fusion construct_params = ConstructParams(handle);
-    const auto sc                                  = solver::SolverContainer<ConvolutionContext>(solvers);
-    const auto solution                            = FindFirstSolution(construct_params, solvers);
+    const auto sc                                  = solver::Container<ConvolutionContext>(solvers);
+    const auto solution                            = sc.SearchForSolution(construct_params.GetConvContext());
     if(!solution.Succeeded())
     {
         return solution.status;

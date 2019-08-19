@@ -28,15 +28,15 @@
 #define GUARD_MIOPEN_GENERIC_SEARCH_HPP_
 
 #include <miopen/config.h>
-
-#include <vector>
-#include <cstdlib>
-#include <limits>
-#include <iterator>
-#include <chrono>
-
-#include <miopen/logger.hpp>
 #include <miopen/handle.hpp>
+#include <miopen/logger.hpp>
+#include <miopen/solver.hpp>
+
+#include <chrono>
+#include <cstdlib>
+#include <iterator>
+#include <limits>
+#include <vector>
 
 namespace miopen {
 namespace solver {
