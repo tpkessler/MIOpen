@@ -27,7 +27,8 @@
 #define GUARD_MIOPEN_TUNER_HPP
 
 #include "half.hpp"
-#include "random.hpp"
+//#include "random.hpp"
+#include "miopen/bfloat16.hpp"
 
 using half_float::half;
 typedef half float16;
@@ -119,6 +120,85 @@ struct GPUMem
 #endif
 };
 
+class Driver
+{
+    public:
+    Driver()
+    {
+        data_type = miopenFloat;
+#if MIOPEN_BACKEND_OPENCL
+        miopenCreate(&handle);
+#elif MIOPEN_BACKEND_HIP
+        hipStream_t s;
+        hipStreamCreate(&s);
+        miopenCreateWithStream(&handle, s);
+#endif
+
+        miopenGetStream(handle, &q);
+    }
+
+    miopenHandle_t GetHandle() { return handle; }
+    miopenDataType_t GetDataType() { return data_type; }
+
+#if MIOPEN_BACKEND_OPENCL
+    cl_command_queue& GetStream() { return q; }
+#elif MIOPEN_BACKEND_HIP
+    hipStream_t& GetStream() { return q; }
+#endif
+    virtual ~Driver() { miopenDestroy(handle); }
+
+    // TODO: add timing APIs
+    virtual int AddCmdLineArgs() = 0;
+    virtual int ParseCmdLineArgs(int argc, char* argv[]) = 0;
+    virtual InputFlags& GetInputFlags()  = 0;
+    virtual int GetandSetData()          = 0;
+    virtual int AllocateBuffersAndCopy() = 0;
+    virtual int RunForwardGPU()          = 0;
+    //virtual int VerifyForward()          = 0;
+    virtual int RunBackwardGPU()         = 0;
+    //virtual int VerifyBackward()         = 0;
+
+    protected:
+    template <typename Tgpu>
+    void InitDataType();
+    miopenHandle_t handle;
+    miopenDataType_t data_type;
+
+#if MIOPEN_BACKEND_OPENCL
+    cl_command_queue q;
+#elif MIOPEN_BACKEND_HIP
+    hipStream_t q;
+#endif
+};
+
+template <>
+void Driver::InitDataType<int8_t>()
+{
+    data_type = miopenInt8;
+}
+template <>
+void Driver::InitDataType<float>()
+{
+    data_type = miopenFloat;
+}
+template <>
+void Driver::InitDataType<float16>()
+{
+    data_type = miopenHalf;
+}
+template <>
+void Driver::InitDataType<bfloat16>()
+{
+    data_type = miopenBFloat16;
+}
+// "std::is_same<Tgpu, float>{}" used to avoid "static_assert" compilation error,
+// which occurs when the condition does not depend in any way on the template parameters.
+template <typename Tgpu>
+void Driver::InitDataType()
+{
+    static_assert(std::is_same<Tgpu, float>{}, "unsupported Tgpu");
+}
+
 void PadBufferSize(size_t& sz, int datatype_sz)
 {
     size_t page_sz = (2 * 1024 * 1024) / datatype_sz;
@@ -146,7 +226,7 @@ std::string ParseBaseArg(int argc, char* argv[])
 
     std::string arg = argv[1];
 
-    if(arg != "convtuner")
+    if(arg != "conv")
     {
         printf("Invalid Base Input Argument\n");
         Usage();
@@ -157,10 +237,10 @@ std::string ParseBaseArg(int argc, char* argv[])
         return arg;
 }
 
-class Tuner
+class Tuner : public Driver
 {
     public:
-    Tuner()
+    Tuner() : Driver()
     {
         data_type = miopenFloat;
 #if MIOPEN_BACKEND_OPENCL

@@ -27,10 +27,11 @@
 #define GUARD_MIOPEN_CONV_TUNER_HPP
 
 #include "InputFlags.hpp"
-#include "driver.hpp"
-#include "tensor_driver.hpp"
-#include "timer.hpp"
-#include "util_driver.hpp"
+#include "tuner.hpp"
+//#include "../driver/driver.hpp"
+#include "../driver/tensor_driver.hpp"
+//#include "timer.hpp"
+//#include "util_driver.hpp"
 #include <miopen/convolution.hpp>
 #include <algorithm>
 #include <cstdlib>
@@ -43,7 +44,7 @@
 #include <miopen/env.hpp>
 #include <miopen/algorithm.hpp>
 #include <miopen/logger.hpp>
-#include "random.hpp"
+//#include "random.hpp"
 #include <numeric>
 #include <sstream>
 #include <vector>
@@ -60,10 +61,10 @@ MIOPEN_DECLARE_ENV_VAR(MIOPEN_DRIVER_PAD_BUFFERS_2M)
 // Tgpu and Tref are the data-type in GPU memory and CPU memory respectively.
 // They are not necessarily the same as the computation type on GPU or CPU
 template <typename Tgpu, typename Tref>
-class ConvTuner : public Driver
+class ConvTuner : public Tuner
 {
     public:
-    ConvTuner() : Driver()
+    ConvTuner() : Tuner()
     {
         miopenCreateTensorDescriptor(&inputTensor);
         miopenCreateTensorDescriptor(&weightTensor);
@@ -111,8 +112,8 @@ class ConvTuner : public Driver
                             std::vector<miopenConvAlgoPerf_t>& perf_results);
     int RunBackwardGPU();
 
-    int VerifyBackward();
-    int VerifyForward();
+    //int VerifyBackward();
+    //int VerifyForward();
     ~ConvTuner()
     {
 
@@ -554,7 +555,7 @@ namespace detail {
 template <typename T>
 T RanGenWeights()
 {
-    return RAN_GEN<T>(static_cast<T>(-0.5), static_cast<T>(0.5));
+    return static_cast<T>(1.0);//RAN_GEN<T>(static_cast<T>(-0.5), static_cast<T>(0.5));
 }
 
 // Shift FP16 distribution towards positive numbers,
@@ -562,7 +563,7 @@ T RanGenWeights()
 template <>
 float16 RanGenWeights()
 {
-    return RAN_GEN<float16>(static_cast<float16>(-1.0 / 3.0), static_cast<float16>(0.5));
+    return static_cast<float16>(1.0);//RAN_GEN<float16>(static_cast<float16>(-1.0 / 3.0), static_cast<float16>(0.5));
 }
 
 } // namespace detail
@@ -673,7 +674,7 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
         for(int i = 0; i < in_sz; i++)
         {
             in.data[i] = static_cast<Tgpu>(
-                Data_scale * RAN_GEN<float>(static_cast<float>(0.0), static_cast<float>(1.0)));
+                Data_scale * static_cast<float>(1.0)/*RAN_GEN<float>(static_cast<float>(0.0), static_cast<float>(1.0))*/);
             // printf("in  %d  %d \n",i,in.data[i]);
         }
         
@@ -686,7 +687,7 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
             for(int i = 0; i < b_sz; i++)
             {
                 b_int8[i] = static_cast<float>(i % 8) +
-                            RAN_GEN<float>(static_cast<float>(0.0), static_cast<float>(1.0));
+                            static_cast<float>(1.0);//RAN_GEN<float>(static_cast<float>(0.0), static_cast<float>(1.0));
             }
 
             b_dev->ToGPU(q, b_int8.data());
@@ -707,13 +708,13 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
         for(int i = 0; i < in_sz; i++)
         {
             in.data[i] =
-                Data_scale * RAN_GEN<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
+                Data_scale * static_cast<Tgpu>(1.0);//RAN_GEN<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
         }
     
         for(int i = 0; i < out_sz; i++)
         {
             dout.data[i] =
-                Data_scale * RAN_GEN<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
+                Data_scale * static_cast<Tgpu>(1.0);//RAN_GEN<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
         }
 
         if(inflags.GetValueInt("bias") != 0)
@@ -727,9 +728,9 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
             for(int i = 0; i < b_sz; i++)
             {
                 b.data[i] = static_cast<Tgpu>(i % 8) +
-                            RAN_GEN<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
+                            static_cast<Tgpu>(1.0);//RAN_GEN<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
                 db[i] = static_cast<Tgpu>(i % 8) +
-                        RAN_GEN<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
+                        static_cast<Tgpu>(1.0);//RAN_GEN<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
             }
 
             b_dev->ToGPU(q, b.data.data());
