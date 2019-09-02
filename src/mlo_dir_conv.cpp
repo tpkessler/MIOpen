@@ -30,6 +30,7 @@
 #include <miopen/convolution.hpp>
 #include <miopen/db.hpp>
 #include <miopen/env.hpp>
+#include <miopen/find_solution.hpp>
 #include <miopen/gcn_asm_utils.hpp>
 #include <miopen/mlo_internal.hpp>
 #include <miopen/mlo_utils.hpp>
@@ -60,16 +61,16 @@ miopen::PerfDb miopen::GetDb(const ConvolutionContext& ctx)
 }
 
 miopen::solver::ConvSolution
-mlo_construct_direct2D_fusion::FindSolution(const std::vector<miopen::solver::AnySolver>& solvers)
+mlo_construct_direct2D_fusion::FindSolution(const std::vector<miopen::ConvSolver*>& solvers)
 {
     miopen::solver::ConvSolution solution{miopenStatusUnknownError};
     std::string solver_id;
     auto db = this->GetDb();
     for(auto& solver : solvers)
     {
-        solution = solver.FindSolution(_search_params, db);
-        if(solution.Succeeded() && solver.IsApplicable(_search_params) &&
-           solver.IsFast(_search_params))
+        solution = solver->GetSolution(_search_params);
+        if(solution.Succeeded() && solver->IsApplicable(_search_params) &&
+           solver->IsFast(_search_params))
         {
             solver_id = miopen::solver::SolverDbId(solver);
             break;
@@ -156,42 +157,42 @@ static const auto& GetFwdSCGemmSolvers()
 std::vector<miopen::solver::ConvSolution>
 FindAllDirectSolutions(const miopen::ConvolutionContext& ctx)
 {
-    return GetDirectSolvers().SearchForAllSolutions(ctx, GetDb(ctx));
+    return GetDirectSolvers().SearchForAllSolutions(ctx);
 }
 
 std::vector<miopen::solver::ConvSolution>
 FindAllImplicitGemmSolutions(const miopen::ConvolutionContext& ctx)
 {
-    return GetImplicitGemmSolvers().SearchForAllSolutions(ctx, GetDb(ctx));
+    return GetImplicitGemmSolvers().SearchForAllSolutions(ctx);
 }
 
 std::vector<miopen::solver::ConvSolution>
 FindAllWinogradSolutions(const miopen::ConvolutionContext& ctx)
 {
-    return GetWindogradSolvers().SearchForAllSolutions(ctx, GetDb(ctx));
+    return GetWindogradSolvers().SearchForAllSolutions(ctx);
 }
 
 miopen::solver::ConvSolution FindWinogradSolution(const miopen::ConvolutionContext& ctx)
 {
-    return GetWindogradSolvers().SearchForSolution(ctx, GetDb(ctx));
+    return GetWindogradSolvers().SearchForSolution(ctx);
 }
 
 std::vector<miopen::solver::ConvSolution>
 FindWinogradWrWAllSolutions(const miopen::ConvolutionContext& ctx)
 {
-    return GetWindogradWrWSolvers().SearchForAllSolutions(ctx, GetDb(ctx));
+    return GetWindogradWrWSolvers().SearchForAllSolutions(ctx);
 }
 
 std::vector<miopen::solver::ConvSolution>
 FindAllBwdWrW2DSolutions(const miopen::ConvolutionContext& ctx)
 {
-    return GetBwdWrW2DSolvers().SearchForAllSolutions(ctx, GetDb(ctx));
+    return GetBwdWrW2DSolvers().SearchForAllSolutions(ctx);
 }
 
 std::vector<miopen::solver::ConvSolution>
 FindAllFwdSCGemmSolutions(const miopen::ConvolutionContext& ctx)
 {
-    return GetFwdSCGemmSolvers().SearchForAllSolutions(ctx, GetDb(ctx));
+    return GetFwdSCGemmSolvers().SearchForAllSolutions(ctx);
 }
 
 #if MIOPEN_BACKEND_OPENCL

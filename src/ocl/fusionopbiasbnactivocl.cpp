@@ -4,10 +4,10 @@ namespace miopen {
 
 namespace fusion {
 
-bool IsWinograd(const std::vector<solver::AnySolver>& ss)
+bool IsWinograd(const std::vector<ConvSolver*>& ss)
 {
     assert(ss.size() == 1);
-    return ss[0].GetSolverDbId() == "ConvBinWinogradRxSFused";
+    return ss[0]->DbId() == "ConvBinWinogradRxSFused";
 }
 
 } // namespace fusion
@@ -22,7 +22,7 @@ miopenStatus_t
 FusionOpDescriptor::GetCompileParms(std::string& /*compile_config*/,
                                     Handle& /*handle*/,
                                     const FusionKernelSourceType /*source*/,
-                                    const std::vector<solver::AnySolver>& /*solvers*/)
+                                    const std::vector<ConvSolver*>& /*solvers*/)
 {
     MIOPEN_LOG_I2("");
     return miopenStatusSuccess;
@@ -51,7 +51,7 @@ miopenStatus_t
 BiasFusionOpDescriptor::GetCompileParms(std::string& compile_config,
                                         Handle& /*handle*/,
                                         FusionKernelSourceType source,
-                                        const std::vector<solver::AnySolver>& solvers)
+                                        const std::vector<ConvSolver*>& solvers)
 {
     std::string add;
     switch(source)
@@ -91,7 +91,7 @@ miopenStatus_t
 ActivFwdFusionOpDescriptor::GetCompileParms(std::string& compile_config,
                                             Handle& /*handle*/,
                                             const FusionKernelSourceType source,
-                                            const std::vector<solver::AnySolver>& solvers)
+                                            const std::vector<ConvSolver*>& solvers)
 {
     std::string add;
     switch(source)
@@ -134,7 +134,7 @@ miopenStatus_t
 ActivBwdFusionOpDescriptor::GetCompileParms(std::string& compile_config,
                                             Handle& /*handle*/,
                                             const FusionKernelSourceType source,
-                                            const std::vector<solver::AnySolver>& solvers)
+                                            const std::vector<ConvSolver*>& solvers)
 {
     std::string add;
     switch(source)
@@ -180,7 +180,7 @@ miopenStatus_t BatchNormInferenceFusionOpDescriptor::GetCompileParms(
     std::string& compile_config,
     Handle& /*handle*/,
     FusionKernelSourceType source,
-    const std::vector<solver::AnySolver>& /*solvers*/)
+    const std::vector<ConvSolver*>& /*solvers*/)
 {
     if(source != OpenclText)
     {
@@ -347,7 +347,7 @@ miopenStatus_t BatchNormBwdTrainFusionOpDescriptor::GetCompileParms(
     std::string& compile_config,
     Handle& handle,
     FusionKernelSourceType /*source*/,
-    const std::vector<solver::AnySolver>& /*solvers*/)
+    const std::vector<ConvSolver*>& /*solvers*/)
 {
     std::string add;
     int n, c, h, w;
@@ -541,7 +541,7 @@ miopenStatus_t BatchNormFwdTrainFusionOpDescriptor::GetCompileParms(
     std::string& compile_config,
     Handle& handle,
     FusionKernelSourceType /*source*/,
-    const std::vector<solver::AnySolver>& /*solvers*/)
+    const std::vector<ConvSolver*>& /*solvers*/)
 {
     std::string add;
     int n, c, h, w;

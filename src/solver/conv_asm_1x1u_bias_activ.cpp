@@ -66,13 +66,13 @@ operator==(const PerformanceConfigConvBiasActivAsm1x1U& other) const
                 && use_spare_set == other.use_spare_set; // clang-format on
 }
 
-std::unique_ptr<PerformanceConfigConvAsm1x1U>
+std::shared_ptr<PerformanceConfigConvAsm1x1U>
 ConvBiasActivAsm1x1U::GetPerformanceConfig(const ConvolutionContext& params) const
 {
     PerformanceConfigConvBiasActivAsm1x1U pp;
     pp.EuristicInit(params);
     MIOPEN_LOG_I(pp.ToString());
-    return std::make_unique<PerformanceConfigConvAsm1x1U>(pp);
+    return std::make_shared<PerformanceConfigConvAsm1x1U>(pp);
 }
 
 template <typename B, typename T>
@@ -141,7 +141,7 @@ int ConvBiasActivAsm1x1U::RunAndMeasureSolution(miopen::Handle& profile_h,
     return 0;
 }
 
-std::unique_ptr<PerformanceConfigConvAsm1x1U>
+std::shared_ptr<PerformanceConfigConvAsm1x1U>
 ConvBiasActivAsm1x1U::Search(const ConvolutionContext& context) const
 {
     ConvolutionContext cba_context = context;
@@ -170,8 +170,7 @@ ConvBiasActivAsm1x1U::Search(const ConvolutionContext& context) const
     bufs.SetFwd(bot_buf.get(), wei_buf.get(), top_buf.get());
     cba_context.SetBufs(bufs);
 #endif
-    return std::make_unique<PerformanceConfigConvBiasActivAsm1x1U>(
-        GenericSearchFwd(*this, cba_context));
+    return GenericSearchFwd(*this, cba_context);
 }
 
 } // namespace solver

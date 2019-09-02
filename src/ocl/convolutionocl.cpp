@@ -2576,7 +2576,7 @@ static std::vector<KernelInvoke> CompileSolver(Handle& handle,
     ctx.DetectRocm();
     ctx.SetupFloats();
 
-    const auto solver   = solver_id.GetSolver();
+    const auto& solver  = solver_id.GetSolver();
     auto db             = GetDb(ctx);
     const auto solution = solver.FindSolution(ctx, db);
 

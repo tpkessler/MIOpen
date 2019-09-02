@@ -118,6 +118,12 @@ namespace detail {
 template <class TContext, class TPerformanceConfig>
 struct SearchableSolverBase
 {
+    public:
+    /// Searchable solvers provide a GetSolution that takes a Context and PerformanceConfig
+    virtual ConvSolution GetSolution(const TContext& params,
+                                     const TPerformanceConfig& config,
+                                     bool disableConfigOverrideFromEnv = false) const = 0;
+
     protected:
     /// Should return false if performance config is wrong for a problem.
     /// Main use is validation of values read from the perf db.
@@ -126,18 +132,13 @@ struct SearchableSolverBase
     {
         return true; // Do not check by default.
     }
-
-    /// Searchable solvers provide a GetSolution that takes a Context and PerformanceConfig
-    virtual ConvSolution GetSolution(const TContext& params,
-                                     const TPerformanceConfig& config,
-                                     bool disableConfigOverrideFromEnv = false) const = 0;
 };
 } // namespace detail
 
 /// Base class for problem solvers which use exhaustive search mechanisms.
 template <class TContext, class TPerformanceConfig>
-struct SearchableSolver : SolverBase<TContext>,
-                          detail::SearchableSolverBase<TContext, TPerformanceConfig>
+struct SearchableSolver : public SolverBase<TContext>,
+                          public detail::SearchableSolverBase<TContext, TPerformanceConfig>
 {
     private:
     using DetailBase = detail::SearchableSolverBase<TContext, TPerformanceConfig>;
@@ -175,7 +176,7 @@ struct SearchableSolver : SolverBase<TContext>,
                 if(db.Load(context, db_id, config))
                 {
                     MIOPEN_LOG_I2("Perf Db: record loaded: " << db_id);
-                    if(IsValidPerformanceConfig(context, config))
+                    if(this->IsValidPerformanceConfig(context, config))
                     {
                         return DetailBase::GetSolution(context, config);
                     }
@@ -198,7 +199,7 @@ struct SearchableSolver : SolverBase<TContext>,
                 {
                     auto c = Search(context);
                     db.Update(context, db_id, c);
-                    return GetSolution(context, c);
+                    return DetailBase::GetSolution(context, c);
                 }
                 catch(const miopen::Exception& ex)
                 {
@@ -220,7 +221,7 @@ struct SearchableSolver<TContext, TPerformanceConfig*>
     private:
     using DetailBase = detail::SearchableSolverBase<TContext, TPerformanceConfig>;
 
-    virtual std::unique_ptr<TPerformanceConfig> Search(const TContext&) const = 0;
+    virtual std::shared_ptr<TPerformanceConfig> Search(const TContext&) const = 0;
 
     /// Initializes performance config to the default values.
     /// The function may involve some euristic to guess the best solution
@@ -228,7 +229,7 @@ struct SearchableSolver<TContext, TPerformanceConfig*>
     /// to finish and does not run kernels to measure performance etc.
     /// The function shall always return valid config.
     /// Only implemented by SearchableSolvers
-    virtual std::unique_ptr<TPerformanceConfig> GetPerformanceConfig(const TContext&) const = 0;
+    virtual std::shared_ptr<TPerformanceConfig> GetPerformanceConfig(const TContext&) const = 0;
 
     ConvSolution GetSolution(const TContext& context) const override
     {
@@ -253,7 +254,7 @@ struct SearchableSolver<TContext, TPerformanceConfig*>
                 if(db.Load(context, db_id, config))
                 {
                     MIOPEN_LOG_I2("Perf Db: record loaded: " << db_id);
-                    if(IsValidPerformanceConfig(context, config))
+                    if(this->IsValidPerformanceConfig(context, config))
                     {
                         return DetailBase::GetSolution(context, config);
                     }
@@ -276,7 +277,7 @@ struct SearchableSolver<TContext, TPerformanceConfig*>
                 {
                     auto c = Search(context);
                     db.Update(context, db_id, *c);
-                    return GetSolution(context, *c);
+                    return DetailBase::GetSolution(context, *c);
                 }
                 catch(const miopen::Exception& ex)
                 {
@@ -397,11 +398,11 @@ struct PerformanceConfigConvAsm1x1U : Serializable<PerformanceConfigConvAsm1x1U>
 struct ConvAsm1x1U : SearchableSolver<ConvolutionContext, PerformanceConfigConvAsm1x1U*>
 {
     const std::string& DbId() const override { return SolverDbId(*this); }
-    std::unique_ptr<PerformanceConfigConvAsm1x1U>
+    std::shared_ptr<PerformanceConfigConvAsm1x1U>
     GetPerformanceConfig(const ConvolutionContext&) const override;
     bool IsValidPerformanceConfig(const ConvolutionContext&,
                                   const PerformanceConfigConvAsm1x1U&) const override;
-    std::unique_ptr<PerformanceConfigConvAsm1x1U> Search(const ConvolutionContext&) const override;
+    std::shared_ptr<PerformanceConfigConvAsm1x1U> Search(const ConvolutionContext&) const override;
     bool IsApplicable(const ConvolutionContext& params) const override;
     bool IsFast(const ConvolutionContext& params) const override;
     template <typename B, typename T>
@@ -414,7 +415,6 @@ struct ConvAsm1x1U : SearchableSolver<ConvolutionContext, PerformanceConfigConvA
                               const ConvSolution& solution,
                               float& elapsed_time) const;
 
-    private:
     ConvSolution GetSolution(const ConvolutionContext& params,
                              const PerformanceConfigConvAsm1x1U& config,
                              bool disableConfigOverrideFromEnv = false) const override;
@@ -434,7 +434,7 @@ struct PerformanceConfigConvBiasActivAsm1x1U : PerformanceConfigConvAsm1x1U
 struct ConvBiasActivAsm1x1U : ConvAsm1x1U
 {
     const std::string& DbId() const override { return SolverDbId(*this); }
-    std::unique_ptr<PerformanceConfigConvAsm1x1U>
+    std::shared_ptr<PerformanceConfigConvAsm1x1U>
     GetPerformanceConfig(const ConvolutionContext&) const;
     template <typename B, typename T>
     int RunAndMeasureSolution(miopen::Handle& profile_h,
@@ -446,7 +446,7 @@ struct ConvBiasActivAsm1x1U : ConvAsm1x1U
                               const ConvSolution& solution,
                               float& elapsed_time) const;
 
-    std::unique_ptr<PerformanceConfigConvAsm1x1U> Search(const ConvolutionContext&) const override;
+    std::shared_ptr<PerformanceConfigConvAsm1x1U> Search(const ConvolutionContext&) const override;
 };
 
 struct PerformanceConfigConvAsm1x1UV2 : Serializable<PerformanceConfigConvAsm1x1UV2>
@@ -527,8 +527,6 @@ struct ConvAsm1x1UV2 : SearchableSolver<ConvolutionContext, PerformanceConfigCon
                               const ConvolutionContext& params,
                               const ConvSolution& solution,
                               float& elapsed_time) const;
-
-    private:
     ConvSolution GetSolution(const ConvolutionContext& params,
                              const PerformanceConfigConvAsm1x1UV2& config,
                              bool disableConfigOverrideFromEnv = false) const override;
@@ -659,8 +657,6 @@ struct ConvHipImplicitGemmV4Fwd : SearchableSolver<ConvolutionContext, Performan
                               const ConvolutionContext& params,
                               const ConvSolution& solution,
                               float& elapsed_time) const;
-
-    private:
     ConvSolution GetSolution(const ConvolutionContext& ctx,
                              const PerformanceImplicitGemm& config,
                              bool disableConfigOverrideFromEnv = false) const override;
@@ -692,23 +688,20 @@ struct ConvOclDirectFwd : ConvOclDirectFwdLegacyExhaustiveSearch
     bool IsApplicable(const ConvolutionContext& params) const override;
     bool IsValidPerformanceConfig(const ConvolutionContext&,
                                   const LegacyPerformanceConfig&) const override;
+    ConvSolution GetSolution(const ConvolutionContext& params,
+                             const LegacyPerformanceConfig& searched_params,
+                             bool disableConfigOverrideFromEnv = false) const override;
 
     protected:
     bool IsApplicableBase(const ConvolutionContext& params) const;
-
-    private:
-    ConvSolution GetSolution(const ConvolutionContext& params,
-                             const LegacyPerformanceConfig& searched_params,
-                             bool disableConfigOverrideFromEnv) const override;
 };
 
 struct ConvOclDirectFwdFused : ConvOclDirectFwd
 {
     const std::string& DbId() const override { return SolverDbId(*this); }
-    private:
     ConvSolution GetSolution(const ConvolutionContext& params,
                              const LegacyPerformanceConfig& searched_params,
-                             bool disableConfigOverrideFromEnv) const override;
+                             bool disableConfigOverrideFromEnv = false) const override;
 };
 
 struct ConvOclDirectFwd1x1 : ConvOclDirectFwdLegacyExhaustiveSearch
@@ -720,11 +713,9 @@ struct ConvOclDirectFwd1x1 : ConvOclDirectFwdLegacyExhaustiveSearch
     {
         return true;
     }
-
-    private:
     ConvSolution GetSolution(const ConvolutionContext& params,
                              const LegacyPerformanceConfig& searched_params,
-                             bool disableConfigOverrideFromEnv) const override;
+                             bool disableConfigOverrideFromEnv = false) const override;
 };
 
 struct ConvBinWinograd3x3U : SolverBase<ConvolutionContext>
@@ -836,8 +827,6 @@ struct ConvAsmBwdWrW3x3 : SearchableSolver<ConvolutionContext, PerformanceConfig
                               const ConvolutionContext& params,
                               const ConvSolution& solution,
                               float& elapsed_time) const;
-
-    private:
     ConvSolution GetSolution(const ConvolutionContext& params,
                              const PerformanceConfigAsmDirect3x3WrW& config,
                              bool disableConfigOverrideFromEnv = false) const override;
@@ -951,8 +940,6 @@ struct ConvAsmBwdWrW1x1 : SearchableSolver<ConvolutionContext, PerformanceConfig
                               const ConvolutionContext& params,
                               const ConvSolution& solution,
                               float& elapsed_time) const;
-
-    private:
     ConvSolution GetSolution(const ConvolutionContext& params,
                              const PerformanceConfigConvAsmBwdWrW1x1& config,
                              bool disableConfigOverrideFromEnv = false) const override;
@@ -1039,6 +1026,9 @@ struct ConvOclBwdWrW2
                               const ConvolutionContext& context,
                               const ConvSolution& solution,
                               float& elapsed_time) const;
+    ConvSolution GetSolution(const ConvolutionContext& params,
+                             const PerformanceConfigConvOclBwdWrw2<N_BATCH_LOOPS>& config,
+                             bool disableConfigOverrideFromEnv = false) const override;
 
     protected:
     bool IsApplicableBase(const ConvolutionContext& params) const;
@@ -1053,10 +1043,6 @@ struct ConvOclBwdWrW2
                                   const ConvolutionContext& context,
                                   const ConvSolution& solution,
                                   float& elapsed_time) const;
-
-    ConvSolution GetSolution(const ConvolutionContext& params,
-                             const PerformanceConfigConvOclBwdWrw2<N_BATCH_LOOPS>& config,
-                             bool disableConfigOverrideFromEnv = false) const override;
 };
 
 extern template struct ConvOclBwdWrW2<1>;
@@ -1145,14 +1131,12 @@ struct ConvSCGemmFwd : SearchableSolver<ConvolutionContext, PerformanceConfigSCG
                               const ConvolutionContext& params,
                               const ConvSolution& solution,
                               float& elapsed_time) const;
-
-    protected:
-    bool IsApplicableBase(const ConvolutionContext& params) const;
-
-    private:
     ConvSolution GetSolution(const ConvolutionContext& params,
                              const PerformanceConfigSCGemmFwd<T>& config,
                              bool disableConfigOverrideFromEnv = false) const override;
+
+    protected:
+    bool IsApplicableBase(const ConvolutionContext& params) const;
 };
 
 extern template struct PerformanceConfigSCGemmFwd<SCGemmOpFGemm>;
@@ -1206,8 +1190,7 @@ struct mlo_construct_direct2D_fusion : mlo_construct_base
     {
         params = _search_params;
     }
-    miopen::solver::ConvSolution FindSolution(
-        const std::vector<miopen::solver::SolverBase<miopen::ConvolutionContext>>& solvers);
+    miopen::solver::ConvSolution FindSolution(const std::vector<miopen::ConvSolver*> &solvers);
 };
 
 #endif // GUARD_MIOPEN_SOLVER_HPP_

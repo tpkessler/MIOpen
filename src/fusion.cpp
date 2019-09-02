@@ -977,10 +977,10 @@ miopenStatus_t FusionPlanDescriptor::Compile(Handle& handle)
             }
 
             success = true;
-            solver::AnySolver sol;
+            ConvSolver* sol;
             if(kinder.second.find("solver") != kinder.second.end())
             {
-                sol = boost::any_cast<solver::AnySolver>(kinder.second.at("solver"));
+                sol = boost::any_cast<ConvSolver*>(kinder.second.at("solver"));
             }
             program_name = kinder.first->vertex_data.at("program");
             auto d       = handle.GetDeviceName();
@@ -996,7 +996,7 @@ miopenStatus_t FusionPlanDescriptor::Compile(Handle& handle)
             else
                 kernel_source_type = OpenclText;
             // MIOPEN_LOG_I2("Trying solver: " << *sol);
-            std::vector<solver::AnySolver> sol_vec = {sol};
+            std::vector<ConvSolver*> sol_vec = {sol};
             for(auto&& op : op_map)
             {
                 MIOPEN_LOG_I2("GetCompileParms, " << *op);

@@ -156,7 +156,6 @@ set( MIOpen_Source
     include/miopen/finddb_kernel_cache_key.hpp
     include/miopen/hip_build_utils.hpp
     include/miopen/solver_id.hpp
-    include/miopen/any_solver.hpp
     include/miopen/conv_solution.hpp
     include/miopen/conv_algo_name.hpp
     include/miopen/readonlyramdb.hpp

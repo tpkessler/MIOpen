@@ -353,13 +353,13 @@ std::string PerformanceConfigConvAsm1x1U::ToString() const
     return ss.str();
 }
 
-PerformanceConfigConvAsm1x1U
+std::shared_ptr<PerformanceConfigConvAsm1x1U>
 ConvAsm1x1U::GetPerformanceConfig(const ConvolutionContext& params) const
 {
-    PerformanceConfigConvAsm1x1U pp;
-    pp.EuristicInit(params);
-    MIOPEN_LOG_I(pp.ToString());
-    return pp;
+    auto pp = std::make_shared<PerformanceConfigConvAsm1x1U>();
+    pp->EuristicInit(params);
+    MIOPEN_LOG_I(pp->ToString());
+    return std::move(pp);
 }
 
 bool ConvAsm1x1U::IsValidPerformanceConfig(const ConvolutionContext& problem,
@@ -764,7 +764,8 @@ int ConvAsm1x1U::RunAndMeasureSolution(miopen::Handle& profile_h,
     return 0;
 }
 
-PerformanceConfigConvAsm1x1U ConvAsm1x1U::Search(const ConvolutionContext& context) const
+std::shared_ptr<PerformanceConfigConvAsm1x1U>
+ConvAsm1x1U::Search(const ConvolutionContext& context) const
 {
     if(context.direction.IsForward())
     {

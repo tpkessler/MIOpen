@@ -1,28 +1,28 @@
 /*******************************************************************************
-*
-* MIT License
-*
-* Copyright (c) 2017 Advanced Micro Devices, Inc.
-*
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-*
-* The above copyright notice and this permission notice shall be included in all
-* copies or substantial portions of the Software.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-* SOFTWARE.
-*
-*******************************************************************************/
+ *
+ * MIT License
+ *
+ * Copyright (c) 2017 Advanced Micro Devices, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ *******************************************************************************/
 
 #ifndef GUARD_MIOPEN_GENERIC_SEARCH_HPP_
 #define GUARD_MIOPEN_GENERIC_SEARCH_HPP_
@@ -104,14 +104,63 @@ class ComputedIterator : public std::iterator<std::input_iterator_tag, Performan
     {
         if(p == other.p)
             if(p == nullptr // Ends are always equal.
-               ||
-               v == other.v)
+               || v == other.v)
                 return false;
         return true;
     }
     bool operator==(ComputedIterator const& other) const { return !(*this != other); }
 
     friend class ComputedContainer<PerformanceConfig, Context>;
+};
+
+template <typename PerformanceConfig, typename Context>
+class ComputedIterator<std::shared_ptr<PerformanceConfig>, Context>
+    : public std::iterator<std::input_iterator_tag, std::shared_ptr<PerformanceConfig>>
+{
+    std::shared_ptr<PerformanceConfig> v;
+    const Context* p; // For Next().
+
+    ComputedIterator& Next()
+    {
+        if(p != nullptr)
+        {
+            do
+            {
+                if(!v.SetNextValue())
+                { // Wraparound, end reached. Iterator is useless from now.
+                    p = nullptr;
+                    break;
+                }
+            } while(!v.IsValid(*p));
+        }
+        return *this;
+    }
+
+    // Implements container's begin()
+    ComputedIterator(const Context& problem, const bool spare) : v(spare), p(&problem)
+    {
+        if(!v.IsValid(*p))
+            Next();
+    }
+
+    public:
+    // STL-like iterator shall be default contructible. Also implements container's end()
+    ComputedIterator() : v(), p(nullptr) {}
+    // STL-like iterator shall be copy contructible. The default copy ctor is ok.
+
+    ComputedIterator& operator++() { return Next(); }
+    const std::shared_ptr<PerformanceConfig>& operator*() const { return v; }
+    bool operator!=(ComputedIterator const& other) const
+    {
+        if(p == other.p)
+            if(p == nullptr // Ends are always equal.
+               || *v == *other.v)
+                return false;
+        return true;
+    }
+    bool operator==(ComputedIterator const& other) const { return !(*this != other); }
+
+    friend class ComputedContainer<std::shared_ptr<PerformanceConfig>, Context>;
 };
 
 template <typename PerformanceConfig, typename Context>
@@ -212,16 +261,8 @@ class HeartBeat
                 n_recent != 0u ? ((n_total - n_recent) * (elapsed_cumulative / n_recent) / 1000)
                                : 0.0f; // paraniod
             MIOPEN_LOG_W(n_recent << '/' << n_failed << '/' << n_total << ' ' << total_best
-                                  << ", best within recent "
-                                  << n_within_beat
-                                  << ": "
-                                  << best_time
-                                  << " #"
-                                  << n_best
-                                  << ' '
-                                  << best_config
-                                  << ", ETA:"
-                                  << eta_sec
+                                  << ", best within recent " << n_within_beat << ": " << best_time
+                                  << " #" << n_best << ' ' << best_config << ", ETA:" << eta_sec
                                   << " sec.");
             Continue();
         }
@@ -351,6 +392,31 @@ auto GenericSearchWrW(const Solver s,
 }
 #endif
 
+namespace detail {
+template <typename T>
+struct is_shared_ptr : std::false_type
+{
+};
+template <typename T>
+struct is_shared_ptr<std::shared_ptr<T>> : std::true_type
+{
+};
+
+template <class TConfig>
+const auto& GetConfigRef(const TConfig& cfg,
+                         std::enable_if_t<!is_shared_ptr<TConfig>::value, int> = 0)
+{
+    return cfg;
+}
+
+template <class TConfig>
+const auto& GetConfigRef(const TConfig& cfg,
+                         std::enable_if_t<is_shared_ptr<TConfig>::value, int> = 0)
+{
+    return *cfg;
+}
+} // namespace detail
+
 #if MIOPEN_ALLOC_BUFFERS
 template <class Solver, class Context>
 auto GenericSearch(const Solver s,
@@ -358,7 +424,7 @@ auto GenericSearch(const Solver s,
                    const SearchTweak tweak = SearchTweak::None)
 #else
 template <class Solver, class Context, typename TopT, typename BotT, typename WeiT>
-auto GenericSearch(const Solver s,
+auto GenericSearch(const Solver& s,
                    const Context& context,
                    const SearchTweak tweak,
                    TopT top_ocl_ptr,
@@ -369,7 +435,8 @@ auto GenericSearch(const Solver s,
 {
     using PerformanceConfig = decltype(s.GetPerformanceConfig(context));
     PerformanceConfig best_config;
-    const auto default_solution = s.GetSolution(context, s.GetPerformanceConfig(context));
+    const auto default_config   = s.GetPerformanceConfig(context);
+    const auto default_solution = s.GetSolution(context, detail::GetConfigRef(default_config));
 
 #if MIOPEN_ALLOC_BUFFERS
     // Allocate buffers, init input buffers.
@@ -456,9 +523,8 @@ auto GenericSearch(const Solver s,
 
     const ComputedContainer<PerformanceConfig, Context> all_configs = useSpare ? spare : main;
     const int n_runs_total = useSpare ? spare_size : main_size;
-    MIOPEN_LOG_W(SolverDbId(s) << ": Searching the best solution among " << n_runs_total
-                               << (useSpare ? " (spare)" : "")
-                               << "...");
+    MIOPEN_LOG_W(s.DbId() << ": Searching the best solution among " << n_runs_total
+                          << (useSpare ? " (spare)" : "") << "...");
 
     bool is_passed   = false; // left false only if all iterations failed.
     float best_time  = std::numeric_limits<float>::max();
@@ -469,10 +535,11 @@ auto GenericSearch(const Solver s,
     heartbeat.Start();
 
     profile_h.EnableProfiling(true);
-    for(const auto& current_config : all_configs)
+    for(auto& current_config_ptr : all_configs)
     {
-        float elapsed_time = 0.0f;
-        int ret            = 0;
+        const auto& current_config = detail::GetConfigRef(current_config_ptr);
+        float elapsed_time         = 0.0f;
+        int ret                    = 0;
         MIOPEN_LOG_I2('#' << n_current << '/' << n_failed << '/' << n_runs_total << ' '
                           << current_config);
 
@@ -485,8 +552,7 @@ auto GenericSearch(const Solver s,
             MIOPEN_LOG_E('#' << n_current << " (" << n_runs_total << ") "
                              << "Workspace size should not depend on PerformanceConfig: "
                              << default_solution.workspce_sz
-                             << " != "
-                             << current_solution.workspce_sz);
+                             << " != " << current_solution.workspce_sz);
         }
 
         if(ret == 0)
@@ -501,18 +567,9 @@ auto GenericSearch(const Solver s,
                                           elapsed_time);
         }
         MIOPEN_LOG_T("##"
-                     << "(n_current, n_failed, n_runs_total):  "
-                     << n_current
-                     << '/'
-                     << n_failed
-                     << '/'
-                     << n_runs_total
-                     << " elapsed_time: "
-                     << elapsed_time
-                     << ", best_time: "
-                     << best_time
-                     << ", "
-                     << current_config);
+                     << "(n_current, n_failed, n_runs_total):  " << n_current << '/' << n_failed
+                     << '/' << n_runs_total << " elapsed_time: " << elapsed_time
+                     << ", best_time: " << best_time << ", " << current_config);
 
         if(ret == 0)
         {
@@ -548,20 +605,16 @@ auto GenericSearch(const Solver s,
                     if(elapsed_time < best_time)
                     {
                         MIOPEN_LOG_I('#' << n_current << '/' << n_failed << '/' << n_runs_total
-                                         << ' '
-                                         << elapsed_time
-                                         << " < "
-                                         << best_time
-                                         << ' '
+                                         << ' ' << elapsed_time << " < " << best_time << ' '
                                          << current_config);
-                        best_config = current_config;
+                        best_config = current_config_ptr;
                         best_time   = elapsed_time;
                         n_best      = n_current;
                     }
                     else
                     {
-                        MIOPEN_LOG_I2(
-                            "Average is not better: " << elapsed_time << " >= " << best_time);
+                        MIOPEN_LOG_I2("Average is not better: " << elapsed_time
+                                                                << " >= " << best_time);
                     }
                 }
             }
@@ -570,22 +623,17 @@ auto GenericSearch(const Solver s,
         if(ret != 0)
         {
             MIOPEN_LOG_E('#' << n_current << " (" << n_runs_total << ") "
-                             << " Failed rc="
-                             << ret);
+                             << " Failed rc=" << ret);
             ++n_failed;
         }
         heartbeat.Monitor(
-            ret != 0, elapsed_time, n_current, best_time, n_failed, n_runs_total, current_config);
+            ret != 0, elapsed_time, n_current, best_time, n_failed, n_runs_total, current_config_ptr);
         ++n_current;
     }
 
     profile_h.EnableProfiling(false);
     MIOPEN_LOG_W("Done: " << n_runs_total << '/' << n_failed << '/' << n_runs_total << ", best #"
-                          << n_best
-                          << ' '
-                          << best_time
-                          << ' '
-                          << best_config);
+                          << n_best << ' ' << best_time << ' ' << detail::GetConfigRef(best_config));
     if(!is_passed)
         MIOPEN_THROW("Search failed");
     // Run once with the default config and show score.

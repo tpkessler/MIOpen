@@ -76,7 +76,7 @@ struct MDGraph_vertex
     std::string& operator[](std::string& x) { return vertex_data[x]; }
     std::vector<DefaultKernelArg> default_args;
 
-    solver::AnySolver solver;
+    ConvSolver* solver;
     friend std::ostream& operator<<(std::ostream& stream, const MDGraph_vertex& v);
 };
 
@@ -106,7 +106,7 @@ struct FusionMDGraph
     std::vector<DefaultKernelArg> GetKernelArgs(Handle& handle);
     std::vector<miopenConvFwdAlgorithm_t> GetConvAlgos();
     bool SetConvAlgo(miopenConvFwdAlgorithm_t algo);
-    std::vector<solver::AnySolver> GetSolvers();
+    std::vector<ConvSolver*> GetSolvers();
     void WriteToFile(std::string filename = "");
 
     std::vector<std::pair<MDGraph_vertex_ptr, cur_vertex_map>> cur_vertex;
