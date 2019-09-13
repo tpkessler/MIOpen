@@ -39,7 +39,8 @@ typedef half float16;
 #include <cstdlib>
 #include <cfloat>
 #include <memory>
-#include <miopen/miopen.h>
+//#include <miopen/miopen.h>
+#include <miopen/handle.hpp>
 #include <numeric>
 #include <vector>
 
@@ -59,6 +60,7 @@ typedef half float16;
 #endif
 
 #define UNPACK_VEC4(v) (v[0]), (v[1]), (v[2]), (v[3])
+
 
 struct GPUMem
 {
@@ -127,17 +129,17 @@ class Driver
     {
         data_type = miopenFloat;
 #if MIOPEN_BACKEND_OPENCL
-        miopenCreate(&handle);
+        handle = new miopen::Handle();
 #elif MIOPEN_BACKEND_HIP
         hipStream_t s;
         hipStreamCreate(&s);
-        miopenCreateWithStream(&handle, s);
+        handle = new miopen::Handle(s);
 #endif
 
-        miopenGetStream(handle, &q);
+        q = handle->GetStream();
     }
 
-    miopenHandle_t GetHandle() { return handle; }
+    miopen::Handle* GetHandle() { return handle; }
     miopenDataType_t GetDataType() { return data_type; }
 
 #if MIOPEN_BACKEND_OPENCL
@@ -161,7 +163,7 @@ class Driver
     protected:
     template <typename Tgpu>
     void InitDataType();
-    miopenHandle_t handle;
+    miopen::Handle *handle;
     miopenDataType_t data_type;
 
 #if MIOPEN_BACKEND_OPENCL
@@ -244,17 +246,17 @@ class Tuner : public Driver
     {
         data_type = miopenFloat;
 #if MIOPEN_BACKEND_OPENCL
-        miopenCreate(&handle);
+        handle = new miopen::Handle();
 #elif MIOPEN_BACKEND_HIP
         hipStream_t s;
         hipStreamCreate(&s);
-        miopenCreateWithStream(&handle, s);
+        handle = new miopen::Handle(s);
 #endif
 
-        miopenGetStream(handle, &q);
+        q = handle->GetStream();
     }
 
-    miopenHandle_t GetHandle() { return handle; }
+    miopen::Handle* GetHandle() { return handle; }
     miopenDataType_t GetDataType() { return data_type; }
 
 #if MIOPEN_BACKEND_OPENCL
@@ -274,7 +276,7 @@ class Tuner : public Driver
     virtual int RunBackwardGPU()         = 0;
 
     protected:
-    miopenHandle_t handle;
+    miopen::Handle *handle;
     miopenDataType_t data_type;
 
 #if MIOPEN_BACKEND_OPENCL

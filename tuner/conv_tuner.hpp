@@ -29,7 +29,8 @@
 #include "InputFlags.hpp"
 #include "tuner.hpp"
 //#include "../driver/driver.hpp"
-#include "../driver/tensor_driver.hpp"
+//#include "../driver/tensor_driver.hpp"
+#include "tensor_driver.hpp"
 //#include "timer.hpp"
 //#include "util_driver.hpp"
 #include <miopen/convolution.hpp>
@@ -58,6 +59,8 @@
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DRIVER_PAD_BUFFERS_2M)
 
 
+
+
 // Tgpu and Tref are the data-type in GPU memory and CPU memory respectively.
 // They are not necessarily the same as the computation type on GPU or CPU
 template <typename Tgpu, typename Tref>
@@ -66,14 +69,14 @@ class ConvTuner : public Tuner
     public:
     ConvTuner() : Tuner()
     {
-        miopenCreateTensorDescriptor(&inputTensor);
-        miopenCreateTensorDescriptor(&weightTensor);
-        miopenCreateTensorDescriptor(&outputTensor);
-        miopenCreateTensorDescriptor(&biasTensor);
-        miopenCreateTensorDescriptor(&inputTensor_vect4);
-        miopenCreateTensorDescriptor(&weightTensor_vect4);
+        inputTensor = new miopen::TensorDescriptor();
+        weightTensor = new miopen::TensorDescriptor();
+        outputTensor = new miopen::TensorDescriptor();
+        biasTensor = new miopen::TensorDescriptor();
+        inputTensor_vect4 = new miopen::TensorDescriptor();
+        weightTensor_vect4 = new miopen::TensorDescriptor();
 
-        miopenCreateConvolutionDescriptor(&convDesc);
+        convDesc = new miopen::ConvolutionDescriptor();
 
         workspace_bwd_data_dev    = nullptr;
         workspace_bwd_weights_dev = nullptr;
@@ -117,25 +120,25 @@ class ConvTuner : public Tuner
     ~ConvTuner()
     {
 
-        miopenDestroyTensorDescriptor(biasTensor);
-        miopenDestroyTensorDescriptor(outputTensor);
-        miopenDestroyTensorDescriptor(weightTensor);
-        miopenDestroyTensorDescriptor(inputTensor);
-        miopenDestroyTensorDescriptor(inputTensor_vect4);
-        miopenDestroyTensorDescriptor(weightTensor_vect4);
+        miopen_destroy_object(biasTensor);
+        miopen_destroy_object(outputTensor);
+        miopen_destroy_object(weightTensor);
+        miopen_destroy_object(inputTensor);
+        miopen_destroy_object(inputTensor_vect4);
+        miopen_destroy_object(weightTensor_vect4);
 
-        miopenDestroyConvolutionDescriptor(convDesc);
+        miopen_destroy_object(convDesc);
     }
 
     private:
     InputFlags inflags;
 
-    miopenTensorDescriptor_t inputTensor;
-    miopenTensorDescriptor_t weightTensor;
-    miopenTensorDescriptor_t outputTensor;
-    miopenTensorDescriptor_t biasTensor;
-    miopenTensorDescriptor_t inputTensor_vect4;
-    miopenTensorDescriptor_t weightTensor_vect4;
+    miopen::TensorDescriptor* inputTensor;
+    miopen::TensorDescriptor* weightTensor;
+    miopen::TensorDescriptor* outputTensor;
+    miopen::TensorDescriptor* biasTensor;
+    miopen::TensorDescriptor* inputTensor_vect4;
+    miopen::TensorDescriptor* weightTensor_vect4;
 
     std::unique_ptr<GPUMem> in_dev;
     std::unique_ptr<GPUMem> in_vect4_dev;
@@ -173,7 +176,7 @@ class ConvTuner : public Tuner
     std::vector<Tgpu> db;
     std::vector<float> b_int8;
 
-    miopenConvolutionDescriptor_t convDesc;
+    miopen::ConvolutionDescriptor* convDesc;
 
     bool wrw_allowed = 1, bwd_allowed = 1, forward_allowed = 1;
     bool is_wrw_winograd = false;
@@ -416,6 +419,7 @@ std::vector<int> ConvTuner<Tgpu, Tref>::GetBiasTensorLengthsFromCmdLine()
     return bias_lens;
 }
 
+
 template <typename Tgpu, typename Tref>
 int ConvTuner<Tgpu, Tref>::SetConvDescriptorFromCmdLineArgs()
 {
@@ -530,9 +534,7 @@ int ConvTuner<Tgpu, Tref>::SetConvDescriptorFromCmdLineArgs()
     miopenSetConvolutionGroupCount(convDesc, group_count);
 
     if(mode == miopenTranspose)
-    {
         miopenSetTransposeConvNdOutputPadding(convDesc, spatial_dim, trans_output_pads.data());
-    }
 
     return miopenStatusSuccess;
 }
@@ -540,7 +542,7 @@ int ConvTuner<Tgpu, Tref>::SetConvDescriptorFromCmdLineArgs()
 template <typename Tgpu, typename Tref>
 std::vector<int> ConvTuner<Tgpu, Tref>::GetOutputTensorLengths()
 {
-    int ndim = miopen::deref(inputTensor).GetSize();
+    int ndim = inputTensor->GetSize();
 
     std::vector<int> out_lens(ndim);
 
@@ -641,10 +643,10 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
         workspace_fwd_host = std::vector<Tref>(workSpaceNbVal_fwd, static_cast<Tref>(0));
     }
 
-    in   = tensor<Tgpu>(miopen::deref(inputTensor).GetLengths());
-    wei  = tensor<Tgpu>(miopen::deref(weightTensor).GetLengths());
-    out  = tensor<Tgpu>(miopen::deref(outputTensor).GetLengths());
-    dout = tensor<Tgpu>(miopen::deref(outputTensor).GetLengths());
+    in   = tensor<Tgpu>(inputTensor->GetLengths());
+    wei  = tensor<Tgpu>(weightTensor->GetLengths());
+    out  = tensor<Tgpu>(outputTensor->GetLengths());
+    dout = tensor<Tgpu>(outputTensor->GetLengths());
 
     din  = std::vector<Tgpu>(in_sz, static_cast<Tgpu>(0));
     dwei = std::vector<Tgpu>(wei_sz, static_cast<Tgpu>(0));
@@ -658,9 +660,9 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
             new GPUMem(ctx, GetTensorSize(weightTensor_vect4), sizeof(Tgpu)));
     }
 
-    outhost   = tensor<Tref>(miopen::deref(outputTensor).GetLengths());
-    din_host  = tensor<Tref>(miopen::deref(inputTensor).GetLengths());
-    dwei_host = tensor<Tref>(miopen::deref(weightTensor).GetLengths());
+    outhost   = tensor<Tref>(outputTensor->GetLengths());
+    din_host  = tensor<Tref>(inputTensor->GetLengths());
+    dwei_host = tensor<Tref>(weightTensor->GetLengths());
 
 
     /* Unless seed is persistent between runs validation using cache stored in file is impossible.
@@ -677,7 +679,7 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
                 Data_scale * static_cast<float>(1.0)/*RAN_GEN<float>(static_cast<float>(0.0), static_cast<float>(1.0))*/);
             // printf("in  %d  %d \n",i,in.data[i]);
         }
-        
+
 
         if(inflags.GetValueInt("bias") != 0)
         {
@@ -698,7 +700,7 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
             wei.data[i] = static_cast<Tgpu>(Data_scale * 2 * detail::RanGenWeights<float>());
             // printf("wei  %d  %d \n",i,wei.data[i]);
         }
-        
+
     }
     else
     {
@@ -710,7 +712,7 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
             in.data[i] =
                 Data_scale * static_cast<Tgpu>(1.0);//RAN_GEN<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
         }
-    
+
         for(int i = 0; i < out_sz; i++)
         {
             dout.data[i] =
@@ -722,9 +724,9 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
             size_t b_sz = GetTensorSize(biasTensor);
             b_dev       = std::unique_ptr<GPUMem>(new GPUMem(ctx, b_sz, sizeof(Tgpu)));
             db_dev      = std::unique_ptr<GPUMem>(new GPUMem(ctx, b_sz, sizeof(Tgpu)));
-            b           = tensor<Tgpu>(miopen::deref(biasTensor).GetLengths());
+            b           = tensor<Tgpu>(biasTensor->GetLengths());
             db          = std::vector<Tgpu>(b_sz, static_cast<Tgpu>(0));
-            db_host     = tensor<Tref>(miopen::deref(biasTensor).GetLengths());
+            db_host     = tensor<Tref>(biasTensor->GetLengths());
             for(int i = 0; i < b_sz; i++)
             {
                 b.data[i] = static_cast<Tgpu>(i % 8) +
@@ -740,7 +742,7 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
         for(int i = 0; i < wei_sz; i++)
         {
             wei.data[i] = Data_scale * detail::RanGenWeights<Tgpu>();
-        }    
+        }
     }
 
 
