@@ -129,17 +129,17 @@ class Driver
     {
         data_type = miopenFloat;
 #if MIOPEN_BACKEND_OPENCL
-        handle = new miopen::Handle();
+        //handle = miopen::Handle();
 #elif MIOPEN_BACKEND_HIP
         hipStream_t s;
         hipStreamCreate(&s);
-        handle = new miopen::Handle(s);
+        handle = miopen::Handle(s);
 #endif
 
-        q = handle->GetStream();
+        q = handle.GetStream();
     }
 
-    miopen::Handle* GetHandle() { return handle; }
+    miopen::Handle& GetHandle() { return handle; }
     miopenDataType_t GetDataType() { return data_type; }
 
 #if MIOPEN_BACKEND_OPENCL
@@ -147,7 +147,7 @@ class Driver
 #elif MIOPEN_BACKEND_HIP
     hipStream_t& GetStream() { return q; }
 #endif
-    virtual ~Driver() { miopenDestroy(handle); }
+    //virtual ~Driver() { miopenDestroy(handle); }
 
     // TODO: add timing APIs
     virtual int AddCmdLineArgs() = 0;
@@ -163,7 +163,7 @@ class Driver
     protected:
     template <typename Tgpu>
     void InitDataType();
-    miopen::Handle *handle;
+    miopen::Handle handle;
     miopenDataType_t data_type;
 
 #if MIOPEN_BACKEND_OPENCL
@@ -246,17 +246,17 @@ class Tuner : public Driver
     {
         data_type = miopenFloat;
 #if MIOPEN_BACKEND_OPENCL
-        handle = new miopen::Handle();
+        //handle = miopen::Handle();
 #elif MIOPEN_BACKEND_HIP
         hipStream_t s;
         hipStreamCreate(&s);
-        handle = new miopen::Handle(s);
+        handle = miopen::Handle(s);
 #endif
 
-        q = handle->GetStream();
+        q = handle.GetStream();
     }
 
-    miopen::Handle* GetHandle() { return handle; }
+    miopen::Handle& GetHandle() { return handle; }
     miopenDataType_t GetDataType() { return data_type; }
 
 #if MIOPEN_BACKEND_OPENCL
@@ -264,7 +264,7 @@ class Tuner : public Driver
 #elif MIOPEN_BACKEND_HIP
     hipStream_t& GetStream() { return q; }
 #endif
-    virtual ~Tuner() { miopenDestroy(handle); }
+    //virtual ~Tuner() { miopenDestroy(handle); }
 
     // TODO: add timing APIs
     virtual int AddCmdLineArgs() = 0;
@@ -276,7 +276,7 @@ class Tuner : public Driver
     virtual int RunBackwardGPU()         = 0;
 
     protected:
-    miopen::Handle *handle;
+    miopen::Handle handle;
     miopenDataType_t data_type;
 
 #if MIOPEN_BACKEND_OPENCL
