@@ -30,7 +30,7 @@ cmake_minimum_required( VERSION 2.8.12 )
 find_package(Threads REQUIRED)
 
 #add_executable(MIOpenTuner EXCLUDE_FROM_ALL main.cpp InputFlags.cpp)
-add_executable(MIOpenTuner main.cpp InputFlags.cpp)
+add_executable(MIOpenTuner main.cpp InputFlags.cpp convolution_api.cpp tensor_api.cpp)
 target_link_libraries(MIOpenTuner MIOpen)
 target_link_libraries(MIOpenTuner ${CMAKE_THREAD_LIBS_INIT})
 # Cmake does not add flags correctly for gcc

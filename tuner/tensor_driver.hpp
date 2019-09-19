@@ -34,7 +34,28 @@
 #include <numeric>
 #include <vector>
 
-std::vector<int> GetTensorLengths(miopen::TensorDescriptor* tensor)
+MIOPEN_EXPORT int miopenGetTensorIndex(miopen::TensorDescriptor tensorDesc,
+                                       std::initializer_list<int> indices);
+
+int miopenGetTensorDescriptorElementSize(miopen::TensorDescriptor tensorDesc);
+
+MIOPEN_EXPORT miopenStatus_t miopenGet4dTensorDescriptorLengths(
+    miopen::TensorDescriptor tensorDesc, int* n, int* c, int* h, int* w);
+
+MIOPEN_EXPORT miopenStatus_t miopenGet4dTensorDescriptorStrides(
+    miopen::TensorDescriptor tensorDesc, int* nStride, int* cStride, int* hStride, int* wStride);
+
+MIOPEN_EXPORT miopenStatus_t miopenGet5dTensorDescriptorLengths(
+    miopen::TensorDescriptor tensorDesc, int* n, int* c, int* d, int* h, int* w);
+
+MIOPEN_EXPORT miopenStatus_t miopenGet5dTensorDescriptorStrides(miopen::TensorDescriptor tensorDesc,
+                                                                int* nStride,
+                                                                int* cStride,
+                                                                int* dStride,
+                                                                int* hStride,
+                                                                int* wStride);
+
+std::vector<int> GetTensorLengths(miopen::TensorDescriptor& tensor)
 {
     int n;
     int c;
@@ -57,13 +78,13 @@ std::vector<int> GetTensorLengths(miopen::TensorDescriptor* tensor)
     }
 
     std::vector<int> tensor_len;
-    tensor_len.resize(miopen::deref(tensor).GetSize());
+    tensor_len.resize(tensor.GetSize());
     miopenGetTensorDescriptor(tensor, nullptr, tensor_len.data(), nullptr);
 
     return tensor_len;
 }
 
-std::vector<int> GetTensorStrides(miopen::TensorDescriptor* tensor)
+std::vector<int> GetTensorStrides(miopen::TensorDescriptor& tensor)
 {
     int nstride;
     int cstride;
@@ -87,21 +108,21 @@ std::vector<int> GetTensorStrides(miopen::TensorDescriptor* tensor)
     }
 }
 
-int SetTensor4d(miopen::TensorDescriptor* t,
+int SetTensor4d(miopen::TensorDescriptor& t,
                 std::vector<int>& len,
                 miopenDataType_t data_type = miopenFloat)
 {
     return miopenSet4dTensorDescriptor(t, data_type, UNPACK_VEC4(len));
 }
 
-int SetTensorNd(miopen::TensorDescriptor* t,
+int SetTensorNd(miopen::TensorDescriptor& t,
                 std::vector<int>& len,
                 miopenDataType_t data_type = miopenFloat)
 {
     return miopenSetTensorDescriptor(t, data_type, len.size(), len.data(), nullptr);
 }
 
-size_t GetTensorSize(miopen::TensorDescriptor* tensor)
+size_t GetTensorSize(miopen::TensorDescriptor& tensor)
 {
     std::vector<int> len = GetTensorLengths(tensor);
     size_t sz            = std::accumulate(len.begin(), len.end(), 1, std::multiplies<int>());
