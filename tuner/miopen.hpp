@@ -108,7 +108,7 @@ MIOPEN_DECLARE_OBJECT(miopenHandle);
 MIOPEN_DECLARE_OBJECT(miopenFusionOpDescriptor);
 
 /*! @ingroup tensor
- * @brief Creates the miopen::TensorDescriptor type
+ * @brief Creates the miopen::TensorDescriptor& type
  *
  * Tensor descriptor is an object that allows the user to specify a layer's size for each
  * dimension and dimension strides. Currently only 4-D fully packed tensors are supported.
@@ -117,7 +117,7 @@ MIOPEN_DECLARE_OBJECT(miopenFusionOpDescriptor);
 MIOPEN_DECLARE_OBJECT(miopenTensorDescriptor);
 
 /*! @ingroup convolutions
-* @brief Creates the miopen::ConvolutionDescriptor type
+* @brief Creates the miopen::ConvolutionDescriptor& type
  *
  * Convolution descriptor is an object that allows the user to specify a layer's padding, stride,
  * and dilation of the convolutional filter. Parameters must all be non-negative.
@@ -543,7 +543,7 @@ MIOPEN_EXPORT miopenStatus_t miopenEnableProfiling(miopen::Handle& handle, bool 
  * @param tensorDesc Pointer to a tensor descriptor type (output)
  * @return           miopenStatus_t
 */
-MIOPEN_EXPORT miopenStatus_t miopenCreateTensorDescriptor(miopen::TensorDescriptor* tensorDesc);
+MIOPEN_EXPORT miopenStatus_t miopenCreateTensorDescriptor(miopen::TensorDescriptor& tensorDesc);
 
 /*! @brief Set shape of 4D tensor
  *
@@ -558,7 +558,7 @@ MIOPEN_EXPORT miopenStatus_t miopenCreateTensorDescriptor(miopen::TensorDescript
  * @return           miopenStatus_t
 */
 MIOPEN_EXPORT miopenStatus_t miopenSet4dTensorDescriptor(
-    miopen::TensorDescriptor tensorDesc, miopenDataType_t dataType, int n, int c, int h, int w);
+    miopen::TensorDescriptor& tensorDesc, miopenDataType_t dataType, int n, int c, int h, int w);
 
 /*! @brief Get the details of the tensor descriptor
  *
@@ -576,7 +576,7 @@ MIOPEN_EXPORT miopenStatus_t miopenSet4dTensorDescriptor(
  * @param wStride    Width dimension stride (output)
  * @return           miopenStatus_t
 */
-MIOPEN_EXPORT miopenStatus_t miopenGet4dTensorDescriptor(miopen::TensorDescriptor tensorDesc,
+MIOPEN_EXPORT miopenStatus_t miopenGet4dTensorDescriptor(miopen::TensorDescriptor& tensorDesc,
                                                          miopenDataType_t* dataType,
                                                          int* n,
                                                          int* c,
@@ -598,7 +598,7 @@ MIOPEN_EXPORT miopenStatus_t miopenGet4dTensorDescriptor(miopen::TensorDescripto
  * @param stridesA     Array containing the size of stride (input)
  * @return             miopenStatus_t
 */
-MIOPEN_EXPORT miopenStatus_t miopenSetTensorDescriptor(miopen::TensorDescriptor tensorDesc,
+MIOPEN_EXPORT miopenStatus_t miopenSetTensorDescriptor(miopen::TensorDescriptor& tensorDesc,
                                                        miopenDataType_t dataType,
                                                        int nbDims,
                                                        int* dimsA,
@@ -612,7 +612,7 @@ MIOPEN_EXPORT miopenStatus_t miopenSetTensorDescriptor(miopen::TensorDescriptor 
  * @param size         number of elements in tensor described by the descriptor (output)
  * @return             miopenStatus_t
 */
-MIOPEN_EXPORT miopenStatus_t miopenGetTensorDescriptorSize(miopen::TensorDescriptor tensorDesc,
+MIOPEN_EXPORT miopenStatus_t miopenGetTensorDescriptorSize(miopen::TensorDescriptor& tensorDesc,
                                                            int* size);
 
 /*! @brief Get the details of the N-dimensional tensor descriptor.
@@ -623,7 +623,7 @@ MIOPEN_EXPORT miopenStatus_t miopenGetTensorDescriptorSize(miopen::TensorDescrip
  * @param stridesA   Array containing the size of stride (output)
  * @return           miopenStatus_t
  */
-MIOPEN_EXPORT miopenStatus_t miopenGetTensorDescriptor(miopen::TensorDescriptor tensorDesc,
+MIOPEN_EXPORT miopenStatus_t miopenGetTensorDescriptor(miopen::TensorDescriptor& tensorDesc,
                                                        miopenDataType_t* dataType,
                                                        int* dimsA,
                                                        int* stridesA);
@@ -633,7 +633,7 @@ MIOPEN_EXPORT miopenStatus_t miopenGetTensorDescriptor(miopen::TensorDescriptor 
  * @param tensorDesc Tensor descriptor type (input)
  * @return           miopenStatus_t
 */
-MIOPEN_EXPORT miopenStatus_t miopenDestroyTensorDescriptor(miopen::TensorDescriptor tensorDesc);
+//MIOPEN_EXPORT miopenStatus_t miopenDestroyTensorDescriptor(miopen::TensorDescriptor& tensorDesc);
 
 /*! @brief Execute element-wise tensor operations
  *
@@ -657,13 +657,13 @@ MIOPEN_EXPORT miopenStatus_t miopenDestroyTensorDescriptor(miopen::TensorDescrip
 MIOPEN_EXPORT miopenStatus_t miopenOpTensor(miopen::Handle& handle,
                                             miopenTensorOp_t tensorOp,
                                             const void* alpha1,
-                                            const miopen::TensorDescriptor aDesc,
+                                            const miopen::TensorDescriptor& aDesc,
                                             const void* A,
                                             const void* alpha2,
-                                            const miopen::TensorDescriptor bDesc,
+                                            const miopen::TensorDescriptor& bDesc,
                                             const void* B,
                                             const void* beta,
-                                            const miopen::TensorDescriptor cDesc,
+                                            const miopen::TensorDescriptor& cDesc,
                                             void* C);
 
 /*! @brief Fills a tensor with a single value.
@@ -677,7 +677,7 @@ MIOPEN_EXPORT miopenStatus_t miopenOpTensor(miopen::Handle& handle,
  * @return           miopenStatus_t
  */
 MIOPEN_EXPORT miopenStatus_t miopenSetTensor(miopen::Handle& handle,
-                                             const miopen::TensorDescriptor yDesc,
+                                             const miopen::TensorDescriptor& yDesc,
                                              void* y,
                                              const void* alpha);
 
@@ -692,7 +692,7 @@ MIOPEN_EXPORT miopenStatus_t miopenSetTensor(miopen::Handle& handle,
  * @return           miopenStatus_t
  */
 MIOPEN_EXPORT miopenStatus_t miopenScaleTensor(miopen::Handle& handle,
-                                               const miopen::TensorDescriptor yDesc,
+                                               const miopen::TensorDescriptor& yDesc,
                                                void* y,
                                                const void* alpha);
 
@@ -702,7 +702,7 @@ MIOPEN_EXPORT miopenStatus_t miopenScaleTensor(miopen::Handle& handle,
  * @param numBytes   Number of bytes associated with tensor descriptor (output)
  * @return           miopenStatus_t
  */
-MIOPEN_EXPORT miopenStatus_t miopenGetTensorNumBytes(miopen::TensorDescriptor tensorDesc,
+MIOPEN_EXPORT miopenStatus_t miopenGetTensorNumBytes(miopen::TensorDescriptor& tensorDesc,
                                                      size_t* numBytes);
 
 /*! @brief Copies one tensor to another tensor with a different layout/scale.
@@ -724,10 +724,10 @@ MIOPEN_EXPORT miopenStatus_t miopenGetTensorNumBytes(miopen::TensorDescriptor te
  */
 MIOPEN_EXPORT miopenStatus_t miopenTransformTensor(miopen::Handle& handle,
                                                    const void* alpha,
-                                                   const miopen::TensorDescriptor xDesc,
+                                                   const miopen::TensorDescriptor& xDesc,
                                                    const void* x,
                                                    const void* beta,
-                                                   const miopen::TensorDescriptor yDesc,
+                                                   const miopen::TensorDescriptor& yDesc,
                                                    void* y);
 
 /** @} */
@@ -761,7 +761,7 @@ miopenCreateConvolutionDescriptor(miopen::ConvolutionDescriptor* convDesc);
  * @param dilation_w Dilation width (input)
  * @return           miopenStatus_t
  */
-MIOPEN_EXPORT miopenStatus_t miopenInitConvolutionDescriptor(miopen::ConvolutionDescriptor convDesc,
+MIOPEN_EXPORT miopenStatus_t miopenInitConvolutionDescriptor(miopen::ConvolutionDescriptor& convDesc,
                                                              miopenConvolutionMode_t c_mode,
                                                              int pad_h,
                                                              int pad_w,
@@ -781,7 +781,7 @@ MIOPEN_EXPORT miopenStatus_t miopenInitConvolutionDescriptor(miopen::Convolution
  * @return              miopenStatus_t
  */
 MIOPEN_EXPORT miopenStatus_t
-miopenInitConvolutionNdDescriptor(miopen::ConvolutionDescriptor convDesc,
+miopenInitConvolutionNdDescriptor(miopen::ConvolutionDescriptor& convDesc,
                                   int spatialDim,
                                   int* padA,
                                   int* strideA,
@@ -803,7 +803,7 @@ miopenInitConvolutionNdDescriptor(miopen::ConvolutionDescriptor convDesc,
  * @param dilation_w Dilation width (output)
  * @return           miopenStatus_t
  */
-MIOPEN_EXPORT miopenStatus_t miopenGetConvolutionDescriptor(miopen::ConvolutionDescriptor convDesc,
+MIOPEN_EXPORT miopenStatus_t miopenGetConvolutionDescriptor(miopen::ConvolutionDescriptor& convDesc,
                                                             miopenConvolutionMode_t* c_mode,
                                                             int* pad_h,
                                                             int* pad_w,
@@ -824,7 +824,7 @@ MIOPEN_EXPORT miopenStatus_t miopenGetConvolutionDescriptor(miopen::ConvolutionD
  * @return                       miopenStatus_t
  */
 MIOPEN_EXPORT miopenStatus_t
-miopenGetConvolutionNdDescriptor(miopen::ConvolutionDescriptor convDesc,
+miopenGetConvolutionNdDescriptor(miopen::ConvolutionDescriptor& convDesc,
                                  int requestedSpatialDim,
                                  int* spatialDim,
                                  int* padA,
@@ -845,7 +845,7 @@ miopenGetConvolutionNdDescriptor(miopen::ConvolutionDescriptor convDesc,
 * (input)
 * @return           miopenStatus_t
 */
-MIOPEN_EXPORT miopenStatus_t miopenSetConvolutionGroupCount(miopen::ConvolutionDescriptor convDesc,
+MIOPEN_EXPORT miopenStatus_t miopenSetConvolutionGroupCount(miopen::ConvolutionDescriptor& convDesc,
                                                             int groupCount);
 
 /*! @brief Set the output padding to be used in 2-D Transpose convolution
@@ -861,7 +861,7 @@ MIOPEN_EXPORT miopenStatus_t miopenSetConvolutionGroupCount(miopen::ConvolutionD
 * @return           miopenStatus_t
 */
 MIOPEN_EXPORT miopenStatus_t
-miopenSetTransposeConvOutputPadding(miopen::ConvolutionDescriptor convDesc, int adj_h, int adj_w);
+miopenSetTransposeConvOutputPadding(miopen::ConvolutionDescriptor& convDesc, int adj_h, int adj_w);
 
 /*! @brief Set the output padding to be used in N-dimensional Transpose convolution
 *
@@ -876,7 +876,7 @@ miopenSetTransposeConvOutputPadding(miopen::ConvolutionDescriptor convDesc, int 
 * @return              miopenStatus_t
 */
 MIOPEN_EXPORT miopenStatus_t miopenSetTransposeConvNdOutputPadding(
-    miopen::ConvolutionDescriptor convDesc, int spatialDim, int* adjA);
+    miopen::ConvolutionDescriptor& convDesc, int spatialDim, int* adjA);
 
 /*! @brief Get the shape of a resulting 4-D tensor from a 2-D convolution
  *
@@ -896,9 +896,9 @@ MIOPEN_EXPORT miopenStatus_t miopenSetTransposeConvNdOutputPadding(
  * @return                  miopenStatus_t
  */
 MIOPEN_EXPORT miopenStatus_t
-miopenGetConvolutionForwardOutputDim(miopen::ConvolutionDescriptor convDesc,
-                                     const miopen::TensorDescriptor inputTensorDesc,
-                                     const miopen::TensorDescriptor filterDesc,
+miopenGetConvolutionForwardOutputDim(miopen::ConvolutionDescriptor& convDesc,
+                                     const miopen::TensorDescriptor& inputTensorDesc,
+                                     const miopen::TensorDescriptor& filterDesc,
                                      int* n,
                                      int* c,
                                      int* h,
@@ -918,9 +918,9 @@ miopenGetConvolutionForwardOutputDim(miopen::ConvolutionDescriptor convDesc,
  * @param outputTensorDimA  Array of Output data tensor length (output)
  */
 MIOPEN_EXPORT miopenStatus_t
-miopenGetConvolutionNdForwardOutputDim(miopen::ConvolutionDescriptor convDesc,
-                                       const miopen::TensorDescriptor inputTensorDesc,
-                                       const miopen::TensorDescriptor filterDesc,
+miopenGetConvolutionNdForwardOutputDim(miopen::ConvolutionDescriptor& convDesc,
+                                       const miopen::TensorDescriptor& inputTensorDesc,
+                                       const miopen::TensorDescriptor& filterDesc,
                                        int* nDim,
                                        int* outputTensorDimA);
 
@@ -930,7 +930,7 @@ miopenGetConvolutionNdForwardOutputDim(miopen::ConvolutionDescriptor convDesc,
  * @return           miopenStatus_t
 */
 MIOPEN_EXPORT miopenStatus_t
-miopenDestroyConvolutionDescriptor(miopen::ConvolutionDescriptor convDesc);
+miopenDestroyConvolutionDescriptor(miopen::ConvolutionDescriptor& convDesc);
 
 
 /*! @brief Query the maximum number of solutions applicable for the given input/output and weights
@@ -950,10 +950,10 @@ miopenDestroyConvolutionDescriptor(miopen::ConvolutionDescriptor convDesc);
  */
 MIOPEN_EXPORT miopenStatus_t
 miopenConvolutionForwardGetSolutionCount(miopen::Handle& handle,
-                                         const miopen::TensorDescriptor wDesc,
-                                         const miopen::TensorDescriptor xDesc,
-                                         const miopen::ConvolutionDescriptor convDesc,
-                                         const miopen::TensorDescriptor yDesc,
+                                         const miopen::TensorDescriptor& wDesc,
+                                         const miopen::TensorDescriptor& xDesc,
+                                         const miopen::ConvolutionDescriptor& convDesc,
+                                         const miopen::TensorDescriptor& yDesc,
                                          size_t* solutionCount);
 
 /*! @brief Query the applicable solutions for a convolution configuration described by
@@ -981,10 +981,10 @@ miopenConvolutionForwardGetSolutionCount(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t
 miopenConvolutionForwardGetSolution(miopen::Handle& handle,
-                                    const miopen::TensorDescriptor wDesc,
-                                    const miopen::TensorDescriptor xDesc,
-                                    const miopen::ConvolutionDescriptor convDesc,
-                                    const miopen::TensorDescriptor yDesc,
+                                    const miopen::TensorDescriptor& wDesc,
+                                    const miopen::TensorDescriptor& xDesc,
+                                    const miopen::ConvolutionDescriptor& convDesc,
+                                    const miopen::TensorDescriptor& yDesc,
                                     const size_t maxSolutionCount,
                                     size_t* solutionCount,
                                     miopenConvSolution_t* solutions);
@@ -1008,10 +1008,10 @@ miopenConvolutionForwardGetSolution(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t
 miopenConvolutionForwardGetSolutionWorkspaceSize(miopen::Handle& handle,
-                                                 const miopen::TensorDescriptor wDesc,
-                                                 const miopen::TensorDescriptor xDesc,
-                                                 const miopen::ConvolutionDescriptor convDesc,
-                                                 const miopen::TensorDescriptor yDesc,
+                                                 const miopen::TensorDescriptor& wDesc,
+                                                 const miopen::TensorDescriptor& xDesc,
+                                                 const miopen::ConvolutionDescriptor& convDesc,
+                                                 const miopen::TensorDescriptor& yDesc,
                                                  const uint64_t solution_id,
                                                  size_t* workSpaceSize);
 
@@ -1034,10 +1034,10 @@ miopenConvolutionForwardGetSolutionWorkspaceSize(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t
 miopenConvolutionForwardCompileSolution(miopen::Handle& handle,
-                                        const miopen::TensorDescriptor wDesc,
-                                        const miopen::TensorDescriptor xDesc,
-                                        const miopen::ConvolutionDescriptor convDesc,
-                                        const miopen::TensorDescriptor yDesc,
+                                        const miopen::TensorDescriptor& wDesc,
+                                        const miopen::TensorDescriptor& xDesc,
+                                        const miopen::ConvolutionDescriptor& convDesc,
+                                        const miopen::TensorDescriptor& yDesc,
                                         const uint64_t solution_id);
 
 /*! @brief Executes the Forward convolution operation based on the provided solution ID.
@@ -1059,12 +1059,12 @@ miopenConvolutionForwardCompileSolution(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t
 miopenConvolutionForwardImmediate(miopen::Handle& handle,
-                                  const miopen::TensorDescriptor wDesc,
+                                  const miopen::TensorDescriptor& wDesc,
                                   const void* w,
-                                  const miopen::TensorDescriptor xDesc,
+                                  const miopen::TensorDescriptor& xDesc,
                                   const void* x,
-                                  const miopen::ConvolutionDescriptor convDesc,
-                                  const miopen::TensorDescriptor yDesc,
+                                  const miopen::ConvolutionDescriptor& convDesc,
+                                  const miopen::TensorDescriptor& yDesc,
                                   void* y,
                                   void* workSpace,
                                   size_t workSpaceSize,
@@ -1089,10 +1089,10 @@ miopenConvolutionForwardImmediate(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t
 miopenConvolutionBackwardDataGetSolutionCount(miopen::Handle& handle,
-                                              const miopen::TensorDescriptor dyDesc,
-                                              const miopen::TensorDescriptor wDesc,
-                                              const miopen::ConvolutionDescriptor convDesc,
-                                              const miopen::TensorDescriptor dxDesc,
+                                              const miopen::TensorDescriptor& dyDesc,
+                                              const miopen::TensorDescriptor& wDesc,
+                                              const miopen::ConvolutionDescriptor& convDesc,
+                                              const miopen::TensorDescriptor& dxDesc,
                                               size_t* solutionCount);
 
 /*! @brief Query the applicable solutions for a backward convolution w-r-t data as described by
@@ -1121,10 +1121,10 @@ miopenConvolutionBackwardDataGetSolutionCount(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t
 miopenConvolutionBackwardDataGetSolution(miopen::Handle& handle,
-                                         const miopen::TensorDescriptor dyDesc,
-                                         const miopen::TensorDescriptor wDesc,
-                                         const miopen::ConvolutionDescriptor convDesc,
-                                         const miopen::TensorDescriptor dxDesc,
+                                         const miopen::TensorDescriptor& dyDesc,
+                                         const miopen::TensorDescriptor& wDesc,
+                                         const miopen::ConvolutionDescriptor& convDesc,
+                                         const miopen::TensorDescriptor& dxDesc,
                                          const size_t maxSolutionCount,
                                          size_t* solutionCount,
                                          miopenConvSolution_t* solutions);
@@ -1148,10 +1148,10 @@ miopenConvolutionBackwardDataGetSolution(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t
 miopenConvolutionBackwardDataGetSolutionWorkspaceSize(miopen::Handle& handle,
-                                                      const miopen::TensorDescriptor dyDesc,
-                                                      const miopen::TensorDescriptor wDesc,
-                                                      const miopen::ConvolutionDescriptor convDesc,
-                                                      const miopen::TensorDescriptor dxDesc,
+                                                      const miopen::TensorDescriptor& dyDesc,
+                                                      const miopen::TensorDescriptor& wDesc,
+                                                      const miopen::ConvolutionDescriptor& convDesc,
+                                                      const miopen::TensorDescriptor& dxDesc,
                                                       const uint64_t solution_id,
                                                       size_t* workSpaceSize);
 
@@ -1175,10 +1175,10 @@ miopenConvolutionBackwardDataGetSolutionWorkspaceSize(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t
 miopenConvolutionBackwardDataCompileSolution(miopen::Handle& handle,
-                                             const miopen::TensorDescriptor dyDesc,
-                                             const miopen::TensorDescriptor wDesc,
-                                             const miopen::ConvolutionDescriptor convDesc,
-                                             const miopen::TensorDescriptor dxDesc,
+                                             const miopen::TensorDescriptor& dyDesc,
+                                             const miopen::TensorDescriptor& wDesc,
+                                             const miopen::ConvolutionDescriptor& convDesc,
+                                             const miopen::TensorDescriptor& dxDesc,
                                              const uint64_t solution_id);
 
 /*! @brief Executes the Backward convolution w-r-t data  operation based on the provided solution
@@ -1200,12 +1200,12 @@ miopenConvolutionBackwardDataCompileSolution(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t
 miopenConvolutionBackwardDataImmediate(miopen::Handle& handle,
-                                       const miopen::TensorDescriptor dyDesc,
+                                       const miopen::TensorDescriptor& dyDesc,
                                        const void* dy,
-                                       const miopen::TensorDescriptor wDesc,
+                                       const miopen::TensorDescriptor& wDesc,
                                        const void* w,
-                                       const miopen::ConvolutionDescriptor convDesc,
-                                       const miopen::TensorDescriptor dxDesc,
+                                       const miopen::ConvolutionDescriptor& convDesc,
+                                       const miopen::TensorDescriptor& dxDesc,
                                        void* dx,
                                        void* workSpace,
                                        size_t workSpaceSize,
@@ -1230,10 +1230,10 @@ miopenConvolutionBackwardDataImmediate(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t
 miopenConvolutionBackwardWeightsGetSolutionCount(miopen::Handle& handle,
-                                                 const miopen::TensorDescriptor dyDesc,
-                                                 const miopen::TensorDescriptor xDesc,
-                                                 const miopen::ConvolutionDescriptor convDesc,
-                                                 const miopen::TensorDescriptor dwDesc,
+                                                 const miopen::TensorDescriptor& dyDesc,
+                                                 const miopen::TensorDescriptor& xDesc,
+                                                 const miopen::ConvolutionDescriptor& convDesc,
+                                                 const miopen::TensorDescriptor& dwDesc,
                                                  size_t* solutionCount);
 
 /*! @brief Query the applicable solutions for a backward convolution w-r-t weights as described by
@@ -1261,10 +1261,10 @@ miopenConvolutionBackwardWeightsGetSolutionCount(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t
 miopenConvolutionBackwardWeightsGetSolution(miopen::Handle& handle,
-                                            const miopen::TensorDescriptor dyDesc,
-                                            const miopen::TensorDescriptor xDesc,
-                                            const miopen::ConvolutionDescriptor convDesc,
-                                            const miopen::TensorDescriptor dwDesc,
+                                            const miopen::TensorDescriptor& dyDesc,
+                                            const miopen::TensorDescriptor& xDesc,
+                                            const miopen::ConvolutionDescriptor& convDesc,
+                                            const miopen::TensorDescriptor& dwDesc,
                                             const size_t maxSolutionCount,
                                             size_t* solutionCount,
                                             miopenConvSolution_t* solutions);
@@ -1288,10 +1288,10 @@ miopenConvolutionBackwardWeightsGetSolution(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t miopenConvolutionBackwardWeightsGetSolutionWorkspaceSize(
     miopen::Handle& handle,
-    const miopen::TensorDescriptor dyDesc,
-    const miopen::TensorDescriptor xDesc,
-    const miopen::ConvolutionDescriptor convDesc,
-    const miopen::TensorDescriptor dwDesc,
+    const miopen::TensorDescriptor& dyDesc,
+    const miopen::TensorDescriptor& xDesc,
+    const miopen::ConvolutionDescriptor& convDesc,
+    const miopen::TensorDescriptor& dwDesc,
     const uint64_t solution_id,
     size_t* workSpaceSize);
 
@@ -1314,10 +1314,10 @@ MIOPEN_EXPORT miopenStatus_t miopenConvolutionBackwardWeightsGetSolutionWorkspac
  */
 MIOPEN_EXPORT miopenStatus_t
 miopenConvolutionBackwardWeightsCompileSolution(miopen::Handle& handle,
-                                                const miopen::TensorDescriptor dyDesc,
-                                                const miopen::TensorDescriptor xDesc,
-                                                const miopen::ConvolutionDescriptor convDesc,
-                                                const miopen::TensorDescriptor dwDesc,
+                                                const miopen::TensorDescriptor& dyDesc,
+                                                const miopen::TensorDescriptor& xDesc,
+                                                const miopen::ConvolutionDescriptor& convDesc,
+                                                const miopen::TensorDescriptor& dwDesc,
                                                 const uint64_t solution_id);
 
 /*! @brief Executes the Backward convolution w-r-t weights  operation based on the provided solution
@@ -1340,12 +1340,12 @@ miopenConvolutionBackwardWeightsCompileSolution(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t
 miopenConvolutionBackwardWeightsImmediate(miopen::Handle& handle,
-                                          const miopen::TensorDescriptor dyDesc,
+                                          const miopen::TensorDescriptor& dyDesc,
                                           const void* dy,
-                                          const miopen::TensorDescriptor xDesc,
+                                          const miopen::TensorDescriptor& xDesc,
                                           const void* x,
-                                          const miopen::ConvolutionDescriptor convDesc,
-                                          const miopen::TensorDescriptor dwDesc,
+                                          const miopen::ConvolutionDescriptor& convDesc,
+                                          const miopen::TensorDescriptor& dwDesc,
                                           void* dw,
                                           void* workSpace,
                                           size_t workSpaceSize,
@@ -1372,10 +1372,10 @@ miopenConvolutionBackwardWeightsImmediate(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t
 miopenConvolutionForwardGetWorkSpaceSize(miopen::Handle& handle,
-                                         const miopen::TensorDescriptor wDesc,
-                                         const miopen::TensorDescriptor xDesc,
-                                         const miopen::ConvolutionDescriptor convDesc,
-                                         const miopen::TensorDescriptor yDesc,
+                                         const miopen::TensorDescriptor& wDesc,
+                                         const miopen::TensorDescriptor& xDesc,
+                                         const miopen::ConvolutionDescriptor& convDesc,
+                                         const miopen::TensorDescriptor& yDesc,
                                          size_t* workSpaceSize);
 
 /*! @brief Search and run the forward convolutional algorithms and return a list of kernel times.
@@ -1419,12 +1419,12 @@ miopenConvolutionForwardGetWorkSpaceSize(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t
 miopenFindConvolutionForwardAlgorithm(miopen::Handle& handle,
-                                      const miopen::TensorDescriptor xDesc,
+                                      const miopen::TensorDescriptor& xDesc,
                                       const void* x,
-                                      const miopen::TensorDescriptor wDesc,
+                                      const miopen::TensorDescriptor& wDesc,
                                       const void* w,
-                                      const miopen::ConvolutionDescriptor convDesc,
-                                      const miopen::TensorDescriptor yDesc,
+                                      const miopen::ConvolutionDescriptor& convDesc,
+                                      const miopen::TensorDescriptor& yDesc,
                                       void* y,
                                       const int requestAlgoCount,
                                       int* returnedAlgoCount,
@@ -1459,14 +1459,14 @@ miopenFindConvolutionForwardAlgorithm(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t miopenConvolutionForward(miopen::Handle& handle,
                                                       const void* alpha,
-                                                      const miopen::TensorDescriptor xDesc,
+                                                      const miopen::TensorDescriptor& xDesc,
                                                       const void* x,
-                                                      const miopen::TensorDescriptor wDesc,
+                                                      const miopen::TensorDescriptor& wDesc,
                                                       const void* w,
-                                                      const miopen::ConvolutionDescriptor convDesc,
+                                                      const miopen::ConvolutionDescriptor& convDesc,
                                                       miopenConvFwdAlgorithm_t algo,
                                                       const void* beta,
-                                                      const miopen::TensorDescriptor yDesc,
+                                                      const miopen::TensorDescriptor& yDesc,
                                                       void* y,
                                                       void* workSpace,
                                                       size_t workSpaceSize);
@@ -1486,10 +1486,10 @@ MIOPEN_EXPORT miopenStatus_t miopenConvolutionForward(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t miopenConvolutionForwardBias(miopen::Handle& handle,
                                                           const void* alpha,
-                                                          const miopen::TensorDescriptor bDesc,
+                                                          const miopen::TensorDescriptor& bDesc,
                                                           const void* b,
                                                           const void* beta,
-                                                          const miopen::TensorDescriptor yDesc,
+                                                          const miopen::TensorDescriptor& yDesc,
                                                           void* y);
 
 /*! @brief Get the GPU memory required for the backward data convolution algorithm.
@@ -1513,10 +1513,10 @@ MIOPEN_EXPORT miopenStatus_t miopenConvolutionForwardBias(miopen::Handle& handle
 */
 MIOPEN_EXPORT miopenStatus_t
 miopenConvolutionBackwardDataGetWorkSpaceSize(miopen::Handle& handle,
-                                              const miopen::TensorDescriptor dyDesc,
-                                              const miopen::TensorDescriptor wDesc,
-                                              const miopen::ConvolutionDescriptor convDesc,
-                                              const miopen::TensorDescriptor dxDesc,
+                                              const miopen::TensorDescriptor& dyDesc,
+                                              const miopen::TensorDescriptor& wDesc,
+                                              const miopen::ConvolutionDescriptor& convDesc,
+                                              const miopen::TensorDescriptor& dxDesc,
                                               size_t* workSpaceSize);
 
 /*! @brief Search and run the backwards data convolution algorithms and return a list of kernel
@@ -1560,12 +1560,12 @@ miopenConvolutionBackwardDataGetWorkSpaceSize(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t
 miopenFindConvolutionBackwardDataAlgorithm(miopen::Handle& handle,
-                                           const miopen::TensorDescriptor dyDesc,
+                                           const miopen::TensorDescriptor& dyDesc,
                                            const void* dy,
-                                           const miopen::TensorDescriptor wDesc,
+                                           const miopen::TensorDescriptor& wDesc,
                                            const void* w,
-                                           const miopen::ConvolutionDescriptor convDesc,
-                                           const miopen::TensorDescriptor dxDesc,
+                                           const miopen::ConvolutionDescriptor& convDesc,
+                                           const miopen::TensorDescriptor& dxDesc,
                                            void* dx,
                                            const int requestAlgoCount,
                                            int* returnedAlgoCount,
@@ -1602,14 +1602,14 @@ miopenFindConvolutionBackwardDataAlgorithm(miopen::Handle& handle,
 MIOPEN_EXPORT miopenStatus_t
 miopenConvolutionBackwardData(miopen::Handle& handle,
                               const void* alpha,
-                              const miopen::TensorDescriptor dyDesc,
+                              const miopen::TensorDescriptor& dyDesc,
                               const void* dy,
-                              const miopen::TensorDescriptor wDesc,
+                              const miopen::TensorDescriptor& wDesc,
                               const void* w,
-                              const miopen::ConvolutionDescriptor convDesc,
+                              const miopen::ConvolutionDescriptor& convDesc,
                               miopenConvBwdDataAlgorithm_t algo,
                               const void* beta,
-                              const miopen::TensorDescriptor dxDesc,
+                              const miopen::TensorDescriptor& dxDesc,
                               void* dx,
                               void* workSpace,
                               size_t workSpaceSize);
@@ -1637,10 +1637,10 @@ miopenConvolutionBackwardData(miopen::Handle& handle,
 */
 MIOPEN_EXPORT miopenStatus_t
 miopenConvolutionBackwardWeightsGetWorkSpaceSize(miopen::Handle& handle,
-                                                 const miopen::TensorDescriptor dyDesc,
-                                                 const miopen::TensorDescriptor xDesc,
-                                                 const miopen::ConvolutionDescriptor convDesc,
-                                                 const miopen::TensorDescriptor dwDesc,
+                                                 const miopen::TensorDescriptor& dyDesc,
+                                                 const miopen::TensorDescriptor& xDesc,
+                                                 const miopen::ConvolutionDescriptor& convDesc,
+                                                 const miopen::TensorDescriptor& dwDesc,
                                                  size_t* workSpaceSize);
 
 /*! @brief Search and run the backwards weights convolutional algorithms and return a list of kernel
@@ -1684,12 +1684,12 @@ miopenConvolutionBackwardWeightsGetWorkSpaceSize(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t
 miopenFindConvolutionBackwardWeightsAlgorithm(miopen::Handle& handle,
-                                              const miopen::TensorDescriptor dyDesc,
+                                              const miopen::TensorDescriptor& dyDesc,
                                               const void* dy,
-                                              const miopen::TensorDescriptor xDesc,
+                                              const miopen::TensorDescriptor& xDesc,
                                               const void* x,
-                                              const miopen::ConvolutionDescriptor convDesc,
-                                              const miopen::TensorDescriptor dwDesc,
+                                              const miopen::ConvolutionDescriptor& convDesc,
+                                              const miopen::TensorDescriptor& dwDesc,
                                               void* dw,
                                               const int requestAlgoCount,
                                               int* returnedAlgoCount,
@@ -1726,14 +1726,14 @@ miopenFindConvolutionBackwardWeightsAlgorithm(miopen::Handle& handle,
 MIOPEN_EXPORT miopenStatus_t
 miopenConvolutionBackwardWeights(miopen::Handle& handle,
                                  const void* alpha,
-                                 const miopen::TensorDescriptor dyDesc,
+                                 const miopen::TensorDescriptor& dyDesc,
                                  const void* dy,
-                                 const miopen::TensorDescriptor xDesc,
+                                 const miopen::TensorDescriptor& xDesc,
                                  const void* x,
-                                 const miopen::ConvolutionDescriptor convDesc,
+                                 const miopen::ConvolutionDescriptor& convDesc,
                                  miopenConvBwdWeightsAlgorithm_t algo,
                                  const void* beta,
-                                 const miopen::TensorDescriptor dwDesc,
+                                 const miopen::TensorDescriptor& dwDesc,
                                  void* dw,
                                  void* workSpace,
                                  size_t workSpaceSize);
@@ -1753,10 +1753,10 @@ miopenConvolutionBackwardWeights(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t miopenConvolutionBackwardBias(miopen::Handle& handle,
                                                            const void* alpha,
-                                                           const miopen::TensorDescriptor dyDesc,
+                                                           const miopen::TensorDescriptor& dyDesc,
                                                            const void* dy,
                                                            const void* beta,
-                                                           const miopen::TensorDescriptor dbDesc,
+                                                           const miopen::TensorDescriptor& dbDesc,
                                                            void* db);
 
 /** @} */
@@ -1858,7 +1858,7 @@ MIOPEN_EXPORT miopenStatus_t miopenGet2dPoolingDescriptor(const miopenPoolingDes
  */
 MIOPEN_EXPORT miopenStatus_t
 miopenGetPoolingForwardOutputDim(const miopenPoolingDescriptor_t poolDesc,
-                                 const miopen::TensorDescriptor tensorDesc,
+                                 const miopen::TensorDescriptor& tensorDesc,
                                  int* n,
                                  int* c,
                                  int* h,
@@ -1876,7 +1876,7 @@ miopenGetPoolingForwardOutputDim(const miopenPoolingDescriptor_t poolDesc,
  * @param workSpaceSize  Pointer to workSpaceSize (output)
  * @return               miopenStatus_t
  */
-MIOPEN_EXPORT miopenStatus_t miopenPoolingGetWorkSpaceSize(const miopen::TensorDescriptor yDesc,
+MIOPEN_EXPORT miopenStatus_t miopenPoolingGetWorkSpaceSize(const miopen::TensorDescriptor& yDesc,
                                                            size_t* workSpaceSize);
 
 /*! @brief Get the amount of GPU memory required for pooling
@@ -1893,7 +1893,7 @@ MIOPEN_EXPORT miopenStatus_t miopenPoolingGetWorkSpaceSize(const miopen::TensorD
  */
 MIOPEN_EXPORT miopenStatus_t
 miopenPoolingGetWorkSpaceSizeV2(const miopenPoolingDescriptor_t poolDesc,
-                                const miopen::TensorDescriptor yDesc,
+                                const miopen::TensorDescriptor& yDesc,
                                 size_t* workSpaceSize);
 
 /*! @brief Execute a forward pooling layer
@@ -1919,10 +1919,10 @@ miopenPoolingGetWorkSpaceSizeV2(const miopenPoolingDescriptor_t poolDesc,
 MIOPEN_EXPORT miopenStatus_t miopenPoolingForward(miopen::Handle& handle,
                                                   const miopenPoolingDescriptor_t poolDesc,
                                                   const void* alpha,
-                                                  const miopen::TensorDescriptor xDesc,
+                                                  const miopen::TensorDescriptor& xDesc,
                                                   const void* x,
                                                   const void* beta,
-                                                  const miopen::TensorDescriptor yDesc,
+                                                  const miopen::TensorDescriptor& yDesc,
                                                   void* y,
                                                   bool do_backward,
                                                   void* workSpace,
@@ -1951,14 +1951,14 @@ MIOPEN_EXPORT miopenStatus_t miopenPoolingForward(miopen::Handle& handle,
 MIOPEN_EXPORT miopenStatus_t miopenPoolingBackward(miopen::Handle& handle,
                                                    const miopenPoolingDescriptor_t poolDesc,
                                                    const void* alpha,
-                                                   const miopen::TensorDescriptor yDesc,
+                                                   const miopen::TensorDescriptor& yDesc,
                                                    const void* y,
-                                                   const miopen::TensorDescriptor dyDesc,
+                                                   const miopen::TensorDescriptor& dyDesc,
                                                    const void* dy,
-                                                   const miopen::TensorDescriptor xDesc,
+                                                   const miopen::TensorDescriptor& xDesc,
                                                    const void* x,
                                                    const void* beta,
-                                                   const miopen::TensorDescriptor dxDesc,
+                                                   const miopen::TensorDescriptor& dxDesc,
                                                    void* dx,
                                                    const void* workSpace);
 
@@ -2032,7 +2032,7 @@ MIOPEN_EXPORT miopenStatus_t miopenGetLRNDescriptor(const miopenLRNDescriptor_t 
  * @param workSpaceSize   Output variable for workspace size (output)
  * @return                miopenStatus_t
  */
-MIOPEN_EXPORT miopenStatus_t miopenLRNGetWorkSpaceSize(const miopen::TensorDescriptor yDesc,
+MIOPEN_EXPORT miopenStatus_t miopenLRNGetWorkSpaceSize(const miopen::TensorDescriptor& yDesc,
                                                        size_t* workSpaceSize);
 
 /*! @brief Execute a LRN forward layer
@@ -2056,10 +2056,10 @@ MIOPEN_EXPORT miopenStatus_t miopenLRNGetWorkSpaceSize(const miopen::TensorDescr
 MIOPEN_EXPORT miopenStatus_t miopenLRNForward(miopen::Handle& handle,
                                               const miopenLRNDescriptor_t lrnDesc,
                                               const void* alpha,
-                                              const miopen::TensorDescriptor xDesc,
+                                              const miopen::TensorDescriptor& xDesc,
                                               const void* x,
                                               const void* beta,
-                                              const miopen::TensorDescriptor yDesc,
+                                              const miopen::TensorDescriptor& yDesc,
                                               void* y,
                                               bool do_backward,
                                               void* workSpace);
@@ -2084,14 +2084,14 @@ MIOPEN_EXPORT miopenStatus_t miopenLRNForward(miopen::Handle& handle,
 MIOPEN_EXPORT miopenStatus_t miopenLRNBackward(miopen::Handle& handle,
                                                const miopenLRNDescriptor_t lrnDesc,
                                                const void* alpha,
-                                               const miopen::TensorDescriptor yDesc,
+                                               const miopen::TensorDescriptor& yDesc,
                                                const void* y,
-                                               const miopen::TensorDescriptor dyDesc,
+                                               const miopen::TensorDescriptor& dyDesc,
                                                const void* dy,
-                                               const miopen::TensorDescriptor xDesc,
+                                               const miopen::TensorDescriptor& xDesc,
                                                const void* x,
                                                const void* beta,
-                                               const miopen::TensorDescriptor dxDesc,
+                                               const miopen::TensorDescriptor& dxDesc,
                                                void* dx,
                                                const void* workSpace);
 
@@ -2127,8 +2127,8 @@ MIOPEN_EXPORT miopenStatus_t miopenDestroyLRNDescriptor(miopenLRNDescriptor_t lr
  * @param bn_mode         Batch Normalization mode (input)
  * @return                miopenStatus_t
 */
-MIOPEN_EXPORT miopenStatus_t miopenDeriveBNTensorDescriptor(miopen::TensorDescriptor derivedBnDesc,
-                                                            const miopen::TensorDescriptor xDesc,
+MIOPEN_EXPORT miopenStatus_t miopenDeriveBNTensorDescriptor(miopen::TensorDescriptor& derivedBnDesc,
+                                                            const miopen::TensorDescriptor& xDesc,
                                                             miopenBatchNormMode_t bn_mode);
 
 /*! @brief Execute forward training layer for batch normalization
@@ -2174,11 +2174,11 @@ miopenBatchNormalizationForwardTraining(miopen::Handle& handle,
                                         miopenBatchNormMode_t bn_mode,
                                         void* alpha,
                                         void* beta,
-                                        const miopen::TensorDescriptor xDesc,
+                                        const miopen::TensorDescriptor& xDesc,
                                         const void* x,
-                                        const miopen::TensorDescriptor yDesc,
+                                        const miopen::TensorDescriptor& yDesc,
                                         void* y,
-                                        const miopen::TensorDescriptor bnScaleBiasMeanVarDesc,
+                                        const miopen::TensorDescriptor& bnScaleBiasMeanVarDesc,
                                         void* bnScale,
                                         void* bnBias,
                                         double expAvgFactor,
@@ -2219,11 +2219,11 @@ miopenBatchNormalizationForwardInference(miopen::Handle& handle,
                                          miopenBatchNormMode_t bn_mode,
                                          void* alpha,
                                          void* beta,
-                                         const miopen::TensorDescriptor xDesc,
+                                         const miopen::TensorDescriptor& xDesc,
                                          const void* x,
-                                         const miopen::TensorDescriptor yDesc,
+                                         const miopen::TensorDescriptor& yDesc,
                                          void* y,
-                                         const miopen::TensorDescriptor bnScaleBiasMeanVarDesc,
+                                         const miopen::TensorDescriptor& bnScaleBiasMeanVarDesc,
                                          void* bnScale,
                                          void* bnBias,
                                          void* estimatedMean,
@@ -2271,13 +2271,13 @@ miopenBatchNormalizationBackward(miopen::Handle& handle,
                                  const void* betaDataDiff,
                                  const void* alphaParamDiff,
                                  const void* betaParamDiff,
-                                 const miopen::TensorDescriptor xDesc,
+                                 const miopen::TensorDescriptor& xDesc,
                                  const void* x,
-                                 const miopen::TensorDescriptor dyDesc,
+                                 const miopen::TensorDescriptor& dyDesc,
                                  const void* dy,
-                                 const miopen::TensorDescriptor dxDesc,
+                                 const miopen::TensorDescriptor& dxDesc,
                                  void* dx,
-                                 const miopen::TensorDescriptor bnScaleBiasDiffDesc,
+                                 const miopen::TensorDescriptor& bnScaleBiasDiffDesc,
                                  const void* bnScale,
                                  void* resultBnScaleDiff,
                                  void* resultBnBiasDiff,
@@ -2352,10 +2352,10 @@ miopenGetActivationDescriptor(const miopenActivationDescriptor_t activDesc,
 MIOPEN_EXPORT miopenStatus_t miopenActivationForward(miopen::Handle& handle,
                                                      const miopenActivationDescriptor_t activDesc,
                                                      const void* alpha,
-                                                     const miopen::TensorDescriptor xDesc,
+                                                     const miopen::TensorDescriptor& xDesc,
                                                      const void* x,
                                                      const void* beta,
-                                                     const miopen::TensorDescriptor yDesc,
+                                                     const miopen::TensorDescriptor& yDesc,
                                                      void* y);
 
 /*! @brief Execute a activation backwards layer
@@ -2377,14 +2377,14 @@ MIOPEN_EXPORT miopenStatus_t miopenActivationForward(miopen::Handle& handle,
 MIOPEN_EXPORT miopenStatus_t miopenActivationBackward(miopen::Handle& handle,
                                                       const miopenActivationDescriptor_t activDesc,
                                                       const void* alpha,
-                                                      const miopen::TensorDescriptor yDesc,
+                                                      const miopen::TensorDescriptor& yDesc,
                                                       const void* y,
-                                                      const miopen::TensorDescriptor dyDesc,
+                                                      const miopen::TensorDescriptor& dyDesc,
                                                       const void* dy,
-                                                      const miopen::TensorDescriptor xDesc,
+                                                      const miopen::TensorDescriptor& xDesc,
                                                       const void* x,
                                                       const void* beta,
-                                                      const miopen::TensorDescriptor dxDesc,
+                                                      const miopen::TensorDescriptor& dxDesc,
                                                       void* dx);
 
 /*! @brief Destroys the activation descriptor object
@@ -2418,10 +2418,10 @@ miopenDestroyActivationDescriptor(miopenActivationDescriptor_t activDesc);
  */
 MIOPEN_EXPORT miopenStatus_t miopenSoftmaxForward(miopen::Handle& handle,
                                                   const void* alpha,
-                                                  const miopen::TensorDescriptor xDesc,
+                                                  const miopen::TensorDescriptor& xDesc,
                                                   const void* x,
                                                   const void* beta,
-                                                  const miopen::TensorDescriptor yDesc,
+                                                  const miopen::TensorDescriptor& yDesc,
                                                   void* y);
 
 /*! @brief Execute a softmax backwards layer
@@ -2441,12 +2441,12 @@ MIOPEN_EXPORT miopenStatus_t miopenSoftmaxForward(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t miopenSoftmaxBackward(miopen::Handle& handle,
                                                    const void* alpha,
-                                                   const miopen::TensorDescriptor yDesc,
+                                                   const miopen::TensorDescriptor& yDesc,
                                                    const void* y,
-                                                   const miopen::TensorDescriptor dyDesc,
+                                                   const miopen::TensorDescriptor& dyDesc,
                                                    const void* dy,
                                                    const void* beta,
-                                                   const miopen::TensorDescriptor dxDesc,
+                                                   const miopen::TensorDescriptor& dxDesc,
                                                    void* dx);
 
 /*! @brief Execute a softmax forward layer with expanded modes and algorithms
@@ -2464,10 +2464,10 @@ MIOPEN_EXPORT miopenStatus_t miopenSoftmaxBackward(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t miopenSoftmaxForward_V2(miopen::Handle& handle,
                                                      const void* alpha,
-                                                     const miopen::TensorDescriptor xDesc,
+                                                     const miopen::TensorDescriptor& xDesc,
                                                      const void* x,
                                                      const void* beta,
-                                                     const miopen::TensorDescriptor yDesc,
+                                                     const miopen::TensorDescriptor& yDesc,
                                                      void* y,
                                                      miopenSoftmaxAlgorithm_t algorithm,
                                                      miopenSoftmaxMode_t mode);
@@ -2489,12 +2489,12 @@ MIOPEN_EXPORT miopenStatus_t miopenSoftmaxForward_V2(miopen::Handle& handle,
  */
 MIOPEN_EXPORT miopenStatus_t miopenSoftmaxBackward_V2(miopen::Handle& handle,
                                                       const void* alpha,
-                                                      const miopen::TensorDescriptor yDesc,
+                                                      const miopen::TensorDescriptor& yDesc,
                                                       const void* y,
-                                                      const miopen::TensorDescriptor dyDesc,
+                                                      const miopen::TensorDescriptor& dyDesc,
                                                       const void* dy,
                                                       const void* beta,
-                                                      const miopen::TensorDescriptor dxDesc,
+                                                      const miopen::TensorDescriptor& dxDesc,
                                                       void* dx,
                                                       miopenSoftmaxAlgorithm_t algorithm,
                                                       miopenSoftmaxMode_t mode);
@@ -2531,7 +2531,7 @@ typedef enum {
 */
 MIOPEN_EXPORT miopenStatus_t miopenCreateFusionPlan(miopenFusionPlanDescriptor_t* fusePlanDesc,
                                                     const miopenFusionDirection_t fuseDirection,
-                                                    const miopen::TensorDescriptor inputDesc);
+                                                    const miopen::TensorDescriptor& inputDesc);
 
 /*! @brief Destroy the fusion plan descriptor object
 *
@@ -2620,8 +2620,8 @@ MIOPEN_EXPORT miopenStatus_t miopenFusionPlanConvolutionSetAlgo(
 */
 MIOPEN_EXPORT miopenStatus_t miopenCreateOpConvForward(miopenFusionPlanDescriptor_t fusePlanDesc,
                                                        miopenFusionOpDescriptor_t* convOp,
-                                                       miopen::ConvolutionDescriptor convDesc,
-                                                       const miopen::TensorDescriptor wDesc);
+                                                       miopen::ConvolutionDescriptor& convDesc,
+                                                       const miopen::TensorDescriptor& wDesc);
 
 //---
 
@@ -2661,7 +2661,7 @@ miopenCreateOpActivationBackward(miopenFusionPlanDescriptor_t fusePlanDesc,
 */
 MIOPEN_EXPORT miopenStatus_t miopenCreateOpBiasForward(miopenFusionPlanDescriptor_t fusePlanDesc,
                                                        miopenFusionOpDescriptor_t* biasOp,
-                                                       const miopen::TensorDescriptor bDesc);
+                                                       const miopen::TensorDescriptor& bDesc);
 
 // Batch normalization create ops ---
 /*! @brief Creates a forward inference batch normalization operator.
@@ -2676,7 +2676,7 @@ MIOPEN_EXPORT miopenStatus_t
 miopenCreateOpBatchNormInference(miopenFusionPlanDescriptor_t fusePlanDesc,
                                  miopenFusionOpDescriptor_t* bnOp,
                                  const miopenBatchNormMode_t bn_mode,
-                                 const miopen::TensorDescriptor bnScaleBiasMeanVarDesc);
+                                 const miopen::TensorDescriptor& bnScaleBiasMeanVarDesc);
 
 /*! @brief Creates a forward training batch normalization operator.
 *
@@ -2891,9 +2891,9 @@ MIOPEN_EXPORT miopenStatus_t miopenSetOpArgsBiasForward(miopenOperatorArgs_t arg
 MIOPEN_EXPORT miopenStatus_t
 miopenExecuteFusionPlan(const miopen::Handle& handle,
                         const miopenFusionPlanDescriptor_t fusePlanDesc,
-                        const miopen::TensorDescriptor inputDesc,
+                        const miopen::TensorDescriptor& inputDesc,
                         const void* input,
-                        const miopen::TensorDescriptor outputDesc,
+                        const miopen::TensorDescriptor& outputDesc,
                         void* output,
                         miopenOperatorArgs_t args);
 /** @} */
@@ -3071,7 +3071,7 @@ MIOPEN_EXPORT miopenStatus_t miopenGetRNNTrainingReserveSize(miopen::Handle& han
 */
 MIOPEN_EXPORT miopenStatus_t miopenGetRNNParamsSize(miopen::Handle& handle,
                                                     miopenRNNDescriptor_t rnnDesc,
-                                                    miopen::TensorDescriptor xDesc,
+                                                    miopen::TensorDescriptor& xDesc,
                                                     size_t* numBytes,
                                                     miopenDataType_t dtype);
 
@@ -3089,8 +3089,8 @@ MIOPEN_EXPORT miopenStatus_t miopenGetRNNParamsSize(miopen::Handle& handle,
 */
 MIOPEN_EXPORT miopenStatus_t miopenGetRNNParamsDescriptor(miopen::Handle& handle,
                                                           miopenRNNDescriptor_t rnnDesc,
-                                                          miopen::TensorDescriptor xDesc,
-                                                          miopen::TensorDescriptor wDesc,
+                                                          miopen::TensorDescriptor& xDesc,
+                                                          miopen::TensorDescriptor& wDesc,
                                                           miopenDataType_t dtype);
 
 /*! @brief Obtain a the size in bytes of the RNN input tensor
@@ -3177,7 +3177,7 @@ MIOPEN_EXPORT miopenStatus_t miopenGetRNNHiddenTensorSize(miopen::Handle& handle
 MIOPEN_EXPORT miopenStatus_t miopenGetRNNLayerParamSize(miopen::Handle& handle,
                                                         miopenRNNDescriptor_t rnnDesc,
                                                         const int layer,
-                                                        miopen::TensorDescriptor xDesc,
+                                                        miopen::TensorDescriptor& xDesc,
                                                         const int paramID,
                                                         size_t* numBytes);
 
@@ -3285,11 +3285,11 @@ MIOPEN_EXPORT miopenStatus_t miopenGetRNNLayerBiasSize(miopen::Handle& handle,
 MIOPEN_EXPORT miopenStatus_t miopenGetRNNLayerParam(miopen::Handle& handle,
                                                     miopenRNNDescriptor_t rnnDesc,
                                                     const int layer,
-                                                    miopen::TensorDescriptor xDesc,
-                                                    miopen::TensorDescriptor wDesc,
+                                                    miopen::TensorDescriptor& xDesc,
+                                                    miopen::TensorDescriptor& wDesc,
                                                     const void* w,
                                                     const int paramID,
-                                                    miopen::TensorDescriptor paramDesc,
+                                                    miopen::TensorDescriptor& paramDesc,
                                                     void* layerParam);
 
 /*! @brief Gets a bias for a specific layer in an RNN stack
@@ -3352,11 +3352,11 @@ MIOPEN_EXPORT miopenStatus_t miopenGetRNNLayerParam(miopen::Handle& handle,
 MIOPEN_EXPORT miopenStatus_t miopenGetRNNLayerBias(miopen::Handle& handle,
                                                    miopenRNNDescriptor_t rnnDesc,
                                                    const int layer,
-                                                   miopen::TensorDescriptor xDesc,
-                                                   miopen::TensorDescriptor wDesc,
+                                                   miopen::TensorDescriptor& xDesc,
+                                                   miopen::TensorDescriptor& wDesc,
                                                    const void* w,
                                                    const int biasID,
-                                                   miopen::TensorDescriptor biasDesc,
+                                                   miopen::TensorDescriptor& biasDesc,
                                                    void* layerBias);
 
 /*! @brief Gets an index offset for a specific weight matrix for a layer in the
@@ -3415,9 +3415,9 @@ MIOPEN_EXPORT miopenStatus_t miopenGetRNNLayerBias(miopen::Handle& handle,
 */
 MIOPEN_EXPORT miopenStatus_t miopenGetRNNLayerParamOffset(miopenRNNDescriptor_t rnnDesc,
                                                           const int layer,
-                                                          miopen::TensorDescriptor xDesc,
+                                                          miopen::TensorDescriptor& xDesc,
                                                           const int paramID,
-                                                          miopen::TensorDescriptor paramDesc,
+                                                          miopen::TensorDescriptor& paramDesc,
                                                           size_t* layerParamOffset);
 
 /*! @brief Gets a bias index offset for a specific layer in an RNN stack
@@ -3472,9 +3472,9 @@ MIOPEN_EXPORT miopenStatus_t miopenGetRNNLayerParamOffset(miopenRNNDescriptor_t 
 */
 MIOPEN_EXPORT miopenStatus_t miopenGetRNNLayerBiasOffset(miopenRNNDescriptor_t rnnDesc,
                                                          const int layer,
-                                                         miopen::TensorDescriptor xDesc,
+                                                         miopen::TensorDescriptor& xDesc,
                                                          const int biasID,
-                                                         miopen::TensorDescriptor biasDesc,
+                                                         miopen::TensorDescriptor& biasDesc,
                                                          size_t* layerBiasOffset);
 
 /*! @brief Sets a weight matrix for a specific layer in an RNN stack
@@ -3532,11 +3532,11 @@ MIOPEN_EXPORT miopenStatus_t miopenGetRNNLayerBiasOffset(miopenRNNDescriptor_t r
 MIOPEN_EXPORT miopenStatus_t miopenSetRNNLayerParam(miopen::Handle& handle,
                                                     miopenRNNDescriptor_t rnnDesc,
                                                     const int layer,
-                                                    miopen::TensorDescriptor xDesc,
-                                                    miopen::TensorDescriptor wDesc,
+                                                    miopen::TensorDescriptor& xDesc,
+                                                    miopen::TensorDescriptor& wDesc,
                                                     void* w,
                                                     const int paramID,
-                                                    miopen::TensorDescriptor paramDesc,
+                                                    miopen::TensorDescriptor& paramDesc,
                                                     const void* layerParam);
 
 /*! @brief Sets a bias for a specific layer in an RNN stack
@@ -3592,11 +3592,11 @@ MIOPEN_EXPORT miopenStatus_t miopenSetRNNLayerParam(miopen::Handle& handle,
 MIOPEN_EXPORT miopenStatus_t miopenSetRNNLayerBias(miopen::Handle& handle,
                                                    miopenRNNDescriptor_t rnnDesc,
                                                    const int layer,
-                                                   miopen::TensorDescriptor xDesc,
-                                                   miopen::TensorDescriptor wDesc,
+                                                   miopen::TensorDescriptor& xDesc,
+                                                   miopen::TensorDescriptor& wDesc,
                                                    void* w,
                                                    const int biasID,
-                                                   miopen::TensorDescriptor biasDesc,
+                                                   miopen::TensorDescriptor& biasDesc,
                                                    const void* layerBias);
 
 /*! @brief Execute forward training for recurrent layer
@@ -3661,17 +3661,17 @@ MIOPEN_EXPORT miopenStatus_t miopenRNNForwardTraining(miopen::Handle& handle,
                                                       const int sequenceLen,
                                                       const miopen::TensorDescriptor* xDesc,
                                                       const void* x,
-                                                      const miopen::TensorDescriptor hxDesc,
+                                                      const miopen::TensorDescriptor& hxDesc,
                                                       const void* hx,
-                                                      const miopen::TensorDescriptor cxDesc,
+                                                      const miopen::TensorDescriptor& cxDesc,
                                                       const void* cx,
-                                                      const miopen::TensorDescriptor wDesc,
+                                                      const miopen::TensorDescriptor& wDesc,
                                                       const void* w,
                                                       const miopen::TensorDescriptor* yDesc,
                                                       void* y,
-                                                      const miopen::TensorDescriptor hyDesc,
+                                                      const miopen::TensorDescriptor& hyDesc,
                                                       void* hy,
-                                                      const miopen::TensorDescriptor cyDesc,
+                                                      const miopen::TensorDescriptor& cyDesc,
                                                       void* cy,
                                                       void* workSpace,
                                                       size_t workSpaceNumBytes,
@@ -3757,21 +3757,21 @@ MIOPEN_EXPORT miopenStatus_t miopenRNNBackwardData(miopen::Handle& handle,
                                                    const void* y,
                                                    const miopen::TensorDescriptor* dyDesc,
                                                    const void* dy,
-                                                   const miopen::TensorDescriptor dhyDesc,
+                                                   const miopen::TensorDescriptor& dhyDesc,
                                                    const void* dhy,
-                                                   const miopen::TensorDescriptor dcyDesc,
+                                                   const miopen::TensorDescriptor& dcyDesc,
                                                    const void* dcy,
-                                                   const miopen::TensorDescriptor wDesc,
+                                                   const miopen::TensorDescriptor& wDesc,
                                                    const void* w,
-                                                   const miopen::TensorDescriptor hxDesc,
+                                                   const miopen::TensorDescriptor& hxDesc,
                                                    const void* hx,
-                                                   const miopen::TensorDescriptor cxDesc,
+                                                   const miopen::TensorDescriptor& cxDesc,
                                                    const void* cx,
                                                    const miopen::TensorDescriptor* dxDesc,
                                                    void* dx,
-                                                   const miopen::TensorDescriptor dhxDesc,
+                                                   const miopen::TensorDescriptor& dhxDesc,
                                                    void* dhx,
-                                                   const miopen::TensorDescriptor dcxDesc,
+                                                   const miopen::TensorDescriptor& dcxDesc,
                                                    void* dcx,
                                                    void* workSpace,
                                                    size_t workSpaceNumBytes,
@@ -3819,11 +3819,11 @@ MIOPEN_EXPORT miopenStatus_t miopenRNNBackwardWeights(miopen::Handle& handle,
                                                       const int sequenceLen,
                                                       const miopen::TensorDescriptor* xDesc,
                                                       const void* x,
-                                                      const miopen::TensorDescriptor hxDesc,
+                                                      const miopen::TensorDescriptor& hxDesc,
                                                       const void* hx,
                                                       const miopen::TensorDescriptor* yDesc,
                                                       const void* y,
-                                                      const miopen::TensorDescriptor dwDesc,
+                                                      const miopen::TensorDescriptor& dwDesc,
                                                       void* dw,
                                                       void* workSpace,
                                                       size_t workSpaceNumBytes,
@@ -3890,17 +3890,17 @@ MIOPEN_EXPORT miopenStatus_t miopenRNNForwardInference(miopen::Handle& handle,
                                                        const int sequenceLen,
                                                        const miopen::TensorDescriptor* xDesc,
                                                        const void* x,
-                                                       const miopen::TensorDescriptor hxDesc,
+                                                       const miopen::TensorDescriptor& hxDesc,
                                                        const void* hx,
-                                                       const miopen::TensorDescriptor cxDesc,
+                                                       const miopen::TensorDescriptor& cxDesc,
                                                        const void* cx,
-                                                       const miopen::TensorDescriptor wDesc,
+                                                       const miopen::TensorDescriptor& wDesc,
                                                        const void* w,
                                                        const miopen::TensorDescriptor* yDesc,
                                                        void* y,
-                                                       const miopen::TensorDescriptor hyDesc,
+                                                       const miopen::TensorDescriptor& hyDesc,
                                                        void* hy,
-                                                       const miopen::TensorDescriptor cyDesc,
+                                                       const miopen::TensorDescriptor& cyDesc,
                                                        void* cy,
                                                        void* workSpace,
                                                        size_t workSpaceNumBytes);
@@ -3981,8 +3981,8 @@ MIOPEN_EXPORT miopenStatus_t miopenSetCTCLossDescriptor(miopenCTCLossDescriptor_
 */
 MIOPEN_EXPORT miopenStatus_t
 miopenGetCTCLossWorkspaceSize(miopen::Handle& handle,
-                              const miopen::TensorDescriptor probsDesc,
-                              const miopen::TensorDescriptor gradientsDesc,
+                              const miopen::TensorDescriptor& probsDesc,
+                              const miopen::TensorDescriptor& gradientsDesc,
                               const int* labels,
                               const int* labelLengths,
                               const int* inputLengths,
@@ -4010,13 +4010,13 @@ miopenGetCTCLossWorkspaceSize(miopen::Handle& handle,
  * @return               miopenStatus_t
 */
 MIOPEN_EXPORT miopenStatus_t miopenCTCLoss(miopen::Handle& handle,
-                                           const miopen::TensorDescriptor probsDesc,
+                                           const miopen::TensorDescriptor& probsDesc,
                                            const void* probs,
                                            const int* labels,
                                            const int* labelLengths,
                                            const int* inputLengths,
                                            void* losses,
-                                           const miopen::TensorDescriptor gradientsDesc,
+                                           const miopen::TensorDescriptor& gradientsDesc,
                                            void* gradients,
                                            miopenCTCLossAlgo_t algo,
                                            const miopenCTCLossDescriptor_t ctcLossDesc,
@@ -4061,7 +4061,7 @@ MIOPEN_EXPORT miopenStatus_t miopenDestroyDropoutDescriptor(miopenDropoutDescrip
  * (Output)
  * @return                         miopenStatus_t
 */
-MIOPEN_EXPORT miopenStatus_t miopenDropoutGetReserveSpaceSize(const miopen::TensorDescriptor xDesc,
+MIOPEN_EXPORT miopenStatus_t miopenDropoutGetReserveSpaceSize(const miopen::TensorDescriptor& xDesc,
                                                               size_t* reserveSpaceSizeInBytes);
 
 /*! @brief Query the amount of memory required to store the states of the random number generators
@@ -4177,10 +4177,10 @@ MIOPEN_EXPORT miopenStatus_t miopenSetDropoutDescriptor(miopenDropoutDescriptor_
 */
 MIOPEN_EXPORT miopenStatus_t miopenDropoutForward(miopen::Handle& handle,
                                                   const miopenDropoutDescriptor_t dropoutDesc,
-                                                  const miopen::TensorDescriptor noise_shape,
-                                                  const miopen::TensorDescriptor xDesc,
+                                                  const miopen::TensorDescriptor& noise_shape,
+                                                  const miopen::TensorDescriptor& xDesc,
                                                   const void* x,
-                                                  const miopen::TensorDescriptor yDesc,
+                                                  const miopen::TensorDescriptor& yDesc,
                                                   void* y,
                                                   void* reserveSpace,
                                                   size_t reserveSpaceSizeInBytes);
@@ -4202,9 +4202,9 @@ MIOPEN_EXPORT miopenStatus_t miopenDropoutForward(miopen::Handle& handle,
 */
 MIOPEN_EXPORT miopenStatus_t miopenDropoutBackward(miopen::Handle& handle,
                                                    const miopenDropoutDescriptor_t dropoutDesc,
-                                                   const miopen::TensorDescriptor dyDesc,
+                                                   const miopen::TensorDescriptor& dyDesc,
                                                    const void* dy,
-                                                   const miopen::TensorDescriptor dxDesc,
+                                                   const miopen::TensorDescriptor& dxDesc,
                                                    void* dx,
                                                    void* reserveSpace,
                                                    size_t reserveSpaceSizeInBytes);

@@ -34,21 +34,21 @@
 #include <numeric>
 #include <vector>
 
-MIOPEN_EXPORT int miopenGetTensorIndex(miopen::TensorDescriptor tensorDesc,
+MIOPEN_EXPORT int miopenGetTensorIndex(miopen::TensorDescriptor& tensorDesc,
                                        std::initializer_list<int> indices);
 
-int miopenGetTensorDescriptorElementSize(miopen::TensorDescriptor tensorDesc);
+int miopenGetTensorDescriptorElementSize(miopen::TensorDescriptor& tensorDesc);
 
 MIOPEN_EXPORT miopenStatus_t miopenGet4dTensorDescriptorLengths(
-    miopen::TensorDescriptor tensorDesc, int* n, int* c, int* h, int* w);
+    miopen::TensorDescriptor& tensorDesc, int* n, int* c, int* h, int* w);
 
 MIOPEN_EXPORT miopenStatus_t miopenGet4dTensorDescriptorStrides(
-    miopen::TensorDescriptor tensorDesc, int* nStride, int* cStride, int* hStride, int* wStride);
+    miopen::TensorDescriptor& tensorDesc, int* nStride, int* cStride, int* hStride, int* wStride);
 
 MIOPEN_EXPORT miopenStatus_t miopenGet5dTensorDescriptorLengths(
-    miopen::TensorDescriptor tensorDesc, int* n, int* c, int* d, int* h, int* w);
+    miopen::TensorDescriptor& tensorDesc, int* n, int* c, int* d, int* h, int* w);
 
-MIOPEN_EXPORT miopenStatus_t miopenGet5dTensorDescriptorStrides(miopen::TensorDescriptor tensorDesc,
+MIOPEN_EXPORT miopenStatus_t miopenGet5dTensorDescriptorStrides(miopen::TensorDescriptor& tensorDesc,
                                                                 int* nStride,
                                                                 int* cStride,
                                                                 int* dStride,

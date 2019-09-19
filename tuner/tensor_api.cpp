@@ -38,7 +38,7 @@ miopenStatus_t miopenCreateTensorDescriptor(miopen::TensorDescriptor& tensorDesc
 }
 
 miopenStatus_t miopenSet4dTensorDescriptor(
-    miopen::TensorDescriptor tensorDesc, miopenDataType_t dataType, int n, int c, int h, int w)
+    miopen::TensorDescriptor& tensorDesc, miopenDataType_t dataType, int n, int c, int h, int w)
 {
 
     MIOPEN_LOG_FUNCTION(tensorDesc, dataType, n, c, h, w);
@@ -48,7 +48,7 @@ miopenStatus_t miopenSet4dTensorDescriptor(
     });
 }
 
-miopenStatus_t miopenGet4dTensorDescriptor(miopen::TensorDescriptor tensorDesc,
+miopenStatus_t miopenGet4dTensorDescriptor(miopen::TensorDescriptor& tensorDesc,
                                                       miopenDataType_t* dataType,
                                                       int* n,
                                                       int* c,
@@ -72,7 +72,7 @@ miopenStatus_t miopenGet4dTensorDescriptor(miopen::TensorDescriptor tensorDesc,
 // Internal API
 // MD: This should not be required to be exported. Temporary hack
 MIOPEN_EXPORT miopenStatus_t miopenGet4dTensorDescriptorLengths(
-    miopen::TensorDescriptor tensorDesc, int* n, int* c, int* h, int* w)
+    miopen::TensorDescriptor& tensorDesc, int* n, int* c, int* h, int* w)
 {
 
     MIOPEN_LOG_FUNCTION(tensorDesc, n, c, h, w);
@@ -83,7 +83,7 @@ MIOPEN_EXPORT miopenStatus_t miopenGet4dTensorDescriptorLengths(
 
 // Internal API
 MIOPEN_EXPORT miopenStatus_t miopenGet4dTensorDescriptorStrides(
-    miopen::TensorDescriptor tensorDesc, int* nStride, int* cStride, int* hStride, int* wStride)
+    miopen::TensorDescriptor& tensorDesc, int* nStride, int* cStride, int* hStride, int* wStride)
 {
 
     //MIOPEN_LOG_FUNCTION(tensorDesc, nStride, cStride, hStride, wStride);
@@ -94,7 +94,7 @@ MIOPEN_EXPORT miopenStatus_t miopenGet4dTensorDescriptorStrides(
 }
 
 MIOPEN_EXPORT miopenStatus_t miopenGet5dTensorDescriptorLengths(
-    miopen::TensorDescriptor tensorDesc, int* n, int* c, int* d, int* h, int* w)
+    miopen::TensorDescriptor& tensorDesc, int* n, int* c, int* d, int* h, int* w)
 {
 
     //MIOPEN_LOG_FUNCTION(tensorDesc, n, c, d, h, w);
@@ -104,7 +104,7 @@ MIOPEN_EXPORT miopenStatus_t miopenGet5dTensorDescriptorLengths(
 }
 
 // Internal API
-MIOPEN_EXPORT miopenStatus_t miopenGet5dTensorDescriptorStrides(miopen::TensorDescriptor tensorDesc,
+MIOPEN_EXPORT miopenStatus_t miopenGet5dTensorDescriptorStrides(miopen::TensorDescriptor& tensorDesc,
                                                                 int* nStride,
                                                                 int* cStride,
                                                                 int* dStride,
@@ -119,7 +119,7 @@ MIOPEN_EXPORT miopenStatus_t miopenGet5dTensorDescriptorStrides(miopen::TensorDe
     });
 }
 
-miopenStatus_t miopenSetTensorDescriptor(miopen::TensorDescriptor tensorDesc,
+miopenStatus_t miopenSetTensorDescriptor(miopen::TensorDescriptor& tensorDesc,
                                                     miopenDataType_t dataType,
                                                     int nbDims,
                                                     int* dimsA,
@@ -139,7 +139,7 @@ miopenStatus_t miopenSetTensorDescriptor(miopen::TensorDescriptor tensorDesc,
     });
 }
 
-miopenStatus_t miopenGetTensorNumBytes(miopen::TensorDescriptor tensorDesc,
+miopenStatus_t miopenGetTensorNumBytes(miopen::TensorDescriptor& tensorDesc,
                                                   size_t* numBytes)
 {
 
@@ -148,19 +148,19 @@ miopenStatus_t miopenGetTensorNumBytes(miopen::TensorDescriptor tensorDesc,
 }
 
 // Internal API
-int miopenGetTensorDescriptorElementSize(miopen::TensorDescriptor tensorDesc)
+int miopenGetTensorDescriptorElementSize(miopen::TensorDescriptor& tensorDesc)
 {
     return tensorDesc.GetElementSize();
 }
 
-miopenStatus_t miopenGetTensorDescriptorSize(miopen::TensorDescriptor tensorDesc,
+miopenStatus_t miopenGetTensorDescriptorSize(miopen::TensorDescriptor& tensorDesc,
                                                         int* size)
 {
     MIOPEN_LOG_FUNCTION(tensorDesc, size);
     return miopen::try_([&] { *size = tensorDesc.GetSize(); });
 }
 
-miopenStatus_t miopenGetTensorDescriptor(miopen::TensorDescriptor tensorDesc,
+miopenStatus_t miopenGetTensorDescriptor(miopen::TensorDescriptor& tensorDesc,
                                                     miopenDataType_t* dataType,
                                                     int* dimsA,
                                                     int* stridesA)
@@ -188,23 +188,23 @@ miopenStatus_t miopenGetTensorDescriptor(miopen::TensorDescriptor tensorDesc,
 }
 
 /*
-miopenStatus_t miopenDestroyTensorDescriptor(miopen::TensorDescriptor tensorDesc)
+miopenStatus_t miopenDestroyTensorDescriptor(miopen::TensorDescriptor& tensorDesc)
 {
     MIOPEN_LOG_FUNCTION(tensorDesc);
     return miopen::try_([&] { miopen_destroy_object(tensorDesc); });
 }
 */
 
-miopenStatus_t miopenOpTensor(miopen::Handle handle,
+miopenStatus_t miopenOpTensor(miopen::Handle& handle,
                                          miopenTensorOp_t tensorOp,
                                          const void* alpha1,
-                                         const miopen::TensorDescriptor aDesc,
+                                         const miopen::TensorDescriptor& aDesc,
                                          const void* A,
                                          const void* alpha2,
-                                         const miopen::TensorDescriptor bDesc,
+                                         const miopen::TensorDescriptor& bDesc,
                                          const void* B,
                                          const void* beta,
-                                         const miopen::TensorDescriptor cDesc,
+                                         const miopen::TensorDescriptor& cDesc,
                                          void* C)
 {
 
@@ -224,8 +224,8 @@ miopenStatus_t miopenOpTensor(miopen::Handle handle,
     });
 }
 
-miopenStatus_t miopenSetTensor(miopen::Handle handle,
-                                          const miopen::TensorDescriptor yDesc,
+miopenStatus_t miopenSetTensor(miopen::Handle& handle,
+                                          const miopen::TensorDescriptor& yDesc,
                                           void* y,
                                           const void* alpha)
 {
@@ -235,8 +235,8 @@ miopenStatus_t miopenSetTensor(miopen::Handle handle,
         [&] { SetTensor(handle, yDesc, DataCast(y), alpha); });
 }
 
-miopenStatus_t miopenScaleTensor(miopen::Handle handle,
-                                            const miopen::TensorDescriptor yDesc,
+miopenStatus_t miopenScaleTensor(miopen::Handle& handle,
+                                            const miopen::TensorDescriptor& yDesc,
                                             void* y,
                                             const void* alpha)
 {
@@ -246,12 +246,12 @@ miopenStatus_t miopenScaleTensor(miopen::Handle handle,
         [&] { ScaleTensor(handle, yDesc, DataCast(y), alpha); });
 }
 
-miopenStatus_t miopenTransformTensor(miopen::Handle handle,
+miopenStatus_t miopenTransformTensor(miopen::Handle& handle,
                                                 const void* alpha,
-                                                const miopen::TensorDescriptor xDesc,
+                                                const miopen::TensorDescriptor& xDesc,
                                                 const void* x,
                                                 const void* beta,
-                                                const miopen::TensorDescriptor yDesc,
+                                                const miopen::TensorDescriptor& yDesc,
                                                 void* y)
 {
     // dstValue = alpha[0]*srcValue + beta[0]*priorDstValue
