@@ -31,7 +31,6 @@
 
 //#include "timer.hpp"
 //#include "util_driver.hpp"
-#include <miopen/convolution.hpp>
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -40,13 +39,10 @@
 #include <memory>
 
 #include <miopen/tensor_ops.hpp>
-
-#include <miopen/miopen.h>
-//#include <miopen/tensor.hpp>
-//#include <miopen/env.hpp>
+#include <miopen/tensor.hpp>
+#include <miopen/convolution.hpp>
 #include <miopen/algorithm.hpp>
-//#include <miopen/logger.hpp>
-//#include "random.hpp"
+
 #include <numeric>
 #include <sstream>
 #include <vector>
@@ -122,16 +118,6 @@ class ConvTuner : public Tuner
     ~ConvTuner()
     {
 
-        /*
-        miopen_destroy_object(biasTensor);
-        miopen_destroy_object(outputTensor);
-        miopen_destroy_object(weightTensor);
-        miopen_destroy_object(inputTensor);
-        miopen_destroy_object(inputTensor_vect4);
-        miopen_destroy_object(weightTensor_vect4);
-
-        miopen_destroy_object(convDesc);
-        */
     }
 
     private:
@@ -214,9 +200,7 @@ int ConvTuner<Tgpu, Tref>::GetandSetData()
     std::vector<int> in_len  = GetInputTensorLengthsFromCmdLine();
     std::vector<int> wei_len = GetWeightTensorLengthsFromCmdLine();
 
-    //SetTensorNd(inputTensor, in_len, data_type);
     inputTensor = miopen::TensorDescriptor(data_type, in_len.data(), in_len.size());
-    //SetTensorNd(weightTensor, wei_len, data_type);
     weightTensor = miopen::TensorDescriptor(data_type, wei_len.data(), wei_len.size());
 
 
@@ -230,10 +214,8 @@ int ConvTuner<Tgpu, Tref>::GetandSetData()
         std::vector<int> in_len_vect4(in_len.begin(), in_len.end()),
             wei_len_vect4(wei_len.begin(), wei_len.end());
         in_len_vect4[1] = ((in_len[1] + 3) / 4) * 4;
-        //SetTensorNd(inputTensor_vect4, in_len_vect4, data_type);
         inputTensor_vect4 = miopen::TensorDescriptor(data_type, in_len_vect4.data(), in_len_vect4.size());
         wei_len_vect4[1] = ((wei_len[1] + 3) / 4) * 4;
-        //SetTensorNd(weightTensor_vect4, wei_len_vect4, data_type);
         weightTensor_vect4 = miopen::TensorDescriptor(data_type, wei_len_vect4.data(), wei_len_vect4.size());
     }
     SetConvDescriptorFromCmdLineArgs();
@@ -242,13 +224,11 @@ int ConvTuner<Tgpu, Tref>::GetandSetData()
 
     miopenDataType_t y_type =
         (data_type == miopenInt8 || data_type == miopenInt8x4) ? miopenFloat : data_type;
-    //SetTensorNd(outputTensor, out_len, y_type);
     outputTensor = miopen::TensorDescriptor(y_type, out_len.data(), out_len.size());
 
     if(inflags.GetValueInt("bias") != 0)
     {
         std::vector<int> bias_len = GetBiasTensorLengthsFromCmdLine();
-        //SetTensorNd(biasTensor, bias_len, data_type);
         biasTensor = miopen::TensorDescriptor(data_type, bias_len.data(), bias_len.size());
     }
     return (0);
@@ -539,9 +519,6 @@ int ConvTuner<Tgpu, Tref>::SetConvDescriptorFromCmdLineArgs()
         }
     }
 
-    //miopenInitConvolutionNdDescriptor(
-    //    convDesc, spatial_dim, pads.data(), conv_strides.data(), conv_dilations.data(), mode);
-
     convDesc = miopen::ConvolutionDescriptor(spatial_dim,
         mode,
         miopenPaddingDefault,
@@ -556,7 +533,6 @@ int ConvTuner<Tgpu, Tref>::SetConvDescriptorFromCmdLineArgs()
 
     if(mode == miopenTranspose)
     {
-        //miopenSetTransposeConvNdOutputPadding(convDesc, spatial_dim, trans_output_pads.data());
         if(spatial_dim != convDesc.GetSpatialDimension())
         {
             MIOPEN_THROW("spatialDim not consistent with convolution descriptor");
@@ -621,18 +597,30 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
     size_t workSpaceSize_bwd_dt = 0;
 
     if(wrw_allowed)
-        tunerConvolutionBackwardWeightsGetWorkSpaceSize(
-            GetHandle(), outputTensor, inputTensor, convDesc, weightTensor, &workSpaceSize_bwd_wt);
+    {
+        workSpaceSize_bwd_wt = convDesc.BackwardWeightsGetWorkSpaceSize(
+            GetHandle(),
+            convDesc.mode == miopenTranspose ? inputTensor : outputTensor,
+            convDesc.mode == miopenTranspose ? outputTensor : inputTensor,
+            weightTensor);
+    }
     if(bwd_allowed)
-        tunerConvolutionBackwardDataGetWorkSpaceSize(
-            GetHandle(), outputTensor, weightTensor, convDesc, inputTensor, &workSpaceSize_bwd_dt);
+    {
+        workSpaceSize_bwd_dt =
+            convDesc.mode == miopenTranspose
+                ? convDesc.ForwardGetWorkSpaceSize(GetHandle(), weightTensor, outputTensor, inputTensor)
+                : convDesc.BackwardDataGetWorkSpaceSize(GetHandle(), weightTensor, outputTensor, inputTensor);
+    }
     if(forward_allowed)
-        tunerConvolutionForwardGetWorkSpaceSize(GetHandle(),
-                                                 (is_transform ? weightTensor_vect4 : weightTensor),
-                                                 (is_transform ? inputTensor_vect4 : inputTensor),
-                                                 convDesc,
-                                                 outputTensor,
-                                                 &workSpaceSize_fwd);
+    {
+        miopen::TensorDescriptor& wDesc = is_transform ? weightTensor_vect4 : weightTensor;
+        miopen::TensorDescriptor& xDesc = is_transform ? inputTensor_vect4 : inputTensor;
+
+        workSpaceSize_fwd = 
+            convDesc.mode == miopenTranspose
+                ? convDesc.BackwardDataGetWorkSpaceSize(GetHandle(), wDesc, xDesc, outputTensor)
+                : convDesc.ForwardGetWorkSpaceSize(GetHandle(), wDesc, xDesc, outputTensor);
+    }
 
     // Workaround: Pad buffers allocations to be a multiple of 2M
     if(miopen::IsEnabled(MIOPEN_DRIVER_PAD_BUFFERS_2M{}))
@@ -816,21 +804,47 @@ int ConvTuner<Tgpu, Tref>::FindForward(int& ret_algo_count,
 {
     bool is_transform = IsInputTensorTransform();
 
-    return tunerFindConvolutionForwardAlgorithm(
-        GetHandle(),
-        (is_transform ? inputTensor_vect4 : inputTensor),
-        (is_transform ? in_vect4_dev->GetMem() : in_dev->GetMem()),
-        (is_transform ? weightTensor_vect4 : weightTensor),
-        (is_transform ? wei_vect4_dev->GetMem() : wei_dev->GetMem()),
-        convDesc,
-        outputTensor,
-        out_dev->GetMem(),
-        request_algo_count,
-        &ret_algo_count,
-        perf_results.data(),
-        (workspace_fwd_dev != nullptr) ? workspace_fwd_dev->GetMem() : nullptr,
-        (workspace_fwd_dev != nullptr) ? workspace_fwd_dev->GetSize() : 0,
-        (inflags.GetValueInt("search") == 1) ? true : false);
+    if(convDesc.mode == miopenTranspose)
+    {
+        return miopen::try_([&] {
+            convDesc.FindConvBwdDataAlgorithm(GetHandle(),
+                                    (is_transform ? inputTensor_vect4 : inputTensor),
+                                    DataCast(is_transform ? in_vect4_dev->GetMem() : in_dev->GetMem()),
+                                    (is_transform ? weightTensor_vect4 : weightTensor),
+                                    DataCast(is_transform ? wei_vect4_dev->GetMem() : wei_dev->GetMem()),
+                                    outputTensor,
+                                    DataCast(out_dev->GetMem()),
+                                    request_algo_count,
+                                    &ret_algo_count,
+                                    perf_results.data(),
+                                    DataCast((workspace_fwd_dev != nullptr) ? workspace_fwd_dev->GetMem() : nullptr),
+                                    (workspace_fwd_dev != nullptr) ? workspace_fwd_dev->GetSize() : 0,
+                                    (inflags.GetValueInt("search") == 1) ? true : false);
+
+            for(int i = 0; i < ret_algo_count; ++i)
+            {
+                // It is guaranteed that enum values are equal, see conv_algo_name.cpp
+                perf_results.data()[i].fwd_algo =
+                    static_cast<miopenConvFwdAlgorithm_t>(perf_results.data()[i].bwd_data_algo);
+            }
+        });
+    }
+    return miopen::try_([&] {
+        convDesc.FindConvFwdAlgorithm(GetHandle(),
+                                (is_transform ? inputTensor_vect4 : inputTensor),
+                                DataCast(is_transform ? in_vect4_dev->GetMem() : in_dev->GetMem()),
+                                (is_transform ? weightTensor_vect4 : weightTensor),
+                                DataCast(is_transform ? wei_vect4_dev->GetMem() : wei_dev->GetMem()),
+                                outputTensor,
+                                DataCast(out_dev->GetMem()),
+                                request_algo_count,
+                                &ret_algo_count,
+                                perf_results.data(),
+                                DataCast((workspace_fwd_dev != nullptr) ? workspace_fwd_dev->GetMem() : nullptr),
+                                (workspace_fwd_dev != nullptr) ? workspace_fwd_dev->GetSize() : 0,
+                                (inflags.GetValueInt("search") == 1) ? true : false);
+    });
+
 }
 
 template <typename Tgpu, typename Tref>
@@ -875,21 +889,47 @@ int ConvTuner<Tgpu, Tref>::FindBackwardData(int& ret_algo_count,
                                              int request_algo_count,
                                              std::vector<miopenConvAlgoPerf_t>& perf_results)
 {
-    return tunerFindConvolutionBackwardDataAlgorithm(
-        GetHandle(),
-        outputTensor,
-        dout_dev->GetMem(),
-        weightTensor,
-        wei_dev->GetMem(),
-        convDesc,
-        inputTensor,
-        din_dev->GetMem(),
-        request_algo_count,
-        &ret_algo_count,
-        perf_results.data(),
-        (workspace_bwd_data_dev != nullptr) ? workspace_bwd_data_dev->GetMem() : nullptr,
-        (workspace_bwd_data_dev != nullptr) ? workspace_bwd_data_dev->GetSize() : 0,
-        (inflags.GetValueInt("search") == 1) ? true : false);
+
+    /// workaround for previous trans conv logic
+    if(convDesc.mode == miopenTranspose)
+        return miopen::try_([&] {
+            convDesc.FindConvFwdAlgorithm(GetHandle(),
+                                    outputTensor,
+                                    DataCast(dout_dev->GetMem()),
+                                    weightTensor,
+                                    DataCast(wei_dev->GetMem()),
+                                    inputTensor,
+                                    DataCast(din_dev->GetMem()),
+                                    request_algo_count,
+                                    &ret_algo_count,
+                                    perf_results.data(),
+                                    DataCast((workspace_bwd_data_dev != nullptr) ? workspace_bwd_data_dev->GetMem() : nullptr),
+                                    (workspace_bwd_data_dev != nullptr) ? workspace_bwd_data_dev->GetSize() : 0,
+                                    (inflags.GetValueInt("search") == 1) ? true : false);
+
+            for(int i = 0; i < ret_algo_count; ++i)
+            {
+                // It is guaranteed that enum values are equal, see conv_algo_name.cpp
+                perf_results.data()[i].bwd_data_algo =
+                    static_cast<miopenConvBwdDataAlgorithm_t>(perf_results.data()[i].fwd_algo);
+            }
+        });
+
+    return miopen::try_([&] {
+        convDesc.FindConvBwdDataAlgorithm(GetHandle(),
+                                    outputTensor,
+                                    DataCast(dout_dev->GetMem()),
+                                    weightTensor,
+                                    DataCast(wei_dev->GetMem()),
+                                    inputTensor,
+                                    DataCast(din_dev->GetMem()),
+                                    request_algo_count,
+                                    &ret_algo_count,
+                                    perf_results.data(),
+                                    DataCast((workspace_bwd_data_dev != nullptr) ? workspace_bwd_data_dev->GetMem() : nullptr),
+                                    (workspace_bwd_data_dev != nullptr) ? workspace_bwd_data_dev->GetSize() : 0,
+                                    (inflags.GetValueInt("search") == 1) ? true : false);
+    });
 }
 
 template <typename Tgpu, typename Tref>
@@ -898,23 +938,23 @@ int ConvTuner<Tgpu, Tref>::FindBackwardWeights(int& ret_algo_count,
                                                 std::vector<miopenConvAlgoPerf_t>& perf_results)
 {
 
-    tunerFindConvolutionBackwardWeightsAlgorithm(
-        GetHandle(),
-        outputTensor,
-        dout_dev->GetMem(),
-        inputTensor,
-        in_dev->GetMem(),
-        convDesc,
-        weightTensor,
-        wei_dev->GetMem(),
-        request_algo_count,
-        &ret_algo_count,
-        perf_results.data(),
-        (workspace_bwd_weights_dev != nullptr) ? workspace_bwd_weights_dev->GetMem() : nullptr,
-        (workspace_bwd_weights_dev != nullptr) ? workspace_bwd_weights_dev->GetSize() : 0,
-        (inflags.GetValueInt("search") == 1) ? true : false);
-
-    return 0;
+    return miopen::try_([&] {
+        convDesc.FindConvBwdWeightsAlgorithm(
+            GetHandle(),
+            /// workaround for previous trans conv logic
+            convDesc.mode == miopenTranspose ? inputTensor : outputTensor,
+            convDesc.mode == miopenTranspose ? DataCast(in_dev->GetMem()) : DataCast(dout_dev->GetMem()),
+            convDesc.mode == miopenTranspose ? outputTensor : inputTensor,
+            convDesc.mode == miopenTranspose ? DataCast(dout_dev->GetMem()) : DataCast(in_dev->GetMem()),
+            weightTensor,
+            DataCast(wei_dev->GetMem()),
+            request_algo_count,
+            &ret_algo_count,
+            perf_results.data(),
+            DataCast((workspace_bwd_weights_dev != nullptr) ? workspace_bwd_weights_dev->GetMem() : nullptr),
+            (workspace_bwd_weights_dev != nullptr) ? workspace_bwd_weights_dev->GetSize() : 0,
+            (inflags.GetValueInt("search") == 1) ? true : false);
+    });
 }
 
 template <typename Tgpu, typename Tref>
@@ -937,20 +977,41 @@ int ConvTuner<Tgpu, Tref>::RunBackwardGPU()
         if(ret_algo_count == 0)
             throw std::runtime_error("Find Backward Data Conv. ret_algo_count == 0");
 
-        ret = tunerConvolutionBackwardData(
-            GetHandle(),
-            &alpha,
-            outputTensor,
-            dout_dev->GetMem(),
-            weightTensor,
-            wei_dev->GetMem(),
-            convDesc,
-            perf_results_data[0].bwd_data_algo,
-            &beta,
-            inputTensor,
-            din_dev->GetMem(),
-            (workspace_bwd_data_dev != nullptr) ? workspace_bwd_data_dev->GetMem() : nullptr,
-            perf_results_data[0].memory);
+        /// workaround for previous trans conv logic
+        if(convDesc.mode == miopenTranspose)
+            ret = miopen::try_([&] {
+                // It is guaranteed that enum values are equal, see conv_algo_name.cpp
+                const auto algo_trans = static_cast<miopenConvFwdAlgorithm_t>(perf_results_data[0].bwd_data_algo);
+                convDesc.ConvolutionForward(GetHandle(),
+                                &alpha,
+                                outputTensor,
+                                DataCast(dout_dev->GetMem()),
+                                weightTensor,
+                                DataCast(wei_dev->GetMem()),
+                                algo_trans,
+                                &beta,
+                                inputTensor,
+                                DataCast(din_dev->GetMem()),
+                                DataCast((workspace_bwd_data_dev != nullptr) ? workspace_bwd_data_dev->GetMem() : nullptr),
+                                perf_results_data[0].memory);
+            });
+        else
+        {
+            ret = miopen::try_([&] {
+                convDesc.ConvolutionBackwardData(GetHandle(),
+                                    &alpha,
+                                    outputTensor,
+                                    DataCast(dout_dev->GetMem()),
+                                    weightTensor,
+                                    DataCast(wei_dev->GetMem()),
+                                    perf_results_data[0].bwd_data_algo,
+                                    &beta,
+                                    inputTensor,
+                                    DataCast(din_dev->GetMem()),
+                                    DataCast((workspace_bwd_data_dev != nullptr) ? workspace_bwd_data_dev->GetMem() : nullptr),
+                                    perf_results_data[0].memory);
+            });
+        }
     }
 
     if(wrw_allowed)
@@ -966,32 +1027,47 @@ int ConvTuner<Tgpu, Tref>::RunBackwardGPU()
         const auto wrw_workspace = perf_results_weights[0].memory;
         is_wrw_winograd          = (wrw_algo == miopenConvolutionBwdWeightsAlgoWinograd);
 
-            ret = tunerConvolutionBackwardWeights(GetHandle(),
-                                                   &alpha,
-                                                   outputTensor,
-                                                   dout_dev->GetMem(),
-                                                   inputTensor,
-                                                   in_dev->GetMem(),
-                                                   convDesc,
-                                                   wrw_algo,
-                                                   &beta,
-                                                   weightTensor,
-                                                   dwei_dev->GetMem(),
-                                                   (workspace_bwd_weights_dev != nullptr)
-                                                       ? workspace_bwd_weights_dev->GetMem()
-                                                       : nullptr,
-                                                   wrw_workspace);
+        ret = miopen::try_([&] {
+            convDesc.ConvolutionBackwardWeights(
+                GetHandle(),
+                &alpha,
+                /// workaround for previous trans conv logic
+                convDesc.mode == miopenTranspose ? inputTensor : outputTensor,
+                convDesc.mode == miopenTranspose ? DataCast(in_dev->GetMem()) : DataCast(dout_dev->GetMem()),
+                convDesc.mode == miopenTranspose ? outputTensor : inputTensor,
+                convDesc.mode == miopenTranspose ? DataCast(dout_dev->GetMem()) : DataCast(in_dev->GetMem()),
+                wrw_algo,
+                &beta,
+                weightTensor,
+                DataCast(dwei_dev->GetMem()),
+                DataCast((workspace_bwd_weights_dev != nullptr)
+                   ? workspace_bwd_weights_dev->GetMem()
+                   : nullptr),
+                wrw_workspace);
+        });
     }
 
     if(inflags.GetValueInt("bias") != 0)
     {
-        ret = tunerConvolutionBackwardBias(GetHandle(),
-                                            &alpha,
-                                            outputTensor,
-                                            dout_dev->GetMem(),
-                                            &beta,
-                                            biasTensor,
-                                            db_dev->GetMem());
+        // bfloat16 not supported for bias operation
+        if(outputTensor.GetType() == miopenBFloat16 ||
+           biasTensor.GetType() == miopenBFloat16)
+        {
+            ret = miopenStatusNotImplemented;
+        }
+        else
+        {
+
+            ret =  miopen::try_([&] {
+                ConvolutionBackwardBias(GetHandle(),
+                                        &alpha,
+                                        outputTensor,
+                                        DataCast(dout_dev->GetMem()),
+                                        &beta,
+                                        biasTensor,
+                                        DataCast(db_dev->GetMem()));
+            });
+        }
     }
     return ret;
 }
