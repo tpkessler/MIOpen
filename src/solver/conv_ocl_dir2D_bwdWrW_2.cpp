@@ -141,14 +141,14 @@ bool ConvOclBwdWrW2NonTunable::IsApplicable(const ConvolutionContext& params) co
     // At present, auto-tuning is disabled for non-group 3x3 and 1x1 filters for multiple
     // reasons: after tuning ocl kernel for 3x3 and 1x1 filters, assembly kernel still
     // dominates. Thus, this solver is used for non-group 3x3 and 1x1 filters only.
-    return ConvOclBwdWrW2<1>::IsApplicableBase(params) && !IsTunable(params);
+    return IsApplicableBase(params) && !IsTunable(params);
 }
 
 ConvSolution ConvOclBwdWrW2NonTunable::GetSolution(const ConvolutionContext& params) const
 {
     // Invoking base class GetSolution with default values for params obtained
-    // from GetPerformanceConfig(params)
-    return ConvOclBwdWrW2<1>::GetSolution(params, GetPerformanceConfig(params));
+    // from GetPerformanceConfigBase(params)
+    return GetSolutionBase(params, GetPerformanceConfigBase(params));
 }
 
 template <int N_BATCH_LOOPS>
@@ -452,7 +452,7 @@ std::string PerformanceConfigConvOclBwdWrw2<N_BATCH_LOOPS>::ToString() const
 }
 
 template <int N_BATCH_LOOPS>
-bool ConvOclBwdWrW2<N_BATCH_LOOPS>::IsValidPerformanceConfig(
+bool ConvOclBwdWrW2Base<N_BATCH_LOOPS>::IsValidPerformanceConfigBase(
     const ConvolutionContext& params,
     const PerformanceConfigConvOclBwdWrw2<N_BATCH_LOOPS>& perfConfig) const
 {
@@ -460,7 +460,7 @@ bool ConvOclBwdWrW2<N_BATCH_LOOPS>::IsValidPerformanceConfig(
 }
 
 template <int N_BATCH_LOOPS>
-bool ConvOclBwdWrW2<N_BATCH_LOOPS>::IsApplicableBase(const ConvolutionContext& params) const
+bool ConvOclBwdWrW2Base<N_BATCH_LOOPS>::IsApplicableBase(const ConvolutionContext& params) const
 {
     if(!params.Is2d())
         return false;
@@ -497,18 +497,18 @@ bool ConvOclBwdWrW2<N_BATCH_LOOPS>::IsApplicableBase(const ConvolutionContext& p
            /// We use the default PerformanceConfig here. This guarantees that at least
            /// one config will pass the LDS constraint check during auto-tuning.
            /// This works also for non-tunable solver.
-           IsValidPerformanceConfig(params, GetPerformanceConfig(params));
+           IsValidPerformanceConfigBase(params, GetPerformanceConfigBase(params));
 }
 
 template <int N_BATCH_LOOPS>
 bool ConvOclBwdWrW2<N_BATCH_LOOPS>::IsApplicable(const ConvolutionContext& params) const
 {
-    return IsApplicableBase(params) && IsTunable(params);
+    return ConvOclBwdWrW2Base<N_BATCH_LOOPS>::IsApplicableBase(params) && IsTunable(params);
 }
 
 template <int N_BATCH_LOOPS>
 PerformanceConfigConvOclBwdWrw2<N_BATCH_LOOPS>
-ConvOclBwdWrW2<N_BATCH_LOOPS>::GetPerformanceConfig(const ConvolutionContext& params) const
+ConvOclBwdWrW2Base<N_BATCH_LOOPS>::GetPerformanceConfigBase(const ConvolutionContext& params) const
 {
     PerformanceConfigConvOclBwdWrw2<N_BATCH_LOOPS> pp;
     pp.EuristicInit(params);
@@ -516,7 +516,7 @@ ConvOclBwdWrW2<N_BATCH_LOOPS>::GetPerformanceConfig(const ConvolutionContext& pa
 }
 
 template <int N_BATCH_LOOPS>
-ConvSolution ConvOclBwdWrW2<N_BATCH_LOOPS>::GetSolution(
+ConvSolution ConvOclBwdWrW2Base<N_BATCH_LOOPS>::GetSolutionBase(
     const ConvolutionContext& params,
     const PerformanceConfigConvOclBwdWrw2<N_BATCH_LOOPS>& config,
     bool) const

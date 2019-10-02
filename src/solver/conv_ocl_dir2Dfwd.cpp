@@ -31,7 +31,7 @@
 namespace miopen {
 namespace solver {
 
-bool ConvOclDirectFwd::IsApplicable(const ConvolutionContext& params) const
+bool ConvOclDirectFwdBase::IsApplicable(const ConvolutionContext& params) const
 {
     if(!params.Is2d())
         return false;
@@ -96,7 +96,7 @@ bool ConvOclDirectFwd::IsApplicable(const ConvolutionContext& params) const
 /// and some logic from the corresponding opencl kernel source.
 /// The cases which lead to errors can be later omitted from the search.
 /// \todo Get rid the duplication of code where possible.
-bool ConvOclDirectFwd::IsValidPerformanceConfig(
+bool ConvOclDirectFwdBase::IsValidPerformanceConfig(
     const ConvolutionContext& params, const LegacyPerformanceConfig& searched_params) const
 {
     ConvSolution result;

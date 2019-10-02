@@ -48,7 +48,7 @@ namespace solver {
 /// The container holds problem config information instead. This info
 /// is required for advancing the iterator to the next valid configuration.
 ///
-/// PerformanceConfig type requirements:
+/// PerformanceConfigInstance type requirements:
 /// - (ctor)()
 ///     Constructs an instance with invalid value.
 /// - (ctor)(bool)
@@ -59,7 +59,7 @@ namespace solver {
 /// - IsValid(const Context& c) const
 ///     Checks if instance is valid for the given c.
 ///     For convolutions, Context represents a problem configuration.
-/// - operator==(const PerformanceConfig&)
+/// - operator==(const PerformanceConfigInstance&)
 ///     Ordinary semantics.
 template <typename PerformanceConfig, typename Context>
 class ComputedContainer;
@@ -87,7 +87,10 @@ class ComputedIterator : public std::iterator<std::input_iterator_tag, Performan
     }
 
     // Implements container's begin()
-    ComputedIterator(const Context& problem, const bool spare) : v(spare), p(&problem)
+    ComputedIterator(const Context& problem,
+                     const bool spare,
+                     const SearchableSolver<Context, PerformanceConfig>& solver)
+        : v(solver.GetGenericSearchStart(spare)), p(&problem)
     {
         if(!v.IsValid(*p))
             Next();
@@ -114,7 +117,7 @@ class ComputedIterator : public std::iterator<std::input_iterator_tag, Performan
 };
 
 template <typename PerformanceConfig, typename Context>
-class ComputedIterator<std::shared_ptr<PerformanceConfig>, Context>
+class ComputedIterator<PerformanceConfig*, Context>
     : public std::iterator<std::input_iterator_tag, std::shared_ptr<PerformanceConfig>>
 {
     std::shared_ptr<PerformanceConfig> v;
@@ -126,20 +129,23 @@ class ComputedIterator<std::shared_ptr<PerformanceConfig>, Context>
         {
             do
             {
-                if(!v.SetNextValue())
+                if(!v->SetNextValue())
                 { // Wraparound, end reached. Iterator is useless from now.
                     p = nullptr;
                     break;
                 }
-            } while(!v.IsValid(*p));
+            } while(!v->IsValid(*p));
         }
         return *this;
     }
 
     // Implements container's begin()
-    ComputedIterator(const Context& problem, const bool spare) : v(spare), p(&problem)
+    ComputedIterator(const Context& problem,
+                     const bool spare,
+                     const SearchableSolver<Context, PerformanceConfig*>& solver)
+        : v(solver.GetGenericSearchStart(spare)), p(&problem)
     {
-        if(!v.IsValid(*p))
+        if(!v->IsValid(*p))
             Next();
     }
 
@@ -160,7 +166,7 @@ class ComputedIterator<std::shared_ptr<PerformanceConfig>, Context>
     }
     bool operator==(ComputedIterator const& other) const { return !(*this != other); }
 
-    friend class ComputedContainer<std::shared_ptr<PerformanceConfig>, Context>;
+    friend class ComputedContainer<PerformanceConfig*, Context>;
 };
 
 template <typename PerformanceConfig, typename Context>
@@ -176,7 +182,8 @@ class ComputedContainer
                      //   the resulting container, and thus to exponential slowdown.
                      //
                      // Nevertheless, a Solver is free to either use or not use this capability
-                     // (i.e. it is ok for PerformanceConfig(bool) to ignore its parameter).
+                     // (i.e. it is ok for PerformanceConfigInstance(bool) to ignore its parameter).
+    const SearchableSolver<Context, PerformanceConfig>& solver;
 
     /// \note We do not add 'const' to keep the object assignable
     /// for the sake of flexibility. Nevertheless, all element accesses of
@@ -185,11 +192,13 @@ class ComputedContainer
     public:
     using const_iterator = ComputedIterator<PerformanceConfig, Context>;
 
-    ComputedContainer(const Context& problem_, const bool spare_ = false)
-        : problem(problem_), spare(spare_)
+    ComputedContainer(const Context& problem_,
+                      const SearchableSolver<Context, PerformanceConfig>& solver_,
+                      const bool spare_ = false)
+        : problem(problem_), spare(spare_), solver(solver_)
     {
     }
-    const_iterator begin() const { return {problem, spare}; }
+    const_iterator begin() const { return {problem, spare, solver}; }
     const_iterator end() const { return {}; }
 };
 
@@ -335,7 +344,7 @@ enum class SearchTweak
 /// clang-format-on
 #if MIOPEN_ALLOC_BUFFERS
 template <class Solver, class Context>
-auto GenericSearchFwd(const Solver s,
+auto GenericSearchFwd(const Solver& s,
                       const Context& context,
                       const SearchTweak tweak = SearchTweak::None)
     -> decltype(s.GetPerformanceConfig(context))
@@ -344,7 +353,7 @@ auto GenericSearchFwd(const Solver s,
 }
 
 template <class Solver, class Context>
-auto GenericSearchBwd(const Solver s,
+auto GenericSearchBwd(const Solver& s,
                       const Context& context,
                       const SearchTweak tweak = SearchTweak::None)
     -> decltype(s.GetPerformanceConfig(context))
@@ -353,7 +362,7 @@ auto GenericSearchBwd(const Solver s,
 }
 
 template <class Solver, class Context>
-auto GenericSearchWrW(const Solver s,
+auto GenericSearchWrW(const Solver& s,
                       const Context& context,
                       const SearchTweak tweak = SearchTweak::None)
     -> decltype(s.GetPerformanceConfig(context))
@@ -362,7 +371,7 @@ auto GenericSearchWrW(const Solver s,
 }
 #else
 template <class Solver, class Context>
-auto GenericSearchFwd(const Solver s,
+auto GenericSearchFwd(const Solver& s,
                       const Context& context,
                       const SearchTweak tweak = SearchTweak::None)
     -> decltype(s.GetPerformanceConfig(context))
@@ -372,7 +381,7 @@ auto GenericSearchFwd(const Solver s,
 }
 
 template <class Solver, class Context>
-auto GenericSearchBwd(const Solver s,
+auto GenericSearchBwd(const Solver& s,
                       const Context& context,
                       const SearchTweak tweak = SearchTweak::None)
     -> decltype(s.GetPerformanceConfig(context))
@@ -382,7 +391,7 @@ auto GenericSearchBwd(const Solver s,
 }
 
 template <class Solver, class Context>
-auto GenericSearchWrW(const Solver s,
+auto GenericSearchWrW(const Solver& s,
                       const Context& context,
                       const SearchTweak tweak = SearchTweak::None)
     -> decltype(s.GetPerformanceConfig(context))
@@ -419,7 +428,7 @@ const auto& GetConfigRef(const TConfig& cfg,
 
 #if MIOPEN_ALLOC_BUFFERS
 template <class Solver, class Context>
-auto GenericSearch(const Solver s,
+auto GenericSearch(const Solver& s,
                    const Context& context,
                    const SearchTweak tweak = SearchTweak::None)
 #else
@@ -433,8 +442,9 @@ auto GenericSearch(const Solver& s,
 #endif
     -> decltype(s.GetPerformanceConfig(context))
 {
-    using PerformanceConfig = decltype(s.GetPerformanceConfig(context));
-    PerformanceConfig best_config;
+	using PerformanceConfig = typename Solver::PerformanceConfig;
+    using PerformanceConfigInstance = decltype(s.GetPerformanceConfig(context));
+    PerformanceConfigInstance best_config;
     const auto default_config   = s.GetPerformanceConfig(context);
     const auto default_solution = s.GetSolution(context, detail::GetConfigRef(default_config));
 
@@ -515,13 +525,13 @@ auto GenericSearch(const Solver& s,
 #endif
     AutoEnableProfiling enableProfiling{profile_h};
 
-    const ComputedContainer<PerformanceConfig, Context> main(context);
+    const ComputedContainer<PerformanceConfig, Context> main(context, s);
     const int main_size = std::distance(main.begin(), main.end());
-    const ComputedContainer<PerformanceConfig, Context> spare(context, true);
+    const ComputedContainer<PerformanceConfig, Context> spare(context, s, true);
     const int spare_size = std::distance(spare.begin(), spare.end());
     const bool useSpare  = (main_size == 0);
 
-    const ComputedContainer<PerformanceConfig, Context> all_configs = useSpare ? spare : main;
+    const ComputedContainer<PerformanceConfig, Context>& all_configs = useSpare ? spare : main;
     const int n_runs_total = useSpare ? spare_size : main_size;
     MIOPEN_LOG_W(s.DbId() << ": Searching the best solution among " << n_runs_total
                           << (useSpare ? " (spare)" : "") << "...");
@@ -531,7 +541,7 @@ auto GenericSearch(const Solver& s,
     size_t n_failed  = 0;
     size_t n_current = 0;
     size_t n_best    = 0;
-    HeartBeat<PerformanceConfig> heartbeat;
+    HeartBeat<PerformanceConfigInstance> heartbeat;
     heartbeat.Start();
 
     profile_h.EnableProfiling(true);

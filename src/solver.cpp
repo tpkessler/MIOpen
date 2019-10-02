@@ -155,7 +155,7 @@ inline void
 RegisterWithSolver(IdRegistryData& registry, uint64_t value, TSolver, miopenConvAlgorithm_t algo)
 {
     if(Register(registry, value, SolverDbId(TSolver{}), algo))
-        registry.value_to_solver.emplace(value, TSolver{});
+        registry.value_to_solver.emplace(value, &StaticContainer<TSolver>::Instance());
 }
 
 inline SolverRegistrar::SolverRegistrar(IdRegistryData& registry)

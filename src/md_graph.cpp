@@ -86,7 +86,7 @@ MDGraph_vertex_ptr FusionMDGraph::GetCurVertex(Handle& handle)
 
     return ptr;
 }
-std::vector<solver::AnySolver> FusionMDGraph::GetSolvers()
+std::vector<ConvSolver*> FusionMDGraph::GetSolvers()
 {
     // sort according to the edge weight
     std::sort(cur_vertex.begin(),
@@ -98,12 +98,12 @@ std::vector<solver::AnySolver> FusionMDGraph::GetSolvers()
               });
 
     // return a vector of just the solvers
-    std::vector<solver::AnySolver> res;
+    std::vector<ConvSolver*> res;
     for(auto& cur : cur_vertex)
     {
         if(cur.second.find("solver") != cur.second.end())
         {
-            res.push_back(boost::any_cast<solver::AnySolver>(cur.second.at("solver")));
+            res.push_back(boost::any_cast<ConvSolver*>(cur.second.at("solver")));
         }
     }
     return res;
@@ -508,7 +508,7 @@ void FusionMDGraph::InitConv(FusionMDGraph& g)
         static const std::string algo("miopenConvolutionWinogradBiasActiv");
         auto vc_s1 =
             std::make_shared<MDGraph_vertex>(miopenFusionOpConvForward, program, kernel, algo);
-        vc_s1->solver         = solver::ConvBinWinogradRxSFused{};
+        vc_s1->solver         = &StaticContainer<solver::ConvBinWinogradRxSFused>::Instance();
         vc_s1->default_args   = WinogradNodeArgs();
         vc_s1->supported_arch = {"gfx803", "gfx900", "gfx906"};
 
@@ -618,7 +618,7 @@ void FusionMDGraph::InitConv(FusionMDGraph& g)
 
             auto vc_s2 = std::make_shared<MDGraph_vertex>(
                 miopenFusionOpConvForward, program_s2, kernel, algo);
-            vc_s2->solver         = solver::ConvBinWinogradRxSFused{};
+            vc_s2->solver         = &StaticContainer<solver::ConvBinWinogradRxSFused>::Instance();
             vc_s2->default_args   = WinogradNodeArgs();
             vc_s2->supported_arch = {"gfx803", "gfx900", "gfx906"};
 
@@ -703,7 +703,7 @@ void FusionMDGraph::InitConv(FusionMDGraph& g)
                                                            "conv1x1u_bias_activ.s",
                                                            "gcnAsmConv1x1U",
                                                            "miopenConvolutionDirectBiasActivAsm");
-            conv_v->solver = solver::ConvBiasActivAsm1x1U{};
+            conv_v->solver = &StaticContainer<solver::ConvBiasActivAsm1x1U>::Instance();
 
             auto bias_v = std::make_shared<MDGraph_vertex>(miopenFusionOpBiasForward,
                                                            "conv1x1u_bias_activ.s",
@@ -748,7 +748,7 @@ void FusionMDGraph::InitConv(FusionMDGraph& g)
                                                            "conv1x1u_bias_activ.s",
                                                            "gcnAsmConv1x1U",
                                                            "miopenConvolutionDirectBiasActivAsm");
-            conv_v->solver         = solver::ConvBiasActivAsm1x1U{};
+            conv_v->solver         = &StaticContainer<solver::ConvBiasActivAsm1x1U>::Instance();
             conv_v->supported_arch = {"gfx900", "gfx906", "gfx908"};
 
             auto bias_v = std::make_shared<MDGraph_vertex>(miopenFusionOpBiasForward,
@@ -802,7 +802,7 @@ void FusionMDGraph::InitConv(FusionMDGraph& g)
                                                        "MIOpenConvUniBatchNormActiv",
                                                        "miopenConvolutionDirectBiasActiv");
 
-        conv_v->solver = solver::ConvOclDirectFwdFused{};
+        conv_v->solver = &StaticContainer<solver::ConvOclDirectFwdFused>::Instance();
 
         std::vector<size_t> lens = {1, 3, 5, 7, 9, 11};
         for(auto len : lens)
@@ -863,7 +863,7 @@ void FusionMDGraph::InitConv(FusionMDGraph& g)
                                                        "MIOpenConvUniBatchNormActiv",
                                                        "miopenConvolutionDirectBiasActiv");
 
-        conv_v->solver = solver::ConvOclDirectFwdFused{};
+        conv_v->solver = &StaticContainer < solver::ConvOclDirectFwdFused>::Instance();
 
         // from ConvolutionDescriptor::IsDirectSupported
         std::vector<size_t> lens = {3, 5, 7, 9, 11};
@@ -1060,9 +1060,9 @@ bool FusionMDGraph::Advance(std::shared_ptr<FusionOpDescriptor> op,
                                 cur_map["algo"] =
                                     *cur_path_set.begin(); // there should be only one algo
                                 cur_map.erase("solver");
-                                if(!ch_it.first->solver.IsEmpty())
+                                if(ch_it.first->solver != nullptr)
                                 {
-                                    cur_map.insert(std::pair<std::string, solver::AnySolver>(
+                                    cur_map.insert(std::pair<std::string, ConvSolver*>(
                                         "solver", ch_it.first->solver));
                                 }
                             }

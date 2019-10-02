@@ -362,13 +362,13 @@ ConvAsm1x1U::GetPerformanceConfig(const ConvolutionContext& params) const
     return std::move(pp);
 }
 
-bool ConvAsm1x1U::IsValidPerformanceConfig(const ConvolutionContext& problem,
+bool ConvAsm1x1UBase::IsValidPerformanceConfig(const ConvolutionContext& problem,
                                            const PerformanceConfigConvAsm1x1U& c) const
 {
     return c.IsValidValue() && c.IsValid(problem);
 }
 
-bool ConvAsm1x1U::IsApplicable(const ConvolutionContext& params) const
+bool ConvAsm1x1UBase::IsApplicable(const ConvolutionContext& params) const
 {
     if(!params.use_asm_kernels)
         return false;
@@ -443,7 +443,7 @@ bool ConvAsm1x1U::IsApplicable(const ConvolutionContext& params) const
     return ok;
 }
 
-bool ConvAsm1x1U::IsFast(const ConvolutionContext&) const { return true; }
+bool ConvAsm1x1UBase::IsFast(const ConvolutionContext&) const { return true; }
 
 static int divide_round_plus_inf(const int x, const int y)
 {
@@ -453,7 +453,7 @@ static int divide_round_plus_inf(const int x, const int y)
     return x / y;
 }
 
-ConvSolution ConvAsm1x1U::GetSolution(const ConvolutionContext& params,
+ConvSolution ConvAsm1x1UBase::GetSolution(const ConvolutionContext& params,
                                       const PerformanceConfigConvAsm1x1U& config,
                                       const bool disableConfigOverrideFromEnv) const
 {

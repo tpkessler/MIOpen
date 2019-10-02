@@ -2577,8 +2577,7 @@ static std::vector<KernelInvoke> CompileSolver(Handle& handle,
     ctx.SetupFloats();
 
     const auto& solver  = solver_id.GetSolver();
-    auto db             = GetDb(ctx);
-    const auto solution = solver.FindSolution(ctx, db);
+    const auto solution = solver.GetSolution(ctx);
 
     std::vector<KernelInvoke> kernels;
     AddKernels(handle, key.algorithm_name, key.network_config, solution, &kernels);

@@ -977,7 +977,7 @@ miopenStatus_t FusionPlanDescriptor::Compile(Handle& handle)
             }
 
             success = true;
-            ConvSolver* sol;
+            ConvSolver* sol = nullptr;
             if(kinder.second.find("solver") != kinder.second.end())
             {
                 sol = boost::any_cast<ConvSolver*>(kinder.second.at("solver"));
