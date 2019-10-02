@@ -114,11 +114,21 @@ struct SolverBase
     virtual const std::string& DbId() const = 0;
 };
 
-namespace detail {
+/// Base class for problem solvers which use exhaustive search mechanisms.
 template <class TContext, class TPerformanceConfig>
-struct SearchableSolverBase
+struct SearchableSolver : public SolverBase<TContext>
 {
-    public:
+    /// Initialize performance config for generic search.
+    TPerformanceConfig GetGenericSearchStart(bool sparce) const { return {sparce}; }
+
+    /// Initializes performance config to the default values.
+    /// The function may involve some euristic to guess the best solution
+    /// configuration. It is assumed that the function takes constant time
+    /// to finish and does not run kernels to measure performance etc.
+    /// The function shall always return valid config.
+    /// Only implemented by SearchableSolvers
+    virtual TPerformanceConfig GetPerformanceConfig(const TContext&) const = 0;
+
     /// Searchable solvers provide a GetSolution that takes a Context and PerformanceConfig
     virtual ConvSolution GetSolution(const TContext& params,
                                      const TPerformanceConfig& config,
@@ -132,31 +142,8 @@ struct SearchableSolverBase
     {
         return true; // Do not check by default.
     }
-};
-} // namespace detail
-
-/// Base class for problem solvers which use exhaustive search mechanisms.
-template <class TContext, class TPerformanceConfig>
-struct SearchableSolver : public SolverBase<TContext>,
-                          public detail::SearchableSolverBase<TContext, TPerformanceConfig>
-{
-    using PerformanceConfig = TPerformanceConfig;
-
-    /// Initialize performance config for generic search.
-    TPerformanceConfig GetGenericSearchStart(bool sparce) const { return {sparce}; }
-
     private:
-    using DetailBase = detail::SearchableSolverBase<TContext, TPerformanceConfig>;
-
     virtual TPerformanceConfig Search(const TContext&) const = 0;
-
-    /// Initializes performance config to the default values.
-    /// The function may involve some euristic to guess the best solution
-    /// configuration. It is assumed that the function takes constant time
-    /// to finish and does not run kernels to measure performance etc.
-    /// The function shall always return valid config.
-    /// Only implemented by SearchableSolvers
-    virtual TPerformanceConfig GetPerformanceConfig(const TContext&) const = 0;
 
     ConvSolution GetSolution(const TContext& context) const override
     {
@@ -183,7 +170,7 @@ struct SearchableSolver : public SolverBase<TContext>,
                     MIOPEN_LOG_I2("Perf Db: record loaded: " << db_id);
                     if(this->IsValidPerformanceConfig(context, config))
                     {
-                        return DetailBase::GetSolution(context, config);
+                        return GetSolution(context, config);
                     }
                     MIOPEN_LOG(
                         (MIOPEN_INSTALLABLE ? LoggingLevel::Warning : miopen::LoggingLevel::Error),
@@ -204,7 +191,7 @@ struct SearchableSolver : public SolverBase<TContext>,
                 {
                     auto c = Search(context);
                     db.Update(context, db_id, c);
-                    return DetailBase::GetSolution(context, c);
+                    return GetSolution(context, c);
                 }
                 catch(const miopen::Exception& ex)
                 {
@@ -213,7 +200,7 @@ struct SearchableSolver : public SolverBase<TContext>,
             }
         }
 
-        return DetailBase::GetSolution(context, GetPerformanceConfig(context));
+        return GetSolution(context, GetPerformanceConfig(context));
     }
 };
 
@@ -221,17 +208,10 @@ struct SearchableSolver : public SolverBase<TContext>,
 /// different performance config type.
 template <class TContext, class TPerformanceConfig>
 struct SearchableSolver<TContext, TPerformanceConfig*>
-    : SolverBase<TContext>, detail::SearchableSolverBase<TContext, TPerformanceConfig>
+    : SolverBase<TContext>
 {
-    using PerformanceConfig = TPerformanceConfig*;
-
     /// Initialize performance config for generic search.
     virtual std::shared_ptr<TPerformanceConfig> GetGenericSearchStart(bool sparce) const = 0;
-
-    private:
-    using DetailBase = detail::SearchableSolverBase<TContext, TPerformanceConfig>;
-
-    virtual std::shared_ptr<TPerformanceConfig> Search(const TContext&) const = 0;
 
     /// Initializes performance config to the default values.
     /// The function may involve some euristic to guess the best solution
@@ -240,6 +220,22 @@ struct SearchableSolver<TContext, TPerformanceConfig*>
     /// The function shall always return valid config.
     /// Only implemented by SearchableSolvers
     virtual std::shared_ptr<TPerformanceConfig> GetPerformanceConfig(const TContext&) const = 0;
+
+    /// Searchable solvers provide a GetSolution that takes a Context and PerformanceConfig
+    virtual ConvSolution GetSolution(const TContext& params,
+                                     const TPerformanceConfig& config,
+                                     bool disableConfigOverrideFromEnv = false) const = 0;
+
+    protected:
+    /// Should return false if performance config is wrong for a problem.
+    /// Main use is validation of values read from the perf db.
+    /// Only implemented by SearchableSolvers
+    virtual bool IsValidPerformanceConfig(const TContext&, const TPerformanceConfig&) const
+    {
+        return true; // Do not check by default.
+    }
+    private:
+    virtual std::shared_ptr<TPerformanceConfig> Search(const TContext&) const = 0;
 
     ConvSolution GetSolution(const TContext& context) const override
     {
@@ -266,7 +262,7 @@ struct SearchableSolver<TContext, TPerformanceConfig*>
                     MIOPEN_LOG_I2("Perf Db: record loaded: " << db_id);
                     if(this->IsValidPerformanceConfig(context, config))
                     {
-                        return DetailBase::GetSolution(context, config);
+                        return GetSolution(context, config);
                     }
                     MIOPEN_LOG(
                         (MIOPEN_INSTALLABLE ? LoggingLevel::Warning : miopen::LoggingLevel::Error),
@@ -287,7 +283,7 @@ struct SearchableSolver<TContext, TPerformanceConfig*>
                 {
                     auto c = Search(context);
                     db.Update(context, db_id, *c);
-                    return DetailBase::GetSolution(context, *c);
+                    return GetSolution(context, *c);
                 }
                 catch(const miopen::Exception& ex)
                 {
@@ -296,7 +292,7 @@ struct SearchableSolver<TContext, TPerformanceConfig*>
             }
         }
 
-        return DetailBase::GetSolution(context, *GetPerformanceConfig(context));
+        return GetSolution(context, *GetPerformanceConfig(context));
     }
 };
 
@@ -969,7 +965,7 @@ struct ConvAsmBwdWrW1x1 final
                               float& elapsed_time) const;
     ConvSolution GetSolution(const ConvolutionContext& params,
                              const PerformanceConfigConvAsmBwdWrW1x1& config,
-                             bool disableConfigOverrideFromEnv = false) const override;
+                             bool disableConfigOverrideFromEnv) const override;
 };
 
 /// N_BATCH_LOOPS - {1,2,4,8,16} Num batches processed in single workitem.

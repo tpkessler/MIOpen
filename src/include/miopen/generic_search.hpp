@@ -343,8 +343,8 @@ enum class SearchTweak
 /// ------------------------------------------------
 /// clang-format-on
 #if MIOPEN_ALLOC_BUFFERS
-template <class Solver, class Context>
-auto GenericSearchFwd(const Solver& s,
+template <class PerformanceConfig, class Context>
+auto GenericSearchFwd(const SearchableSolver<Context, PerformanceConfig>& s,
                       const Context& context,
                       const SearchTweak tweak = SearchTweak::None)
     -> decltype(s.GetPerformanceConfig(context))
@@ -352,8 +352,8 @@ auto GenericSearchFwd(const Solver& s,
     return GenericSearch(s, context, tweak);
 }
 
-template <class Solver, class Context>
-auto GenericSearchBwd(const Solver& s,
+template <class PerformanceConfig, class Context>
+auto GenericSearchBwd(const SearchableSolver<Context, PerformanceConfig>& s,
                       const Context& context,
                       const SearchTweak tweak = SearchTweak::None)
     -> decltype(s.GetPerformanceConfig(context))
@@ -361,8 +361,8 @@ auto GenericSearchBwd(const Solver& s,
     return GenericSearch(s, context, tweak);
 }
 
-template <class Solver, class Context>
-auto GenericSearchWrW(const Solver& s,
+template <class PerformanceConfig, class Context>
+auto GenericSearchWrW(const SearchableSolver<Context, PerformanceConfig>& s,
                       const Context& context,
                       const SearchTweak tweak = SearchTweak::None)
     -> decltype(s.GetPerformanceConfig(context))
@@ -370,8 +370,8 @@ auto GenericSearchWrW(const Solver& s,
     return GenericSearch(s, context, tweak);
 }
 #else
-template <class Solver, class Context>
-auto GenericSearchFwd(const Solver& s,
+template <class PerformanceConfig, class Context>
+auto GenericSearchFwd(const SearchableSolver<Context, PerformanceConfig>& s,
                       const Context& context,
                       const SearchTweak tweak = SearchTweak::None)
     -> decltype(s.GetPerformanceConfig(context))
@@ -380,8 +380,8 @@ auto GenericSearchFwd(const Solver& s,
     return GenericSearch(s, context, tweak, bufs.y, bufs.x, bufs.w);
 }
 
-template <class Solver, class Context>
-auto GenericSearchBwd(const Solver& s,
+template <class PerformanceConfig, class Context>
+auto GenericSearchBwd(const SearchableSolver<Context, PerformanceConfig>& s,
                       const Context& context,
                       const SearchTweak tweak = SearchTweak::None)
     -> decltype(s.GetPerformanceConfig(context))
@@ -390,8 +390,8 @@ auto GenericSearchBwd(const Solver& s,
     return GenericSearch(s, context, tweak, bufs.dx, bufs.dy, bufs.w);
 }
 
-template <class Solver, class Context>
-auto GenericSearchWrW(const Solver& s,
+template <class PerformanceConfig, class Context>
+auto GenericSearchWrW(const SearchableSolver<Context, PerformanceConfig>& s,
                       const Context& context,
                       const SearchTweak tweak = SearchTweak::None)
     -> decltype(s.GetPerformanceConfig(context))
@@ -427,13 +427,13 @@ const auto& GetConfigRef(const TConfig& cfg,
 } // namespace detail
 
 #if MIOPEN_ALLOC_BUFFERS
-template <class Solver, class Context>
-auto GenericSearch(const Solver& s,
+template <class PerformanceConfig, class Context>
+auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
                    const Context& context,
                    const SearchTweak tweak = SearchTweak::None)
 #else
-template <class Solver, class Context, typename TopT, typename BotT, typename WeiT>
-auto GenericSearch(const Solver& s,
+template <class PerformanceConfig, class Context, typename TopT, typename BotT, typename WeiT>
+auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
                    const Context& context,
                    const SearchTweak tweak,
                    TopT top_ocl_ptr,
@@ -442,7 +442,6 @@ auto GenericSearch(const Solver& s,
 #endif
     -> decltype(s.GetPerformanceConfig(context))
 {
-	using PerformanceConfig = typename Solver::PerformanceConfig;
     using PerformanceConfigInstance = decltype(s.GetPerformanceConfig(context));
     PerformanceConfigInstance best_config;
     const auto default_config   = s.GetPerformanceConfig(context);
