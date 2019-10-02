@@ -64,6 +64,31 @@ namespace solver {
 template <typename PerformanceConfig, typename Context>
 class ComputedContainer;
 
+namespace detail {
+template <typename T>
+struct is_shared_ptr : std::false_type
+{
+};
+template <typename T>
+struct is_shared_ptr<std::shared_ptr<T>> : std::true_type
+{
+};
+
+template <class TConfig>
+const auto& GetConfigRef(const TConfig& cfg,
+                         std::enable_if_t<!is_shared_ptr<TConfig>::value, int> = 0)
+{
+    return cfg;
+}
+
+template <class TConfig>
+const auto& GetConfigRef(const TConfig& cfg,
+                         std::enable_if_t<is_shared_ptr<TConfig>::value, int> = 0)
+{
+    return *cfg;
+}
+} // namespace detail
+
 template <typename PerformanceConfig, typename Context>
 class ComputedIterator : public std::iterator<std::input_iterator_tag, PerformanceConfig>
 {
@@ -76,23 +101,24 @@ class ComputedIterator : public std::iterator<std::input_iterator_tag, Performan
         {
             do
             {
-                if(!v.SetNextValue())
+                if(!detail::GetConfigRef(v).SetNextValue())
                 { // Wraparound, end reached. Iterator is useless from now.
                     p = nullptr;
                     break;
                 }
-            } while(!v.IsValid(*p));
+            } while(!detail::GetConfigRef(v).IsValid(*p));
         }
         return *this;
     }
 
     // Implements container's begin()
+	template <class Solver>
     ComputedIterator(const Context& problem,
                      const bool spare,
-                     const SearchableSolver<Context, PerformanceConfig>& solver)
+                     const Solver& solver)
         : v(solver.GetGenericSearchStart(spare)), p(&problem)
     {
-        if(!v.IsValid(*p))
+            if(!detail::GetConfigRef(v).IsValid(*p))
             Next();
     }
 
@@ -107,8 +133,7 @@ class ComputedIterator : public std::iterator<std::input_iterator_tag, Performan
     {
         if(p == other.p)
             if(p == nullptr // Ends are always equal.
-               ||
-               v == other.v)
+               || detail::GetConfigRef(v) == detail::GetConfigRef(other.v))
                 return false;
         return true;
     }
@@ -118,62 +143,11 @@ class ComputedIterator : public std::iterator<std::input_iterator_tag, Performan
 };
 
 template <typename PerformanceConfig, typename Context>
-class ComputedIterator<PerformanceConfig*, Context>
-    : public std::iterator<std::input_iterator_tag, std::shared_ptr<PerformanceConfig>>
-{
-    std::shared_ptr<PerformanceConfig> v;
-    const Context* p; // For Next().
-
-    ComputedIterator& Next()
-    {
-        if(p != nullptr)
-        {
-            do
-            {
-                if(!v->SetNextValue())
-                { // Wraparound, end reached. Iterator is useless from now.
-                    p = nullptr;
-                    break;
-                }
-            } while(!v->IsValid(*p));
-        }
-        return *this;
-    }
-
-    // Implements container's begin()
-    ComputedIterator(const Context& problem,
-                     const bool spare,
-                     const SearchableSolver<Context, PerformanceConfig*>& solver)
-        : v(solver.GetGenericSearchStart(spare)), p(&problem)
-    {
-        if(!v->IsValid(*p))
-            Next();
-    }
-
-    public:
-    // STL-like iterator shall be default contructible. Also implements container's end()
-    ComputedIterator() : v(), p(nullptr) {}
-    // STL-like iterator shall be copy contructible. The default copy ctor is ok.
-
-    ComputedIterator& operator++() { return Next(); }
-    const std::shared_ptr<PerformanceConfig>& operator*() const { return v; }
-    bool operator!=(ComputedIterator const& other) const
-    {
-        if(p == other.p)
-            if(p == nullptr // Ends are always equal.
-               ||
-               *v == *other.v)
-                return false;
-        return true;
-    }
-    bool operator==(ComputedIterator const& other) const { return !(*this != other); }
-
-    friend class ComputedContainer<PerformanceConfig*, Context>;
-};
-
-template <typename PerformanceConfig, typename Context>
 class ComputedContainer
 {
+	using Solver = SearchableSolver<Context, PerformanceConfig>;
+	using PerformanceConfigInstance = decltype(std::declval<Solver>().GetPerformanceConfig(std::declval<Context>()));
+
     Context problem; // Hold a copy make the object independent of the environment.
     bool spare;      // Use spare set of perf configs. Those are usually slower than main set.
                      // Splitting the theoretically available set of perf configs to "main"
@@ -185,18 +159,16 @@ class ComputedContainer
                      //
                      // Nevertheless, a Solver is free to either use or not use this capability
                      // (i.e. it is ok for PerformanceConfigInstance(bool) to ignore its parameter).
-    const SearchableSolver<Context, PerformanceConfig>& solver;
+    const Solver& solver;
 
     /// \note We do not add 'const' to keep the object assignable
     /// for the sake of flexibility. Nevertheless, all element accesses of
     /// the "computed container" shall be const.
 
     public:
-    using const_iterator = ComputedIterator<PerformanceConfig, Context>;
+    using const_iterator = ComputedIterator<PerformanceConfigInstance, Context>;
 
-    ComputedContainer(const Context& problem_,
-                      const SearchableSolver<Context, PerformanceConfig>& solver_,
-                      const bool spare_ = false)
+    ComputedContainer(const Context& problem_, const Solver& solver_, const bool spare_ = false)
         : problem(problem_), spare(spare_), solver(solver_)
     {
     }
@@ -411,31 +383,6 @@ auto GenericSearchWrW(const SearchableSolver<Context, PerformanceConfig>& s,
 }
 #endif
 
-namespace detail {
-template <typename T>
-struct is_shared_ptr : std::false_type
-{
-};
-template <typename T>
-struct is_shared_ptr<std::shared_ptr<T>> : std::true_type
-{
-};
-
-template <class TConfig>
-const auto& GetConfigRef(const TConfig& cfg,
-                         std::enable_if_t<!is_shared_ptr<TConfig>::value, int> = 0)
-{
-    return cfg;
-}
-
-template <class TConfig>
-const auto& GetConfigRef(const TConfig& cfg,
-                         std::enable_if_t<is_shared_ptr<TConfig>::value, int> = 0)
-{
-    return *cfg;
-}
-} // namespace detail
-
 #if MIOPEN_ALLOC_BUFFERS
 template <class PerformanceConfig, class Context>
 auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
@@ -534,13 +481,14 @@ auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
 #endif
     AutoEnableProfiling enableProfiling{profile_h};
 
-    const ComputedContainer<PerformanceConfig, Context> main(context, s);
+	using ConfigContainer = ComputedContainer<PerformanceConfig, Context>;
+    const ConfigContainer main(context, s);
     const int main_size = std::distance(main.begin(), main.end());
-    const ComputedContainer<PerformanceConfig, Context> spare(context, s, true);
+    const ConfigContainer spare(context, s, true);
     const int spare_size = std::distance(spare.begin(), spare.end());
     const bool useSpare  = (main_size == 0);
 
-    const ComputedContainer<PerformanceConfig, Context>& all_configs = useSpare ? spare : main;
+    const ConfigContainer& all_configs = useSpare ? spare : main;
     const int n_runs_total = useSpare ? spare_size : main_size;
     MIOPEN_LOG_W(s.DbId() << ": Searching the best solution among " << n_runs_total
                           << (useSpare ? " (spare)" : "")
