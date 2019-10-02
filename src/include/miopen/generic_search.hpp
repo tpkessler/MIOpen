@@ -48,7 +48,7 @@ namespace solver {
 /// The container holds problem config information instead. This info
 /// is required for advancing the iterator to the next valid configuration.
 ///
-/// PerformanceConfigInstance type requirements:
+/// PerformanceConfig type requirements:
 /// - (ctor)()
 ///     Constructs an instance with invalid value.
 /// - (ctor)(bool)
