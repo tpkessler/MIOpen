@@ -59,7 +59,7 @@ namespace solver {
 /// - IsValid(const Context& c) const
 ///     Checks if instance is valid for the given c.
 ///     For convolutions, Context represents a problem configuration.
-/// - operator==(const PerformanceConfigInstance&)
+/// - operator==(const PerformanceConfigs&)
 ///     Ordinary semantics.
 template <typename PerformanceConfig, typename Context>
 class ComputedContainer;
