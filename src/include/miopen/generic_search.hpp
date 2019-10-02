@@ -107,7 +107,8 @@ class ComputedIterator : public std::iterator<std::input_iterator_tag, Performan
     {
         if(p == other.p)
             if(p == nullptr // Ends are always equal.
-               || v == other.v)
+               ||
+               v == other.v)
                 return false;
         return true;
     }
@@ -160,7 +161,8 @@ class ComputedIterator<PerformanceConfig*, Context>
     {
         if(p == other.p)
             if(p == nullptr // Ends are always equal.
-               || *v == *other.v)
+               ||
+               *v == *other.v)
                 return false;
         return true;
     }
@@ -270,8 +272,16 @@ class HeartBeat
                 n_recent != 0u ? ((n_total - n_recent) * (elapsed_cumulative / n_recent) / 1000)
                                : 0.0f; // paraniod
             MIOPEN_LOG_W(n_recent << '/' << n_failed << '/' << n_total << ' ' << total_best
-                                  << ", best within recent " << n_within_beat << ": " << best_time
-                                  << " #" << n_best << ' ' << best_config << ", ETA:" << eta_sec
+                                  << ", best within recent "
+                                  << n_within_beat
+                                  << ": "
+                                  << best_time
+                                  << " #"
+                                  << n_best
+                                  << ' '
+                                  << best_config
+                                  << ", ETA:"
+                                  << eta_sec
                                   << " sec.");
             Continue();
         }
@@ -533,7 +543,8 @@ auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
     const ComputedContainer<PerformanceConfig, Context>& all_configs = useSpare ? spare : main;
     const int n_runs_total = useSpare ? spare_size : main_size;
     MIOPEN_LOG_W(s.DbId() << ": Searching the best solution among " << n_runs_total
-                          << (useSpare ? " (spare)" : "") << "...");
+                          << (useSpare ? " (spare)" : "")
+                          << "...");
 
     bool is_passed   = false; // left false only if all iterations failed.
     float best_time  = std::numeric_limits<float>::max();
@@ -561,7 +572,8 @@ auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
             MIOPEN_LOG_E('#' << n_current << " (" << n_runs_total << ") "
                              << "Workspace size should not depend on PerformanceConfig: "
                              << default_solution.workspce_sz
-                             << " != " << current_solution.workspce_sz);
+                             << " != "
+                             << current_solution.workspce_sz);
         }
 
         if(ret == 0)
@@ -576,9 +588,18 @@ auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
                                           elapsed_time);
         }
         MIOPEN_LOG_T("##"
-                     << "(n_current, n_failed, n_runs_total):  " << n_current << '/' << n_failed
-                     << '/' << n_runs_total << " elapsed_time: " << elapsed_time
-                     << ", best_time: " << best_time << ", " << current_config);
+                     << "(n_current, n_failed, n_runs_total):  "
+                     << n_current
+                     << '/'
+                     << n_failed
+                     << '/'
+                     << n_runs_total
+                     << " elapsed_time: "
+                     << elapsed_time
+                     << ", best_time: "
+                     << best_time
+                     << ", "
+                     << current_config);
 
         if(ret == 0)
         {
@@ -614,7 +635,11 @@ auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
                     if(elapsed_time < best_time)
                     {
                         MIOPEN_LOG_I('#' << n_current << '/' << n_failed << '/' << n_runs_total
-                                         << ' ' << elapsed_time << " < " << best_time << ' '
+                                         << ' '
+                                         << elapsed_time
+                                         << " < "
+                                         << best_time
+                                         << ' '
                                          << current_config);
                         best_config = current_config_ptr;
                         best_time   = elapsed_time;
@@ -622,8 +647,8 @@ auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
                     }
                     else
                     {
-                        MIOPEN_LOG_I2("Average is not better: " << elapsed_time
-                                                                << " >= " << best_time);
+                        MIOPEN_LOG_I2(
+                            "Average is not better: " << elapsed_time << " >= " << best_time);
                     }
                 }
             }
@@ -632,17 +657,27 @@ auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
         if(ret != 0)
         {
             MIOPEN_LOG_E('#' << n_current << " (" << n_runs_total << ") "
-                             << " Failed rc=" << ret);
+                             << " Failed rc="
+                             << ret);
             ++n_failed;
         }
-        heartbeat.Monitor(
-            ret != 0, elapsed_time, n_current, best_time, n_failed, n_runs_total, current_config_ptr);
+        heartbeat.Monitor(ret != 0,
+                          elapsed_time,
+                          n_current,
+                          best_time,
+                          n_failed,
+                          n_runs_total,
+                          current_config_ptr);
         ++n_current;
     }
 
     profile_h.EnableProfiling(false);
     MIOPEN_LOG_W("Done: " << n_runs_total << '/' << n_failed << '/' << n_runs_total << ", best #"
-                          << n_best << ' ' << best_time << ' ' << detail::GetConfigRef(best_config));
+                          << n_best
+                          << ' '
+                          << best_time
+                          << ' '
+                          << detail::GetConfigRef(best_config));
     if(!is_passed)
         MIOPEN_THROW("Search failed");
     // Run once with the default config and show score.

@@ -98,7 +98,7 @@ static const auto& GetDirectSolvers()
         &miopen::StaticContainer<miopen::solver::ConvOclDirectFwd1x1>::Instance(),
         &miopen::StaticContainer<miopen::solver::ConvOclDirectFwd>::Instance(),
     }};
-	return inst;
+    return inst;
 }
 
 static const auto& GetImplicitGemmSolvers()

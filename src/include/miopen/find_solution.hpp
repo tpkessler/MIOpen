@@ -58,12 +58,12 @@ struct Container
 
         for(const auto solver : solvers)
         {
-			if (!solver->IsApplicable(search_params) ||
-				!(no_perf_filtering || solver->IsFast(search_params)))
+            if(!solver->IsApplicable(search_params) ||
+               !(no_perf_filtering || solver->IsFast(search_params)))
             {
                 MIOPEN_LOG_I2(solver->DbId() << ": Not applicable");
                 continue;
-			}
+            }
 
             const auto solution = solver->GetSolution(search_params);
             if(!solution.Succeeded())

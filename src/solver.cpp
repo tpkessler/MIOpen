@@ -102,7 +102,7 @@ const SolverBase<ConvolutionContext>& Id::GetSolver() const
 {
     const auto it = IdRegistry().value_to_solver.find(value);
     assert(it != IdRegistry().value_to_solver.end());
-	return *it->second;
+    return *it->second;
 }
 
 std::string Id::GetAlgo(miopenConvDirection_t dir) const

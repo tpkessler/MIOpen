@@ -18,11 +18,10 @@ miopenStatus_t FusionOpDescriptor::GetNetworkConfig(std::string& /*network_confi
     return miopenStatusSuccess;
 }
 
-miopenStatus_t
-FusionOpDescriptor::GetCompileParms(std::string& /*compile_config*/,
-                                    Handle& /*handle*/,
-                                    const FusionKernelSourceType /*source*/,
-                                    const std::vector<ConvSolver*>& /*solvers*/)
+miopenStatus_t FusionOpDescriptor::GetCompileParms(std::string& /*compile_config*/,
+                                                   Handle& /*handle*/,
+                                                   const FusionKernelSourceType /*source*/,
+                                                   const std::vector<ConvSolver*>& /*solvers*/)
 {
     MIOPEN_LOG_I2("");
     return miopenStatusSuccess;
@@ -47,11 +46,10 @@ miopenStatus_t BiasFusionOpDescriptor::GetNetworkConfig(std::string& network_con
     return miopenStatusSuccess;
 }
 
-miopenStatus_t
-BiasFusionOpDescriptor::GetCompileParms(std::string& compile_config,
-                                        Handle& /*handle*/,
-                                        FusionKernelSourceType source,
-                                        const std::vector<ConvSolver*>& solvers)
+miopenStatus_t BiasFusionOpDescriptor::GetCompileParms(std::string& compile_config,
+                                                       Handle& /*handle*/,
+                                                       FusionKernelSourceType source,
+                                                       const std::vector<ConvSolver*>& solvers)
 {
     std::string add;
     switch(source)
@@ -87,11 +85,10 @@ miopenStatus_t ActivFwdFusionOpDescriptor::GetNetworkConfig(std::string& network
     return miopenStatusSuccess;
 }
 
-miopenStatus_t
-ActivFwdFusionOpDescriptor::GetCompileParms(std::string& compile_config,
-                                            Handle& /*handle*/,
-                                            const FusionKernelSourceType source,
-                                            const std::vector<ConvSolver*>& solvers)
+miopenStatus_t ActivFwdFusionOpDescriptor::GetCompileParms(std::string& compile_config,
+                                                           Handle& /*handle*/,
+                                                           const FusionKernelSourceType source,
+                                                           const std::vector<ConvSolver*>& solvers)
 {
     std::string add;
     switch(source)
@@ -130,11 +127,10 @@ miopenStatus_t ActivBwdFusionOpDescriptor::GetNetworkConfig(std::string& network
     return miopenStatusSuccess;
 }
 
-miopenStatus_t
-ActivBwdFusionOpDescriptor::GetCompileParms(std::string& compile_config,
-                                            Handle& /*handle*/,
-                                            const FusionKernelSourceType source,
-                                            const std::vector<ConvSolver*>& solvers)
+miopenStatus_t ActivBwdFusionOpDescriptor::GetCompileParms(std::string& compile_config,
+                                                           Handle& /*handle*/,
+                                                           const FusionKernelSourceType source,
+                                                           const std::vector<ConvSolver*>& solvers)
 {
     std::string add;
     switch(source)
@@ -176,11 +172,11 @@ miopenStatus_t BatchNormInferenceFusionOpDescriptor::GetNetworkConfig(std::strin
     return miopenStatusSuccess;
 }
 
-miopenStatus_t BatchNormInferenceFusionOpDescriptor::GetCompileParms(
-    std::string& compile_config,
-    Handle& /*handle*/,
-    FusionKernelSourceType source,
-    const std::vector<ConvSolver*>& /*solvers*/)
+miopenStatus_t
+BatchNormInferenceFusionOpDescriptor::GetCompileParms(std::string& compile_config,
+                                                      Handle& /*handle*/,
+                                                      FusionKernelSourceType source,
+                                                      const std::vector<ConvSolver*>& /*solvers*/)
 {
     if(source != OpenclText)
     {
@@ -343,11 +339,11 @@ miopenStatus_t BatchNormBwdTrainFusionOpDescriptor::GetNetworkConfig(std::string
     return miopenStatusSuccess;
 }
 
-miopenStatus_t BatchNormBwdTrainFusionOpDescriptor::GetCompileParms(
-    std::string& compile_config,
-    Handle& handle,
-    FusionKernelSourceType /*source*/,
-    const std::vector<ConvSolver*>& /*solvers*/)
+miopenStatus_t
+BatchNormBwdTrainFusionOpDescriptor::GetCompileParms(std::string& compile_config,
+                                                     Handle& handle,
+                                                     FusionKernelSourceType /*source*/,
+                                                     const std::vector<ConvSolver*>& /*solvers*/)
 {
     std::string add;
     int n, c, h, w;
@@ -537,11 +533,11 @@ miopenStatus_t BatchNormFwdTrainFusionOpDescriptor::GetNetworkConfig(std::string
     return miopenStatusSuccess;
 }
 
-miopenStatus_t BatchNormFwdTrainFusionOpDescriptor::GetCompileParms(
-    std::string& compile_config,
-    Handle& handle,
-    FusionKernelSourceType /*source*/,
-    const std::vector<ConvSolver*>& /*solvers*/)
+miopenStatus_t
+BatchNormFwdTrainFusionOpDescriptor::GetCompileParms(std::string& compile_config,
+                                                     Handle& handle,
+                                                     FusionKernelSourceType /*source*/,
+                                                     const std::vector<ConvSolver*>& /*solvers*/)
 {
     std::string add;
     int n, c, h, w;

@@ -37,7 +37,7 @@
 namespace miopen {
 namespace solver {
 
-template<class TContext>
+template <class TContext>
 struct SolverBase;
 
 struct Id

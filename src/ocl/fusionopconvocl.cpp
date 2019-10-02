@@ -26,15 +26,14 @@ miopenStatus_t ConvForwardOpDescriptor::GetNetworkConfig(std::string& network_co
     return miopenStatusSuccess;
 }
 
-miopenStatus_t
-ConvForwardOpDescriptor::GetCompileParms(std::string& compile_config,
-                                         Handle& handle,
-                                         FusionKernelSourceType source,
-                                         const std::vector<ConvSolver*>& solvers)
+miopenStatus_t ConvForwardOpDescriptor::GetCompileParms(std::string& compile_config,
+                                                        Handle& handle,
+                                                        FusionKernelSourceType source,
+                                                        const std::vector<ConvSolver*>& solvers)
 {
     mlo_construct_direct2D_fusion construct_params = ConstructParams(handle);
     const auto sc                                  = solver::Container<ConvolutionContext>(solvers);
-    const auto solution                            = sc.SearchForSolution(construct_params.GetConvContext());
+    const auto solution = sc.SearchForSolution(construct_params.GetConvContext());
     if(!solution.Succeeded())
     {
         return solution.status;

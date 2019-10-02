@@ -976,7 +976,7 @@ miopenStatus_t FusionPlanDescriptor::Compile(Handle& handle)
                 MIOPEN_THROW(miopenStatusBadParm);
             }
 
-            success = true;
+            success         = true;
             ConvSolver* sol = nullptr;
             if(kinder.second.find("solver") != kinder.second.end())
             {

@@ -142,6 +142,7 @@ struct SearchableSolver : public SolverBase<TContext>
     {
         return true; // Do not check by default.
     }
+
     private:
     virtual TPerformanceConfig Search(const TContext&) const = 0;
 
@@ -207,8 +208,7 @@ struct SearchableSolver : public SolverBase<TContext>
 /// Base class for problem solvers which use exhaustive search mechanisms with children having
 /// different performance config type.
 template <class TContext, class TPerformanceConfig>
-struct SearchableSolver<TContext, TPerformanceConfig*>
-    : SolverBase<TContext>
+struct SearchableSolver<TContext, TPerformanceConfig*> : SolverBase<TContext>
 {
     /// Initialize performance config for generic search.
     virtual std::shared_ptr<TPerformanceConfig> GetGenericSearchStart(bool sparce) const = 0;
@@ -234,6 +234,7 @@ struct SearchableSolver<TContext, TPerformanceConfig*>
     {
         return true; // Do not check by default.
     }
+
     private:
     virtual std::shared_ptr<TPerformanceConfig> Search(const TContext&) const = 0;
 
@@ -1055,9 +1056,9 @@ struct ConvOclBwdWrW2 final
     {
         return this->GetPerformanceConfigBase(context);
     }
-    bool
-    IsValidPerformanceConfig(const ConvolutionContext& context,
-                             const PerformanceConfigConvOclBwdWrw2<N_BATCH_LOOPS>& config) const override
+    bool IsValidPerformanceConfig(
+        const ConvolutionContext& context,
+        const PerformanceConfigConvOclBwdWrw2<N_BATCH_LOOPS>& config) const override
     {
         return this->IsValidPerformanceConfigBase(context, config);
     }

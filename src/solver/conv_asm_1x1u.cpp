@@ -363,7 +363,7 @@ ConvAsm1x1U::GetPerformanceConfig(const ConvolutionContext& params) const
 }
 
 bool ConvAsm1x1UBase::IsValidPerformanceConfig(const ConvolutionContext& problem,
-                                           const PerformanceConfigConvAsm1x1U& c) const
+                                               const PerformanceConfigConvAsm1x1U& c) const
 {
     return c.IsValidValue() && c.IsValid(problem);
 }
@@ -454,8 +454,8 @@ static int divide_round_plus_inf(const int x, const int y)
 }
 
 ConvSolution ConvAsm1x1UBase::GetSolution(const ConvolutionContext& params,
-                                      const PerformanceConfigConvAsm1x1U& config,
-                                      const bool disableConfigOverrideFromEnv) const
+                                          const PerformanceConfigConvAsm1x1U& config,
+                                          const bool disableConfigOverrideFromEnv) const
 {
     ConvSolution result;
 

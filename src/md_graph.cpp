@@ -863,7 +863,7 @@ void FusionMDGraph::InitConv(FusionMDGraph& g)
                                                        "MIOpenConvUniBatchNormActiv",
                                                        "miopenConvolutionDirectBiasActiv");
 
-        conv_v->solver = &StaticContainer < solver::ConvOclDirectFwdFused>::Instance();
+        conv_v->solver = &StaticContainer<solver::ConvOclDirectFwdFused>::Instance();
 
         // from ConvolutionDescriptor::IsDirectSupported
         std::vector<size_t> lens = {3, 5, 7, 9, 11};
