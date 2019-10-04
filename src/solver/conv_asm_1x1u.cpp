@@ -220,9 +220,9 @@ PerformanceConfigConvAsm1x1U::PerformanceConfigConvAsm1x1U(int read_size_,
 {
 }
 
-inline bool PerformanceConfigConvAsm1x1U::
-operator==(const PerformanceConfigConvAsm1x1U& other) const
+inline bool PerformanceConfigConvAsm1x1U::operator==(const IPerformanceConfig& other_) const
 {
+    const auto& other = dynamic_cast<const PerformanceConfigConvAsm1x1U&>(other_);
     // clang-format off
     return read_size == other.read_size
         && k_mult == other.k_mult
@@ -353,7 +353,7 @@ std::string PerformanceConfigConvAsm1x1U::ToString() const
     return ss.str();
 }
 
-std::shared_ptr<PerformanceConfigConvAsm1x1U>
+std::shared_ptr<IPerformanceConfig>
 ConvAsm1x1U::GetPerformanceConfig(const ConvolutionContext& params) const
 {
     auto pp = std::make_shared<PerformanceConfigConvAsm1x1U>();
@@ -363,8 +363,9 @@ ConvAsm1x1U::GetPerformanceConfig(const ConvolutionContext& params) const
 }
 
 bool ConvAsm1x1UBase::IsValidPerformanceConfig(const ConvolutionContext& problem,
-                                               const PerformanceConfigConvAsm1x1U& c) const
+                                               const IPerformanceConfig& c_) const
 {
+    const auto& c = dynamic_cast<const PerformanceConfigConvAsm1x1U&>(c_);
     return c.IsValidValue() && c.IsValid(problem);
 }
 
@@ -454,9 +455,11 @@ static int divide_round_plus_inf(const int x, const int y)
 }
 
 ConvSolution ConvAsm1x1UBase::GetSolution(const ConvolutionContext& params,
-                                          const PerformanceConfigConvAsm1x1U& config,
+                                          const IPerformanceConfig& config_,
                                           const bool disableConfigOverrideFromEnv) const
 {
+    const auto& config = dynamic_cast<const PerformanceConfigConvAsm1x1U&>(config_);
+
     ConvSolution result;
 
     std::ostringstream options;
@@ -764,7 +767,7 @@ int ConvAsm1x1U::RunAndMeasureSolution(miopen::Handle& profile_h,
     return 0;
 }
 
-std::shared_ptr<PerformanceConfigConvAsm1x1U>
+std::shared_ptr<IPerformanceConfig>
 ConvAsm1x1U::Search(const ConvolutionContext& context) const
 {
     if(context.direction.IsForward())

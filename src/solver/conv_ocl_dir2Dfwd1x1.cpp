@@ -45,9 +45,10 @@ bool ConvOclDirectFwd1x1::IsApplicable(const ConvolutionContext& params) const
 }
 
 ConvSolution ConvOclDirectFwd1x1::GetSolution(const ConvolutionContext& params,
-                                              const LegacyPerformanceConfig& searched_params,
+                                              const IPerformanceConfig& searched_params_,
                                               bool) const
 {
+    const auto& searched_params = dynamic_cast<const LegacyPerformanceConfig&>(searched_params_);
     ConvSolution result;
     searched_params.CopyTo(result);
 

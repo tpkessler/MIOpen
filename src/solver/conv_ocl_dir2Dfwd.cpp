@@ -87,7 +87,7 @@ bool ConvOclDirectFwdBase::IsApplicable(const ConvolutionContext& params) const
         && !(params.direction.IsForward()
             && params.IsFp16()
             && params.kernel_stride_w == 2)
-        && IsValidPerformanceConfig(params, GetPerformanceConfig(params));
+        && IsValidPerformanceConfig(params, *GetPerformanceConfig(params));
     // clang-format on
 }
 
@@ -97,8 +97,9 @@ bool ConvOclDirectFwdBase::IsApplicable(const ConvolutionContext& params) const
 /// The cases which lead to errors can be later omitted from the search.
 /// \todo Get rid the duplication of code where possible.
 bool ConvOclDirectFwdBase::IsValidPerformanceConfig(
-    const ConvolutionContext& params, const LegacyPerformanceConfig& searched_params) const
+    const ConvolutionContext& params, const IPerformanceConfig& searched_params_) const
 {
+    const auto& searched_params = dynamic_cast<const LegacyPerformanceConfig&>(searched_params_);
     ConvSolution result;
 
     searched_params.CopyTo(result);
@@ -451,9 +452,10 @@ inline ConvSolution BaseGetSolution(const ConvolutionContext& params,
 }
 
 ConvSolution ConvOclDirectFwd::GetSolution(const ConvolutionContext& params,
-                                           const LegacyPerformanceConfig& searched_params,
+                                           const IPerformanceConfig& searched_params_,
                                            bool) const
 {
+    const auto& searched_params = dynamic_cast<const LegacyPerformanceConfig&>(searched_params_);
     ConvSolution result = BaseGetSolution(params, searched_params);
 
     if(result.Succeeded())
@@ -467,9 +469,10 @@ ConvSolution ConvOclDirectFwd::GetSolution(const ConvolutionContext& params,
 }
 
 ConvSolution ConvOclDirectFwdFused::GetSolution(const ConvolutionContext& params,
-                                                const LegacyPerformanceConfig& searched_params,
+                                                const IPerformanceConfig& searched_params_,
                                                 bool) const
 {
+    const auto& searched_params = dynamic_cast<const LegacyPerformanceConfig&>(searched_params_);
     ConvSolution result = BaseGetSolution(params, searched_params);
     if(result.Succeeded())
     {

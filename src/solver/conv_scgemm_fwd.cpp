@@ -68,11 +68,12 @@ PerformanceConfigSCGemmFwd<T>::PerformanceConfigSCGemmFwd(bool spare)
 }
 
 template <SCGemmOpType T>
-bool PerformanceConfigSCGemmFwd<T>::operator==(const PerformanceConfigSCGemmFwd<T>& other) const
+bool PerformanceConfigSCGemmFwd<T>::operator==(const IPerformanceConfig& other_) const
 {
+    const auto& other = dynamic_cast<const PerformanceConfigSCGemmFwd<T>&>(other_);
     // clang-format off
-    return routine_type == other.routine_type 
-           && routine == other.routine 
+    return routine_type == other.routine_type
+           && routine == other.routine
            && use_spare_set == other.use_spare_set;
     // clang-format on
 }
@@ -109,19 +110,20 @@ std::string PerformanceConfigSCGemmFwd<T>::ToString() const
 }
 
 template <SCGemmOpType T>
-PerformanceConfigSCGemmFwd<T>
+std::shared_ptr<IPerformanceConfig>
 ConvSCGemmFwd<T>::GetPerformanceConfig(const ConvolutionContext& params) const
 {
     PerformanceConfigSCGemmFwd<T> pp;
     pp.EuristicInit(params);
     MIOPEN_LOG_I(pp.ToString());
-    return pp;
+    return std::make_shared<PerformanceConfigSCGemmFwd<T>>(pp);
 }
 
 template <SCGemmOpType T>
 bool ConvSCGemmFwd<T>::IsValidPerformanceConfig(const ConvolutionContext& problem,
-                                                const PerformanceConfigSCGemmFwd<T>& c) const
+                                                const IPerformanceConfig& c_) const
 {
+    const auto& c = dynamic_cast<const PerformanceConfigSCGemmFwd<T>&>(c_);
     return c.IsValidValue() && c.IsValid(problem);
 }
 
@@ -234,9 +236,10 @@ bool ConvSCGemmFwd<T>::IsFast(const ConvolutionContext&) const
 
 template <SCGemmOpType T>
 ConvSolution ConvSCGemmFwd<T>::GetSolution(const ConvolutionContext& params,
-                                           const PerformanceConfigSCGemmFwd<T>& config,
+                                           const IPerformanceConfig& config_,
                                            const bool /*disableConfigOverrideFromEnv*/) const
 {
+    const auto& config = dynamic_cast<const PerformanceConfigSCGemmFwd<T>&>(config_);
     ConvSolution result;
     result.workspce_sz = 0;
 
@@ -339,7 +342,7 @@ int ConvSCGemmFwd<T>::RunAndMeasureSolution(miopen::Handle& profile_h,
 }
 
 template <SCGemmOpType T>
-PerformanceConfigSCGemmFwd<T> ConvSCGemmFwd<T>::Search(const ConvolutionContext& context) const
+std::shared_ptr<IPerformanceConfig> ConvSCGemmFwd<T>::Search(const ConvolutionContext& context) const
 {
     return GenericSearchFwd(*this, context);
 }

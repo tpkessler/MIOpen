@@ -50,7 +50,7 @@ namespace solver {
 /*
 * select default configuration if a known configuration has not been found.
 */
-LegacyPerformanceConfig
+std::shared_ptr<IPerformanceConfig>
 ConvOclDirectFwdLegacyExhaustiveSearch::GetPerformanceConfig(const ConvolutionContext& params) const
 {
     //
@@ -122,7 +122,7 @@ ConvOclDirectFwdLegacyExhaustiveSearch::GetPerformanceConfig(const ConvolutionCo
     }
     if(!params.do_search) // Prevent spamming durign search.
         MIOPEN_LOG_I2("Returns: " << result);
-    return result;
+    return std::make_shared<LegacyPerformanceConfig>(result);
 }
 
 /*
@@ -206,15 +206,15 @@ static int MeasurePerfConfig(Handle& handle,
     return 0;
 }
 
-LegacyPerformanceConfig
+std::shared_ptr<IPerformanceConfig>
 ConvOclDirectFwdLegacyExhaustiveSearch::Search(const ConvolutionContext& params) const
 {
     if(params.IsFp16())
-        return SearchImpl<half_float::half>(params);
+        return std::make_shared<LegacyPerformanceConfig>(SearchImpl<half_float::half>(params));
     else if(params.IsFp32())
-        return SearchImpl<float>(params);
+        return std::make_shared<LegacyPerformanceConfig>(SearchImpl<float>(params));
     else if(params.IsBfp16())
-        return SearchImpl<bfloat16>(params);
+        return std::make_shared<LegacyPerformanceConfig>(SearchImpl<bfloat16>(params));
     else
     {
         MIOPEN_THROW("Unsupported float_size");
@@ -668,9 +668,10 @@ ConvOclDirectFwdLegacyExhaustiveSearch::SearchImpl(const ConvolutionContext& par
     }
     // Compare search results vs. default performance config.
     {
-        int ret                   = -1;
-        double default_time       = std::numeric_limits<double>::max();
-        const auto default_config = GetPerformanceConfig(params);
+        int ret             = -1;
+        double default_time = std::numeric_limits<double>::max();
+        const auto default_config =
+            std::dynamic_pointer_cast<LegacyPerformanceConfig>(GetPerformanceConfig(params));
         if(params.kernel_size_w == 1 && params.kernel_size_h == 1 &&
            params.group_counts ==
                1) // Group conv: None 1x1 version yet, fallback to universal kernel.
@@ -682,7 +683,7 @@ ConvOclDirectFwdLegacyExhaustiveSearch::SearchImpl(const ConvolutionContext& par
                                                                bias_ocl_ptr,
                                                                default_time,
                                                                params,
-                                                               default_config);
+                                                               *default_config);
         }
         else
         {
@@ -693,7 +694,7 @@ ConvOclDirectFwdLegacyExhaustiveSearch::SearchImpl(const ConvolutionContext& par
                                                             bias_ocl_ptr,
                                                             default_time,
                                                             params,
-                                                            default_config);
+                                                            *default_config);
         }
         if(ret == 0)
         {
@@ -701,12 +702,12 @@ ConvOclDirectFwdLegacyExhaustiveSearch::SearchImpl(const ConvolutionContext& par
             MIOPEN_LOG_W("Default run, min time so far: " << min_proc_time << ", default time: "
                                                           << default_time
                                                           << ' '
-                                                          << default_config);
+                                                          << *default_config);
             if(min_proc_time > default_time)
             {
                 MIOPEN_LOG_W("* * * Default time < min time, using default config * * *");
                 min_proc_time = default_time;
-                candidate     = default_config;
+                candidate     = *default_config;
             }
         }
         MIOPEN_LOG_W("...Score: " << (default_time / min_proc_time));

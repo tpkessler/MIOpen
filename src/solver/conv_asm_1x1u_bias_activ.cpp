@@ -52,8 +52,9 @@ bool PerformanceConfigConvBiasActivAsm1x1U::IsValid(const ConvolutionContext& co
 }
 
 inline bool PerformanceConfigConvBiasActivAsm1x1U::
-operator==(const PerformanceConfigConvBiasActivAsm1x1U& other) const
+operator==(const IPerformanceConfig& other_) const
 {
+    const auto& other = dynamic_cast<const PerformanceConfigConvBiasActivAsm1x1U&>(other_);
     // clang-format off
             return read_size == other.read_size
                 && k_mult == other.k_mult
@@ -66,7 +67,7 @@ operator==(const PerformanceConfigConvBiasActivAsm1x1U& other) const
                 && use_spare_set == other.use_spare_set; // clang-format on
 }
 
-std::shared_ptr<PerformanceConfigConvAsm1x1U>
+std::shared_ptr<IPerformanceConfig>
 ConvBiasActivAsm1x1U::GetPerformanceConfig(const ConvolutionContext& params) const
 {
     PerformanceConfigConvBiasActivAsm1x1U pp;
@@ -141,7 +142,7 @@ int ConvBiasActivAsm1x1U::RunAndMeasureSolution(miopen::Handle& profile_h,
     return 0;
 }
 
-std::shared_ptr<PerformanceConfigConvAsm1x1U>
+std::shared_ptr<IPerformanceConfig>
 ConvBiasActivAsm1x1U::Search(const ConvolutionContext& context) const
 {
     ConvolutionContext cba_context = context;

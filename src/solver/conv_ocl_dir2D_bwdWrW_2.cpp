@@ -153,8 +153,9 @@ ConvSolution ConvOclBwdWrW2NonTunable::GetSolution(const ConvolutionContext& par
 
 template <int N_BATCH_LOOPS>
 inline bool PerformanceConfigConvOclBwdWrw2<N_BATCH_LOOPS>::
-operator==(const PerformanceConfigConvOclBwdWrw2<N_BATCH_LOOPS>& other) const
+operator==(const IPerformanceConfig& other_) const
 {
+    const auto& other = dynamic_cast<const PerformanceConfigConvOclBwdWrw2<N_BATCH_LOOPS>&>(other_);
     // clang-format off
     return n_waves == other.n_waves
         && read_size == other.read_size
@@ -769,14 +770,14 @@ int ConvOclBwdWrW2<N_BATCH_LOOPS>::RunAndMeasureSolutionImpl(miopen::Handle& pro
 }
 
 template <int N_BATCH_LOOPS>
-int ConvOclBwdWrW2<N_BATCH_LOOPS>::RunAndMeasureSolution(miopen::Handle& profile_h,
-                                                         ConstData_t bot_ocl_buf,
-                                                         ConstData_t top_ocl_buf,
-                                                         Data_t wei_ocl_buf,
-                                                         ConstData_t bias_ocl_buf,
-                                                         const ConvolutionContext& context,
-                                                         const ConvSolution& solution,
-                                                         float& elapsed_time) const
+int ConvOclBwdWrW2<N_BATCH_LOOPS>::RunAndMeasureSolutionWrW(miopen::Handle& profile_h,
+                                                            ConstData_t bot_ocl_buf,
+                                                            ConstData_t top_ocl_buf,
+                                                            Data_t wei_ocl_buf,
+                                                            ConstData_t bias_ocl_buf,
+                                                            const ConvolutionContext& context,
+                                                            const ConvSolution& solution,
+                                                            float& elapsed_time) const
 {
     if(context.IsFp16())
         return RunAndMeasureSolutionImpl<half_float::half>(profile_h,
@@ -812,7 +813,7 @@ int ConvOclBwdWrW2<N_BATCH_LOOPS>::RunAndMeasureSolution(miopen::Handle& profile
 }
 
 template <int N_BATCH_LOOPS>
-PerformanceConfigConvOclBwdWrw2<N_BATCH_LOOPS>
+std::shared_ptr<IPerformanceConfig>
 ConvOclBwdWrW2<N_BATCH_LOOPS>::Search(const ConvolutionContext& context) const
 {
     if(GetNBatchBlks<N_BATCH_LOOPS>(context) > 1)

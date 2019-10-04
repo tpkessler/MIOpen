@@ -285,8 +285,9 @@ PerformanceConfigConvAsm1x1UV2::PerformanceConfigConvAsm1x1UV2(int chunk_size_,
 }
 
 inline bool PerformanceConfigConvAsm1x1UV2::
-operator==(const PerformanceConfigConvAsm1x1UV2& other) const
+operator==(const IPerformanceConfig& other_) const
 {
+    const auto& other = dynamic_cast<const PerformanceConfigConvAsm1x1UV2&>(other_);
     // clang-format off
     return chunk_size == other.chunk_size
         && dwords_per_ld == other.dwords_per_ld
@@ -451,18 +452,19 @@ std::string PerformanceConfigConvAsm1x1UV2::ToString() const
     return ss.str();
 }
 
-PerformanceConfigConvAsm1x1UV2
+std::shared_ptr<IPerformanceConfig>
 ConvAsm1x1UV2::GetPerformanceConfig(const ConvolutionContext& params) const
 {
     PerformanceConfigConvAsm1x1UV2 pp;
     pp.EuristicInit(params);
     MIOPEN_LOG_I(pp.ToString());
-    return pp;
+    return std::make_shared<PerformanceConfigConvAsm1x1UV2>(pp);
 }
 
 bool ConvAsm1x1UV2::IsValidPerformanceConfig(const ConvolutionContext& problem,
-                                             const PerformanceConfigConvAsm1x1UV2& c) const
+                                             const IPerformanceConfig& c_) const
 {
+    const auto& c = dynamic_cast<const PerformanceConfigConvAsm1x1UV2&>(c_);
     return c.IsValidValue() && c.IsValid(problem);
 }
 
@@ -561,9 +563,10 @@ bool ConvAsm1x1UV2::IsApplicable(const ConvolutionContext& params) const
 bool ConvAsm1x1UV2::IsFast(const ConvolutionContext&) const { return true; }
 
 ConvSolution ConvAsm1x1UV2::GetSolution(const ConvolutionContext& params,
-                                        const PerformanceConfigConvAsm1x1UV2& config,
+                                        const IPerformanceConfig& config_,
                                         const bool disableConfigOverrideFromEnv) const
 {
+    const auto& config = dynamic_cast<const PerformanceConfigConvAsm1x1UV2&>(config_);
     ConvSolution result;
     std::ostringstream options;
 
@@ -771,7 +774,7 @@ int ConvAsm1x1UV2::RunAndMeasureSolution(miopen::Handle& profile_h,
     return 0;
 }
 
-PerformanceConfigConvAsm1x1UV2 ConvAsm1x1UV2::Search(const ConvolutionContext& context) const
+std::shared_ptr<IPerformanceConfig> ConvAsm1x1UV2::Search(const ConvolutionContext& context) const
 {
     if(context.direction.IsForward())
         return GenericSearchFwd(*this, context);

@@ -72,8 +72,9 @@ inline static bool NextTwoPower(int& v)
     return false;
 }
 
-inline bool PerformanceImplicitGemm::operator==(const PerformanceImplicitGemm& other) const
+inline bool PerformanceImplicitGemm::operator==(const IPerformanceConfig& other_) const
 {
+    const auto& other = dynamic_cast<const PerformanceImplicitGemm&>(other_);
     // clang-format off
     return BPerBlock == other.BPerBlock
         && KPerBlock == other.KPerBlock
@@ -183,7 +184,7 @@ bool PerformanceImplicitGemm::IsValidValue() const
     return IsTwoPower<8,16>(BPerBlock)
         && IsTwoPower<16,128>(KPerBlock)
         && IsTwoPower<4,16>(EPerBlock)
-        && GemmNRepeat == 2 
+        && GemmNRepeat == 2
         && IsTwoPower<2,4>(GemmMPerThreadSubC)
         && IsTwoPower<2,4>(GemmNPerThreadSubC)
         && IsTwoPower<1,4>(GemmMLevel0Cluster)
@@ -369,18 +370,19 @@ std::string PerformanceImplicitGemm::ToString() const
     return ss.str();
 }
 
-PerformanceImplicitGemm
+std::shared_ptr<IPerformanceConfig>
 ConvHipImplicitGemmV4Fwd::GetPerformanceConfig(const ConvolutionContext& params) const
 {
     PerformanceImplicitGemm pp;
     pp.EuristicInit(params);
     MIOPEN_LOG_I(pp.ToString());
-    return pp;
+    return std::make_shared<PerformanceImplicitGemm>(pp);
 }
 
 bool ConvHipImplicitGemmV4Fwd::IsValidPerformanceConfig(const ConvolutionContext& problem,
-                                                        const PerformanceImplicitGemm& c) const
+                                                        const IPerformanceConfig& c_) const
 {
+    const auto& c = dynamic_cast<const PerformanceImplicitGemm&>(c_);
     MIOPEN_LOG_I("");
     return c.IsValidValue() && c.IsValid(problem);
 }
@@ -428,9 +430,10 @@ PerformanceImplicitGemm::PerformanceImplicitGemm(int BPerBlock_,
 }
 
 ConvSolution ConvHipImplicitGemmV4Fwd::GetSolution(const ConvolutionContext& ctx,
-                                                   const PerformanceImplicitGemm& config,
+                                                   const IPerformanceConfig& config_,
                                                    const bool) const
 {
+    const auto& config = dynamic_cast<const PerformanceImplicitGemm&>(config_);
     ConvSolution result;
     KernelInfo construction_parameters;
 
@@ -523,7 +526,7 @@ ConvSolution ConvHipImplicitGemmV4Fwd::GetSolution(const ConvolutionContext& ctx
         std::string(" -DCK_PARAM_IN_BLOCK_COPY_DST_DATA_PER_WRITE_N2=") + std::to_string(InBlockCopyDstDataPerWrite_N2) +
         std::string(" -DCK_PARAM_WEI_BLOCK_COPY_CLUSTER_LENGTHS_E=") + std::to_string(config.WeiBlockCopyClusterLengths_E) +
         std::string(" -DCK_PARAM_WEI_BLOCK_COPY_CLUSTER_LENGTHS_K=") + std::to_string(config.WeiBlockCopyClusterLengths_K) +
-        std::string(" -DCK_PARAM_WEI_BLOCK_COPY_SRC_DATE_PER_READ_E=") + std::to_string(WeiBlockCopySrcDataPerRead_E) + 
+        std::string(" -DCK_PARAM_WEI_BLOCK_COPY_SRC_DATE_PER_READ_E=") + std::to_string(WeiBlockCopySrcDataPerRead_E) +
         std::string(" -D__HIP_PLATFORM_HCC__=1") +
         ctx.general_compile_options;
     // clang-format on
@@ -532,14 +535,14 @@ ConvSolution ConvHipImplicitGemmV4Fwd::GetSolution(const ConvolutionContext& ctx
     return result;
 }
 
-int ConvHipImplicitGemmV4Fwd::RunAndMeasureSolution(miopen::Handle& profile_h,
-                                                    ConstData_t bot_ocl_buf,
-                                                    Data_t top_ocl_buf,
-                                                    ConstData_t wei_ocl_buf,
-                                                    ConstData_t bias_ocl_buf,
-                                                    const ConvolutionContext&,
-                                                    const ConvSolution& solution,
-                                                    float& elapsed_time) const
+int ConvHipImplicitGemmV4Fwd::RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
+                                                       ConstData_t bot_ocl_buf,
+                                                       Data_t top_ocl_buf,
+                                                       ConstData_t wei_ocl_buf,
+                                                       ConstData_t bias_ocl_buf,
+                                                       const ConvolutionContext&,
+                                                       const ConvSolution& solution,
+                                                       float& elapsed_time) const
 {
     assert(bias_ocl_buf == nullptr);
     (void)bias_ocl_buf;
@@ -576,7 +579,7 @@ int ConvHipImplicitGemmV4Fwd::RunAndMeasureSolution(miopen::Handle& profile_h,
     return 0;
 }
 
-PerformanceImplicitGemm ConvHipImplicitGemmV4Fwd::Search(const ConvolutionContext& context) const
+std::shared_ptr<IPerformanceConfig> ConvHipImplicitGemmV4Fwd::Search(const ConvolutionContext& context) const
 {
     return GenericSearchFwd(*this, context);
 }

@@ -47,52 +47,14 @@ namespace solver {
 /// Implementation does not hold values themselves as these would take too much memory.
 /// The container holds problem config information instead. This info
 /// is required for advancing the iterator to the next valid configuration.
-///
-/// PerformanceConfig type requirements:
-/// - (ctor)()
-///     Constructs an instance with invalid value.
-/// - (ctor)(bool)
-///     Constructs an instance with minimal value.
-/// - SetNextValue()
-///     Advances instance value to the next available value and returns true.
-///     If max value reached, returns false.
-/// - IsValid(const Context& c) const
-///     Checks if instance is valid for the given c.
-///     For convolutions, Context represents a problem configuration.
-/// - operator==(const PerformanceConfigs&)
-///     Ordinary semantics.
-template <typename PerformanceConfig, typename Context>
+template <typename Context>
 class ComputedContainer;
 
-namespace detail {
-template <typename T>
-struct is_shared_ptr : std::false_type
+template <typename Context>
+class ComputedIterator
+    : public std::iterator<std::input_iterator_tag, std::shared_ptr<IPerformanceConfig>>
 {
-};
-template <typename T>
-struct is_shared_ptr<std::shared_ptr<T>> : std::true_type
-{
-};
-
-template <class TConfig>
-const auto& GetConfigRef(const TConfig& cfg,
-                         std::enable_if_t<!is_shared_ptr<TConfig>::value, int> = 0)
-{
-    return cfg;
-}
-
-template <class TConfig>
-const auto& GetConfigRef(const TConfig& cfg,
-                         std::enable_if_t<is_shared_ptr<TConfig>::value, int> = 0)
-{
-    return *cfg;
-}
-} // namespace detail
-
-template <typename PerformanceConfig, typename Context>
-class ComputedIterator : public std::iterator<std::input_iterator_tag, PerformanceConfig>
-{
-    PerformanceConfig v;
+    std::shared_ptr<IPerformanceConfig> v;
     const Context* p; // For Next().
 
     ComputedIterator& Next()
@@ -101,24 +63,22 @@ class ComputedIterator : public std::iterator<std::input_iterator_tag, Performan
         {
             do
             {
-                if(!detail::GetConfigRef(v).SetNextValue())
+                if(!v->SetNextValue())
                 { // Wraparound, end reached. Iterator is useless from now.
                     p = nullptr;
                     break;
                 }
-            } while(!detail::GetConfigRef(v).IsValid(*p));
+            } while(!v->IsValid(*p));
         }
         return *this;
     }
 
     // Implements container's begin()
-	template <class Solver>
-    ComputedIterator(const Context& problem,
-                     const bool spare,
-                     const Solver& solver)
+    template <class Solver>
+    ComputedIterator(const Context& problem, const bool spare, const Solver& solver)
         : v(solver.GetGenericSearchStart(spare)), p(&problem)
     {
-            if(!detail::GetConfigRef(v).IsValid(*p))
+        if(!v->IsValid(*p))
             Next();
     }
 
@@ -128,25 +88,24 @@ class ComputedIterator : public std::iterator<std::input_iterator_tag, Performan
     // STL-like iterator shall be copy contructible. The default copy ctor is ok.
 
     ComputedIterator& operator++() { return Next(); }
-    const PerformanceConfig& operator*() const { return v; }
+    const std::shared_ptr<IPerformanceConfig>& operator*() const { return v; }
     bool operator!=(ComputedIterator const& other) const
     {
         if(p == other.p)
             if(p == nullptr // Ends are always equal.
-               || detail::GetConfigRef(v) == detail::GetConfigRef(other.v))
+               || v == other.v)
                 return false;
         return true;
     }
     bool operator==(ComputedIterator const& other) const { return !(*this != other); }
 
-    friend class ComputedContainer<PerformanceConfig, Context>;
+    friend class ComputedContainer<Context>;
 };
 
-template <typename PerformanceConfig, typename Context>
+template <typename Context>
 class ComputedContainer
 {
-	using Solver = SearchableSolver<Context, PerformanceConfig>;
-	using PerformanceConfigInstance = decltype(std::declval<Solver>().GetPerformanceConfig(std::declval<Context>()));
+    using Solver = SearchableSolver<Context>;
 
     Context problem; // Hold a copy make the object independent of the environment.
     bool spare;      // Use spare set of perf configs. Those are usually slower than main set.
@@ -166,7 +125,7 @@ class ComputedContainer
     /// the "computed container" shall be const.
 
     public:
-    using const_iterator = ComputedIterator<PerformanceConfigInstance, Context>;
+    using const_iterator = ComputedIterator<Context>;
 
     ComputedContainer(const Context& problem_, const Solver& solver_, const bool spare_ = false)
         : problem(problem_), spare(spare_), solver(solver_)
@@ -194,7 +153,6 @@ class Timer
     std::chrono::time_point<std::chrono::steady_clock> et;
 };
 
-template <typename PerformanceConfig>
 class HeartBeat
 {
     size_t n_within_beat;
@@ -202,7 +160,7 @@ class HeartBeat
     float best_time; // within beat
     float elapsed_cumulative;
     Timer timer;
-    PerformanceConfig best_config;
+    std::shared_ptr<IPerformanceConfig> best_config;
 
     void Continue()
     {
@@ -214,10 +172,10 @@ class HeartBeat
     public:
     HeartBeat() : n_within_beat(), n_best(), best_time(), elapsed_cumulative() {}
 
-    void Start()
+    void Start(const std::shared_ptr<IPerformanceConfig>& config)
     {
         elapsed_cumulative = 0.0f;
-        best_config        = PerformanceConfig();
+        best_config        = config;
         Continue();
     }
 
@@ -227,7 +185,7 @@ class HeartBeat
                  const float total_best,
                  size_t n_failed,
                  size_t n_total,
-                 const PerformanceConfig& recent_config)
+                 const std::shared_ptr<IPerformanceConfig>& recent_config)
     {
         ++n_within_beat;
         if(!is_recent_failed && (recent_time < best_time))
@@ -244,16 +202,8 @@ class HeartBeat
                 n_recent != 0u ? ((n_total - n_recent) * (elapsed_cumulative / n_recent) / 1000)
                                : 0.0f; // paraniod
             MIOPEN_LOG_W(n_recent << '/' << n_failed << '/' << n_total << ' ' << total_best
-                                  << ", best within recent "
-                                  << n_within_beat
-                                  << ": "
-                                  << best_time
-                                  << " #"
-                                  << n_best
-                                  << ' '
-                                  << best_config
-                                  << ", ETA:"
-                                  << eta_sec
+                                  << ", best within recent " << n_within_beat << ": " << best_time
+                                  << " #" << n_best << ' ' << best_config << ", ETA:" << eta_sec
                                   << " sec.");
             Continue();
         }
@@ -282,6 +232,13 @@ inline size_t divide_round_plus_inf(const size_t x, const unsigned y)
     return x / y;
 }
 
+enum class Direction
+{
+    Forward,
+    Bacward,
+    Weights,
+};
+
 enum class SearchTweak
 {
     None,
@@ -299,74 +256,52 @@ enum class SearchTweak
     WorkspaceInsteadOfWeightsBuffer,
 };
 
-/// Solver member function requirements:
-/// * GetPerformanceConfig shall be implemented.
-///   - Its return type shall be suitable for instantiation of the ComputedContainer.
-/// * GetSolution shall be implemented.
-/// * RunAndMeasureSolution shall be implemented.
-///
-/// clang-format-off
-/// -----------------------------------------------
-/// Dataflow:
-///      Forward:
-///          wei[] (w) --> +--------+
-///                        | kernel | --> top[] (y)
-///          bot[] (x) --> +--------+
-///
-///      Backward data:
-///          wei[] (w) --> +--------+
-///                        | kernel | --> top[] (dx)
-///         bot[] (dy) --> +--------+
-///
-///      Backward WrW:
-///         top[] (dx) --> +--------+
-///                        | kernel | --> wei[] (dw)
-///         bot[] (dy) --> +--------+
-/// ------------------------------------------------
-/// clang-format-on
-template <class PerformanceConfig, class Context>
-auto GenericSearchFwd(const SearchableSolver<Context, PerformanceConfig>& s,
-                      const Context& context,
-                      const SearchTweak tweak = SearchTweak::None)
-    -> decltype(s.GetPerformanceConfig(context))
+template <Direction direction>
+struct RunAndMeasure
 {
-    const auto& bufs = context.GetBufs().io.fwd;
-    return GenericSearch(s, context, tweak, bufs.y, bufs.x, bufs.w);
-}
+};
 
-template <class PerformanceConfig, class Context>
-auto GenericSearchBwd(const SearchableSolver<Context, PerformanceConfig>& s,
-                      const Context& context,
-                      const SearchTweak tweak = SearchTweak::None)
-    -> decltype(s.GetPerformanceConfig(context))
+template <>
+struct RunAndMeasure<Direction::Forward>
 {
-    const auto& bufs = context.GetBufs().io.bwd;
-    return GenericSearch(s, context, tweak, bufs.dx, bufs.dy, bufs.w);
-}
+    template <class Context, class... Args>
+    int operator()(const SearchableSolver<Context>& s, Args&&... args) const
+    {
+        return s.RunAndMeasureSolutionFwd(args...);
+    }
+};
 
-template <class PerformanceConfig, class Context>
-auto GenericSearchWrW(const SearchableSolver<Context, PerformanceConfig>& s,
-                      const Context& context,
-                      const SearchTweak tweak = SearchTweak::None)
-    -> decltype(s.GetPerformanceConfig(context))
+template <>
+struct RunAndMeasure<Direction::Bacward>
 {
-    const auto& bufs = context.GetBufs().io.wrw;
-    return GenericSearch(s, context, tweak, bufs.dx, bufs.dy, bufs.dw);
-}
+    template <class Context, class... Args>
+    int operator()(const SearchableSolver<Context>& s, Args&&... args) const
+    {
+        return s.RunAndMeasureSolutionBwd(args...);
+    }
+};
 
-template <class PerformanceConfig, class Context, typename TopT, typename BotT, typename WeiT>
-auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
-                   const Context& context,
-                   const SearchTweak tweak,
-                   TopT top_ocl_ptr,
-                   BotT bot_ocl_ptr,
-                   WeiT wei_ocl_ptr)
-    -> decltype(s.GetPerformanceConfig(context))
+template <>
+struct RunAndMeasure<Direction::Weights>
 {
-    using PerformanceConfigInstance = decltype(s.GetPerformanceConfig(context));
-    PerformanceConfigInstance best_config;
+    template <class Context, class... Args>
+    int operator()(const SearchableSolver<Context>& s, Args&&... args) const
+    {
+        return s.RunAndMeasureSolutionWrW(args...);
+    }
+};
+
+template <Direction direction, class Context, typename TopT, typename BotT, typename WeiT>
+std::shared_ptr<IPerformanceConfig> GenericSearch(const SearchableSolver<Context>& s,
+                                                  const Context& context,
+                                                  const SearchTweak tweak,
+                                                  TopT top_ocl_ptr,
+                                                  BotT bot_ocl_ptr,
+                                                  WeiT wei_ocl_ptr)
+{
+    std::shared_ptr<IPerformanceConfig> best_config;
     const auto default_config   = s.GetPerformanceConfig(context);
-    const auto default_solution = s.GetSolution(context, detail::GetConfigRef(default_config));
+    const auto default_solution = s.GetSolution(context, *default_config);
 
     auto& profile_h          = context.GetStream();
     ConstData_t bias_ocl_ptr = context.GetBufs().bias;
@@ -402,7 +337,7 @@ auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
 
     AutoEnableProfiling enableProfiling{profile_h};
 
-	using ConfigContainer = ComputedContainer<PerformanceConfig, Context>;
+    using ConfigContainer = ComputedContainer<Context>;
     const ConfigContainer main(context, s);
     const int main_size = std::distance(main.begin(), main.end());
     const ConfigContainer spare(context, s, true);
@@ -410,23 +345,22 @@ auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
     const bool useSpare  = (main_size == 0);
 
     const ConfigContainer& all_configs = useSpare ? spare : main;
-    const int n_runs_total = useSpare ? spare_size : main_size;
+    const int n_runs_total             = useSpare ? spare_size : main_size;
     MIOPEN_LOG_W(s.DbId() << ": Searching the best solution among " << n_runs_total
-                          << (useSpare ? " (spare)" : "")
-                          << "...");
+                          << (useSpare ? " (spare)" : "") << "...");
 
     bool is_passed   = false; // left false only if all iterations failed.
     float best_time  = std::numeric_limits<float>::max();
     size_t n_failed  = 0;
     size_t n_current = 0;
     size_t n_best    = 0;
-    HeartBeat<PerformanceConfigInstance> heartbeat;
-    heartbeat.Start();
+    HeartBeat heartbeat;
+    heartbeat.Start(default_config);
 
     profile_h.EnableProfiling(true);
     for(auto& current_config_ptr : all_configs)
     {
-        const auto& current_config = detail::GetConfigRef(current_config_ptr);
+        const auto& current_config = *current_config_ptr;
         float elapsed_time         = 0.0f;
         int ret                    = 0;
         MIOPEN_LOG_I2('#' << n_current << '/' << n_failed << '/' << n_runs_total << ' '
@@ -441,34 +375,25 @@ auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
             MIOPEN_LOG_E('#' << n_current << " (" << n_runs_total << ") "
                              << "Workspace size should not depend on PerformanceConfig: "
                              << default_solution.workspce_sz
-                             << " != "
-                             << current_solution.workspce_sz);
+                             << " != " << current_solution.workspce_sz);
         }
 
         if(ret == 0)
         {
-            ret = s.RunAndMeasureSolution(profile_h,
-                                          bot_ocl_ptr,
-                                          top_ocl_ptr,
-                                          wei_ocl_ptr,
-                                          bias_ocl_ptr,
-                                          context,
-                                          current_solution,
-                                          elapsed_time);
+            ret = RunAndMeasure<direction>{}(s,
+                                           profile_h,
+                                           bot_ocl_ptr,
+                                           top_ocl_ptr,
+                                           wei_ocl_ptr,
+                                           bias_ocl_ptr,
+                                           context,
+                                           current_solution,
+                                           elapsed_time);
         }
         MIOPEN_LOG_T("##"
-                     << "(n_current, n_failed, n_runs_total):  "
-                     << n_current
-                     << '/'
-                     << n_failed
-                     << '/'
-                     << n_runs_total
-                     << " elapsed_time: "
-                     << elapsed_time
-                     << ", best_time: "
-                     << best_time
-                     << ", "
-                     << current_config);
+                     << "(n_current, n_failed, n_runs_total):  " << n_current << '/' << n_failed
+                     << '/' << n_runs_total << " elapsed_time: " << elapsed_time
+                     << ", best_time: " << best_time << ", " << current_config);
 
         if(ret == 0)
         {
@@ -483,14 +408,15 @@ auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
                 float temp;
                 for(int i = 0; i < 4; ++i)
                 {
-                    ret = s.RunAndMeasureSolution(profile_h,
-                                                  bot_ocl_ptr,
-                                                  top_ocl_ptr,
-                                                  wei_ocl_ptr,
-                                                  bias_ocl_ptr,
-                                                  context,
-                                                  current_solution,
-                                                  temp);
+                    ret = RunAndMeasure<direction>{}(s,
+                                                   profile_h,
+                                                   bot_ocl_ptr,
+                                                   top_ocl_ptr,
+                                                   wei_ocl_ptr,
+                                                   bias_ocl_ptr,
+                                                   context,
+                                                   current_solution,
+                                                   temp);
                     if(ret != 0)
                     {
                         break;
@@ -504,11 +430,7 @@ auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
                     if(elapsed_time < best_time)
                     {
                         MIOPEN_LOG_I('#' << n_current << '/' << n_failed << '/' << n_runs_total
-                                         << ' '
-                                         << elapsed_time
-                                         << " < "
-                                         << best_time
-                                         << ' '
+                                         << ' ' << elapsed_time << " < " << best_time << ' '
                                          << current_config);
                         best_config = current_config_ptr;
                         best_time   = elapsed_time;
@@ -516,8 +438,8 @@ auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
                     }
                     else
                     {
-                        MIOPEN_LOG_I2(
-                            "Average is not better: " << elapsed_time << " >= " << best_time);
+                        MIOPEN_LOG_I2("Average is not better: " << elapsed_time
+                                                                << " >= " << best_time);
                     }
                 }
             }
@@ -526,8 +448,7 @@ auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
         if(ret != 0)
         {
             MIOPEN_LOG_E('#' << n_current << " (" << n_runs_total << ") "
-                             << " Failed rc="
-                             << ret);
+                             << " Failed rc=" << ret);
             ++n_failed;
         }
         heartbeat.Monitor(ret != 0,
@@ -542,30 +463,79 @@ auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
 
     profile_h.EnableProfiling(false);
     MIOPEN_LOG_W("Done: " << n_runs_total << '/' << n_failed << '/' << n_runs_total << ", best #"
-                          << n_best
-                          << ' '
-                          << best_time
-                          << ' '
-                          << detail::GetConfigRef(best_config));
+                          << n_best << ' ' << best_time << ' ' << best_config);
     if(!is_passed)
         MIOPEN_THROW("Search failed");
     // Run once with the default config and show score.
     float default_time = 0.0f;
     profile_h.EnableProfiling(true);
-    if(s.RunAndMeasureSolution(profile_h,
-                               bot_ocl_ptr,
-                               top_ocl_ptr,
-                               wei_ocl_ptr,
-                               bias_ocl_ptr,
-                               context,
-                               default_solution,
-                               default_time) == 0)
+    if(RunAndMeasure<direction>{}(s,
+                                profile_h,
+                                bot_ocl_ptr,
+                                top_ocl_ptr,
+                                wei_ocl_ptr,
+                                bias_ocl_ptr,
+                                context,
+                                default_solution,
+                                default_time) == 0)
     {
         const float score = (best_time > 0.0f) ? default_time / best_time : 0.0f;
         MIOPEN_LOG_W("...Score: " << score << " (default time " << default_time << ')');
     }
     profile_h.EnableProfiling(false);
     return best_config;
+}
+
+/// Solver member function requirements:
+/// * GetPerformanceConfig shall be implemented.
+///   - Its return type shall be suitable for instantiation of the ComputedContainer.
+/// * GetSolution shall be implemented.
+/// * RunAndMeasureSolution shall be implemented.
+///
+/// clang-format-off
+/// -----------------------------------------------
+/// Dataflow:
+///      Forward:
+///          wei[] (w) --> +--------+
+///                        | kernel | --> top[] (y)
+///          bot[] (x) --> +--------+
+///
+///      Backward data:
+///          wei[] (w) --> +--------+
+///                        | kernel | --> top[] (dx)
+///         bot[] (dy) --> +--------+
+///
+///      Backward WrW:
+///         top[] (dx) --> +--------+
+///                        | kernel | --> wei[] (dw)
+///         bot[] (dy) --> +--------+
+/// ------------------------------------------------
+/// clang-format-on
+template <class Context>
+std::shared_ptr<IPerformanceConfig> GenericSearchFwd(const SearchableSolver<Context>& s,
+                                                     const Context& context,
+                                                     const SearchTweak tweak = SearchTweak::None)
+{
+    const auto& bufs = context.GetBufs().io.fwd;
+    return GenericSearch<Direction::Forward>(s, context, tweak, bufs.y, bufs.x, bufs.w);
+}
+
+template <class Context>
+std::shared_ptr<IPerformanceConfig> GenericSearchBwd(const SearchableSolver<Context>& s,
+                                                     const Context& context,
+                                                     const SearchTweak tweak = SearchTweak::None)
+{
+    const auto& bufs = context.GetBufs().io.bwd;
+    return GenericSearch<Direction::Bacward>(s, context, tweak, bufs.dx, bufs.dy, bufs.w);
+}
+
+template <class Context>
+std::shared_ptr<IPerformanceConfig> GenericSearchWrW(const SearchableSolver<Context>& s,
+                                                     const Context& context,
+                                                     const SearchTweak tweak = SearchTweak::None)
+{
+    const auto& bufs = context.GetBufs().io.wrw;
+    return GenericSearch<Direction::Weights>(s, context, tweak, bufs.dx, bufs.dy, bufs.dw);
 }
 
 } // namespace solver

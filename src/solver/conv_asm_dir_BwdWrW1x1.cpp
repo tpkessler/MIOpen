@@ -272,8 +272,9 @@ PerformanceConfigConvAsmBwdWrW1x1::PerformanceConfigConvAsmBwdWrW1x1(int chunk_s
 }
 
 inline bool PerformanceConfigConvAsmBwdWrW1x1::
-operator==(const PerformanceConfigConvAsmBwdWrW1x1& other) const
+operator==(const IPerformanceConfig& other_) const
 {
+    const auto& other = dynamic_cast<const PerformanceConfigConvAsmBwdWrW1x1&>(other_);
     // clang-format off
     return chunk_size == other.chunk_size
         && c_per_gpr == other.c_per_gpr
@@ -446,18 +447,19 @@ std::string PerformanceConfigConvAsmBwdWrW1x1::ToString() const
     return ss.str();
 }
 
-PerformanceConfigConvAsmBwdWrW1x1
+std::shared_ptr<IPerformanceConfig>
 ConvAsmBwdWrW1x1::GetPerformanceConfig(const ConvolutionContext& params) const
 {
     PerformanceConfigConvAsmBwdWrW1x1 pp;
     pp.EuristicInit(params);
     MIOPEN_LOG_I(pp.ToString());
-    return pp;
+    return std::make_shared<PerformanceConfigConvAsmBwdWrW1x1>(pp);
 }
 
 bool ConvAsmBwdWrW1x1::IsValidPerformanceConfig(const ConvolutionContext& problem,
-                                                const PerformanceConfigConvAsmBwdWrW1x1& c) const
+                                                const IPerformanceConfig& c_) const
 {
+    const auto& c = dynamic_cast<const PerformanceConfigConvAsmBwdWrW1x1&>(c_);
     return c.IsValidValue() && c.IsValid(problem);
 }
 
@@ -524,10 +526,10 @@ static int divide_round_plus_inf(const int x, const int y)
 }
 
 ConvSolution ConvAsmBwdWrW1x1::GetSolution(const ConvolutionContext& params,
-                                           const PerformanceConfigConvAsmBwdWrW1x1& config,
+                                           const IPerformanceConfig& config_,
                                            const bool disableConfigOverrideFromEnv) const
 {
-
+    const auto& config = dynamic_cast<const PerformanceConfigConvAsmBwdWrW1x1&>(config_);
     ConvSolution result;
     std::ostringstream options;
 
@@ -753,14 +755,14 @@ ConvSolution ConvAsmBwdWrW1x1::GetSolution(const ConvolutionContext& params,
     return result;
 }
 
-int ConvAsmBwdWrW1x1::RunAndMeasureSolution(miopen::Handle& profile_h,
-                                            ConstData_t bot_ocl_buf,
-                                            ConstData_t top_ocl_buf,
-                                            Data_t wei_ocl_buf,
-                                            ConstData_t bias_ocl_buf,
-                                            const ConvolutionContext& params,
-                                            const ConvSolution& solution,
-                                            float& elapsed_time) const
+int ConvAsmBwdWrW1x1::RunAndMeasureSolutionWrW(miopen::Handle& profile_h,
+                                               ConstData_t bot_ocl_buf,
+                                               ConstData_t top_ocl_buf,
+                                               Data_t wei_ocl_buf,
+                                               ConstData_t bias_ocl_buf,
+                                               const ConvolutionContext& params,
+                                               const ConvSolution& solution,
+                                               float& elapsed_time) const
 {
     assert(bias_ocl_buf == nullptr);
     (void)bias_ocl_buf;
@@ -813,7 +815,7 @@ int ConvAsmBwdWrW1x1::RunAndMeasureSolution(miopen::Handle& profile_h,
     return 0;
 }
 
-PerformanceConfigConvAsmBwdWrW1x1 ConvAsmBwdWrW1x1::Search(const ConvolutionContext& context) const
+std::shared_ptr<IPerformanceConfig> ConvAsmBwdWrW1x1::Search(const ConvolutionContext& context) const
 {
     if(UseSubsample(context))
         return GenericSearchWrW(*this, context, SearchTweak::WorkspaceInsteadOfXBuffer);

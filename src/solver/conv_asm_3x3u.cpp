@@ -66,8 +66,9 @@ PerformanceConfigConvAsm3x3U::PerformanceConfigConvAsm3x3U(int lwc, int fpw, int
 }
 
 inline bool PerformanceConfigConvAsm3x3U::
-operator==(const PerformanceConfigConvAsm3x3U& other) const
+operator==(const IPerformanceConfig& other_) const
 {
+    const auto& other = dynamic_cast<const PerformanceConfigConvAsm3x3U&>(other_);
     // clang-format off
     return limit_wave_cnt == other.limit_wave_cnt
         && filters_per_wave == other.filters_per_wave
@@ -160,18 +161,19 @@ std::string PerformanceConfigConvAsm3x3U::ToString() const
     return ss.str();
 }
 
-PerformanceConfigConvAsm3x3U
+std::shared_ptr<IPerformanceConfig>
 ConvAsm3x3U::GetPerformanceConfig(const ConvolutionContext& params) const
 {
     PerformanceConfigConvAsm3x3U pp;
     pp.EuristicInit(params);
     MIOPEN_LOG_I(pp.ToString());
-    return pp;
+    return std::make_shared<PerformanceConfigConvAsm3x3U>(pp);
 }
 
 bool ConvAsm3x3U::IsValidPerformanceConfig(const ConvolutionContext& problem,
-                                           const PerformanceConfigConvAsm3x3U& c) const
+                                           const IPerformanceConfig& c_) const
 {
+    const auto& c = dynamic_cast<const PerformanceConfigConvAsm3x3U&>(c_);
     return c.IsValidValue() && c.IsValid(problem);
 }
 
@@ -212,9 +214,10 @@ bool ConvAsm3x3U::IsApplicable(const ConvolutionContext& params) const
 bool ConvAsm3x3U::IsFast(const ConvolutionContext& params) const { return params.in_width >= 50; }
 
 ConvSolution ConvAsm3x3U::GetSolution(const ConvolutionContext& params,
-                                      const PerformanceConfigConvAsm3x3U& config,
+                                      const IPerformanceConfig& config_,
                                       const bool disableConfigOverrideFromEnv) const
 {
+    const auto& config = dynamic_cast<const PerformanceConfigConvAsm3x3U&>(config_);
     ConvSolution result;
     // Perf tune:
     const PerformanceConfigConvAsm3x3U* pcfg = &config;
@@ -329,7 +332,7 @@ int ConvAsm3x3U::RunAndMeasureSolution(miopen::Handle& profile_h,
     return 0;
 }
 
-PerformanceConfigConvAsm3x3U ConvAsm3x3U::Search(const ConvolutionContext& context) const
+std::shared_ptr<IPerformanceConfig> ConvAsm3x3U::Search(const ConvolutionContext& context) const
 {
     if(context.direction.IsForward())
         return GenericSearchFwd(*this, context);
