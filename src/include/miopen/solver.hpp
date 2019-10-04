@@ -117,7 +117,7 @@ struct SolverBase
 
 /// Base class for problem solvers which use exhaustive search mechanism.
 template <class TContext>
-struct SearchableSolver : SolverBase<TContext>
+struct SearchableSolver : virtual SolverBase<TContext>
 {
     /// Initialize performance config for generic search.
     virtual std::shared_ptr<IPerformanceConfig> GetGenericSearchStart(bool sparce) const = 0;
@@ -242,6 +242,52 @@ struct SearchableSolver : SolverBase<TContext>
     }
 };
 
+namespace detail {
+template <class TSolver, class TContext>
+struct RunAndMeasureHelperFwdBwd : virtual SearchableSolver<TContext>
+{
+    int RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
+                                 ConstData_t bot_ocl_buf,
+                                 Data_t top_ocl_buf,
+                                 ConstData_t wei_ocl_buf,
+                                 ConstData_t bias_ocl_buf,
+                                 const ConvolutionContext& params,
+                                 const ConvSolution& solution,
+                                 float& elapsed_time) const override final
+    {
+        const auto& self = dynamic_cast<const TSolver&>(*this);
+        return self.RunAndMeasureSolution(profile_h,
+                                          bot_ocl_buf,
+                                          top_ocl_buf,
+                                          wei_ocl_buf,
+                                          bias_ocl_buf,
+                                          params,
+                                          solution,
+                                          elapsed_time);
+    }
+
+    int RunAndMeasureSolutionBwd(miopen::Handle& profile_h,
+                                 Data_t bot_ocl_buf,
+                                 ConstData_t top_ocl_buf,
+                                 ConstData_t wei_ocl_buf,
+                                 ConstData_t bias_ocl_buf,
+                                 const ConvolutionContext& params,
+                                 const ConvSolution& solution,
+                                 float& elapsed_time) const override final
+    {
+        const auto& self = dynamic_cast<const TSolver&>(*this);
+        return self.RunAndMeasureSolution(profile_h,
+                                          bot_ocl_buf,
+                                          top_ocl_buf,
+                                          wei_ocl_buf,
+                                          bias_ocl_buf,
+                                          params,
+                                          solution,
+                                          elapsed_time);
+    }
+};
+} // namespace detail
+
 struct PerformanceConfigConvAsm3x3U : Serializable<PerformanceConfigConvAsm3x3U>, IPerformanceConfig
 {
     int limit_wave_cnt;        // [0..9]
@@ -268,7 +314,7 @@ struct PerformanceConfigConvAsm3x3U : Serializable<PerformanceConfigConvAsm3x3U>
     std::string ToString() const;
 };
 
-struct ConvAsm3x3U final : SearchableSolver<ConvolutionContext>
+struct ConvAsm3x3U final : detail::RunAndMeasureHelperFwdBwd<ConvAsm3x3U, ConvolutionContext>
 {
     const std::string& DbId() const override { return SolverDbId(*this); }
     bool IsApplicable(const ConvolutionContext& params) const override;
@@ -284,48 +330,6 @@ struct ConvAsm3x3U final : SearchableSolver<ConvolutionContext>
                              const IPerformanceConfig& config,
                              bool disableConfigOverrideFromEnv = false) const override;
 
-    int RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
-                                 ConstData_t bot_ocl_buf,
-                                 Data_t top_ocl_buf,
-                                 ConstData_t wei_ocl_buf,
-                                 ConstData_t bias_ocl_buf,
-                                 const ConvolutionContext& params,
-                                 const ConvSolution& solution,
-                                 float& elapsed_time) const override
-    {
-        return RunAndMeasureSolution(profile_h,
-                                     bot_ocl_buf,
-                                     top_ocl_buf,
-                                     wei_ocl_buf,
-                                     bias_ocl_buf,
-                                     params,
-                                     solution,
-                                     elapsed_time);
-    }
-
-    int RunAndMeasureSolutionBwd(miopen::Handle& profile_h,
-                                 Data_t bot_ocl_buf,
-                                 ConstData_t top_ocl_buf,
-                                 ConstData_t wei_ocl_buf,
-                                 ConstData_t bias_ocl_buf,
-                                 const ConvolutionContext& params,
-                                 const ConvSolution& solution,
-                                 float& elapsed_time) const override
-    {
-        return RunAndMeasureSolution(profile_h,
-                                     bot_ocl_buf,
-                                     top_ocl_buf,
-                                     wei_ocl_buf,
-                                     bias_ocl_buf,
-                                     params,
-                                     solution,
-                                     elapsed_time);
-    }
-
-    private:
-    bool IsValidPerformanceConfig(const ConvolutionContext&,
-                                  const IPerformanceConfig&) const override;
-
     template <typename B, typename T>
     int RunAndMeasureSolution(miopen::Handle& profile_h,
                               B bot_ocl_buf,
@@ -335,6 +339,10 @@ struct ConvAsm3x3U final : SearchableSolver<ConvolutionContext>
                               const ConvolutionContext& params,
                               const ConvSolution& solution,
                               float& elapsed_time) const;
+
+    private:
+    bool IsValidPerformanceConfig(const ConvolutionContext&,
+                                  const IPerformanceConfig&) const override;
 };
 
 struct PerformanceConfigConvAsm1x1U : Serializable<PerformanceConfigConvAsm1x1U>, IPerformanceConfig
@@ -391,7 +399,7 @@ struct PerformanceConfigConvAsm1x1U : Serializable<PerformanceConfigConvAsm1x1U>
     std::string ToString() const;
 };
 
-struct ConvAsm1x1UBase : SearchableSolver<ConvolutionContext>
+struct ConvAsm1x1UBase : virtual SearchableSolver<ConvolutionContext>
 {
     bool IsValidPerformanceConfig(const ConvolutionContext&,
                                   const IPerformanceConfig&) const override;
@@ -402,7 +410,8 @@ struct ConvAsm1x1UBase : SearchableSolver<ConvolutionContext>
                              bool disableConfigOverrideFromEnv = false) const override;
 };
 
-struct ConvAsm1x1U final : ConvAsm1x1UBase
+struct ConvAsm1x1U final : ConvAsm1x1UBase,
+                           detail::RunAndMeasureHelperFwdBwd<ConvAsm1x1U, ConvolutionContext>
 {
     const std::string& DbId() const override { return SolverDbId(*this); }
     std::shared_ptr<IPerformanceConfig>
@@ -413,45 +422,6 @@ struct ConvAsm1x1U final : ConvAsm1x1UBase
     }
     std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const override;
 
-    int RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
-                                 ConstData_t bot_ocl_buf,
-                                 Data_t top_ocl_buf,
-                                 ConstData_t wei_ocl_buf,
-                                 ConstData_t bias_ocl_buf,
-                                 const ConvolutionContext& params,
-                                 const ConvSolution& solution,
-                                 float& elapsed_time) const override
-    {
-        return RunAndMeasureSolution(profile_h,
-                                     bot_ocl_buf,
-                                     top_ocl_buf,
-                                     wei_ocl_buf,
-                                     bias_ocl_buf,
-                                     params,
-                                     solution,
-                                     elapsed_time);
-    }
-
-    int RunAndMeasureSolutionBwd(miopen::Handle& profile_h,
-                                 Data_t bot_ocl_buf,
-                                 ConstData_t top_ocl_buf,
-                                 ConstData_t wei_ocl_buf,
-                                 ConstData_t bias_ocl_buf,
-                                 const ConvolutionContext& params,
-                                 const ConvSolution& solution,
-                                 float& elapsed_time) const override
-    {
-        return RunAndMeasureSolution(profile_h,
-                                     bot_ocl_buf,
-                                     top_ocl_buf,
-                                     wei_ocl_buf,
-                                     bias_ocl_buf,
-                                     params,
-                                     solution,
-                                     elapsed_time);
-    }
-
-    private:
     template <typename B, typename T>
     int RunAndMeasureSolution(miopen::Handle& profile_h,
                               B bot_ocl_buf,
@@ -474,7 +444,9 @@ struct PerformanceConfigConvBiasActivAsm1x1U : PerformanceConfigConvAsm1x1U
     bool operator==(const IPerformanceConfig& other) const override;
 };
 
-struct ConvBiasActivAsm1x1U final : ConvAsm1x1UBase
+struct ConvBiasActivAsm1x1U final
+    : ConvAsm1x1UBase,
+      detail::RunAndMeasureHelperFwdBwd<ConvBiasActivAsm1x1U, ConvolutionContext>
 {
     const std::string& DbId() const override { return SolverDbId(*this); }
     std::shared_ptr<IPerformanceConfig> GetPerformanceConfig(const ConvolutionContext&) const;
@@ -484,45 +456,6 @@ struct ConvBiasActivAsm1x1U final : ConvAsm1x1UBase
     }
     std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const override;
 
-    int RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
-                                 ConstData_t bot_ocl_buf,
-                                 Data_t top_ocl_buf,
-                                 ConstData_t wei_ocl_buf,
-                                 ConstData_t bias_ocl_buf,
-                                 const ConvolutionContext& params,
-                                 const ConvSolution& solution,
-                                 float& elapsed_time) const override
-    {
-        return RunAndMeasureSolution(profile_h,
-                                     bot_ocl_buf,
-                                     top_ocl_buf,
-                                     wei_ocl_buf,
-                                     bias_ocl_buf,
-                                     params,
-                                     solution,
-                                     elapsed_time);
-    }
-
-    int RunAndMeasureSolutionBwd(miopen::Handle& profile_h,
-                                 Data_t bot_ocl_buf,
-                                 ConstData_t top_ocl_buf,
-                                 ConstData_t wei_ocl_buf,
-                                 ConstData_t bias_ocl_buf,
-                                 const ConvolutionContext& params,
-                                 const ConvSolution& solution,
-                                 float& elapsed_time) const override
-    {
-        return RunAndMeasureSolution(profile_h,
-                                     bot_ocl_buf,
-                                     top_ocl_buf,
-                                     wei_ocl_buf,
-                                     bias_ocl_buf,
-                                     params,
-                                     solution,
-                                     elapsed_time);
-    }
-
-    private:
     template <typename B, typename T>
     int RunAndMeasureSolution(miopen::Handle& profile_h,
                               B bot_ocl_buf,
@@ -595,7 +528,7 @@ struct PerformanceConfigConvAsm1x1UV2 : Serializable<PerformanceConfigConvAsm1x1
     std::string ToString() const;
 };
 
-struct ConvAsm1x1UV2 final : SearchableSolver<ConvolutionContext>
+struct ConvAsm1x1UV2 final : detail::RunAndMeasureHelperFwdBwd<ConvAsm1x1UV2, ConvolutionContext>
 {
     const std::string& DbId() const override { return SolverDbId(*this); }
     std::shared_ptr<IPerformanceConfig> GetGenericSearchStart(bool sparce) const override
@@ -613,45 +546,6 @@ struct ConvAsm1x1UV2 final : SearchableSolver<ConvolutionContext>
                              const IPerformanceConfig& config,
                              bool disableConfigOverrideFromEnv = false) const override;
 
-    int RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
-                                 ConstData_t bot_ocl_buf,
-                                 Data_t top_ocl_buf,
-                                 ConstData_t wei_ocl_buf,
-                                 ConstData_t bias_ocl_buf,
-                                 const ConvolutionContext& params,
-                                 const ConvSolution& solution,
-                                 float& elapsed_time) const override
-    {
-        return RunAndMeasureSolution(profile_h,
-                                     bot_ocl_buf,
-                                     top_ocl_buf,
-                                     wei_ocl_buf,
-                                     bias_ocl_buf,
-                                     params,
-                                     solution,
-                                     elapsed_time);
-    }
-
-    int RunAndMeasureSolutionBwd(miopen::Handle& profile_h,
-                                 Data_t bot_ocl_buf,
-                                 ConstData_t top_ocl_buf,
-                                 ConstData_t wei_ocl_buf,
-                                 ConstData_t bias_ocl_buf,
-                                 const ConvolutionContext& params,
-                                 const ConvSolution& solution,
-                                 float& elapsed_time) const override
-    {
-        return RunAndMeasureSolution(profile_h,
-                                     bot_ocl_buf,
-                                     top_ocl_buf,
-                                     wei_ocl_buf,
-                                     bias_ocl_buf,
-                                     params,
-                                     solution,
-                                     elapsed_time);
-    }
-
-    private:
     template <typename B, typename T>
     int RunAndMeasureSolution(miopen::Handle& profile_h,
                               B bot_ocl_buf,
@@ -955,7 +849,8 @@ struct PerformanceConfigAsmDirect3x3WrW : Serializable<PerformanceConfigAsmDirec
     std::string ToString() const;
 };
 
-struct ConvAsmBwdWrW3x3 final : SearchableSolver<ConvolutionContext>
+struct ConvAsmBwdWrW3x3 final
+    : detail::RunAndMeasureHelperFwdBwd<ConvAsmBwdWrW3x3, ConvolutionContext>
 {
     const std::string& DbId() const override { return SolverDbId(*this); }
     std::shared_ptr<IPerformanceConfig> GetGenericSearchStart(bool sparce) const override
@@ -973,45 +868,6 @@ struct ConvAsmBwdWrW3x3 final : SearchableSolver<ConvolutionContext>
                              const IPerformanceConfig& config,
                              bool disableConfigOverrideFromEnv = false) const override;
 
-    int RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
-                                 ConstData_t bot_ocl_buf,
-                                 Data_t top_ocl_buf,
-                                 ConstData_t wei_ocl_buf,
-                                 ConstData_t bias_ocl_buf,
-                                 const ConvolutionContext& params,
-                                 const ConvSolution& solution,
-                                 float& elapsed_time) const override
-    {
-        return RunAndMeasureSolution(profile_h,
-                                     bot_ocl_buf,
-                                     top_ocl_buf,
-                                     wei_ocl_buf,
-                                     bias_ocl_buf,
-                                     params,
-                                     solution,
-                                     elapsed_time);
-    }
-
-    int RunAndMeasureSolutionBwd(miopen::Handle& profile_h,
-                                 Data_t bot_ocl_buf,
-                                 ConstData_t top_ocl_buf,
-                                 ConstData_t wei_ocl_buf,
-                                 ConstData_t bias_ocl_buf,
-                                 const ConvolutionContext& params,
-                                 const ConvSolution& solution,
-                                 float& elapsed_time) const override
-    {
-        return RunAndMeasureSolution(profile_h,
-                                     bot_ocl_buf,
-                                     top_ocl_buf,
-                                     wei_ocl_buf,
-                                     bias_ocl_buf,
-                                     params,
-                                     solution,
-                                     elapsed_time);
-    }
-
-	private:
     template <typename B, typename T>
     int RunAndMeasureSolution(miopen::Handle& profile_h,
                               B bot_ocl_buf,
@@ -1329,7 +1185,7 @@ struct PerformanceConfigSCGemmFwd : Serializable<PerformanceConfigSCGemmFwd<T>>,
 };
 
 template <SCGemmOpType T>
-struct ConvSCGemmFwd final : SearchableSolver<ConvolutionContext>
+struct ConvSCGemmFwd final : detail::RunAndMeasureHelperFwdBwd<ConvSCGemmFwd<T>, ConvolutionContext>
 {
     const std::string& DbId() const override { return SolverDbId(*this); }
     std::shared_ptr<IPerformanceConfig> GetGenericSearchStart(bool sparce) const override
@@ -1347,48 +1203,6 @@ struct ConvSCGemmFwd final : SearchableSolver<ConvolutionContext>
                              const IPerformanceConfig& config,
                              bool disableConfigOverrideFromEnv = false) const override;
 
-    int RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
-                                 ConstData_t bot_ocl_buf,
-                                 Data_t top_ocl_buf,
-                                 ConstData_t wei_ocl_buf,
-                                 ConstData_t bias_ocl_buf,
-                                 const ConvolutionContext& params,
-                                 const ConvSolution& solution,
-                                 float& elapsed_time) const override
-    {
-        return RunAndMeasureSolution(profile_h,
-                                     bot_ocl_buf,
-                                     top_ocl_buf,
-                                     wei_ocl_buf,
-                                     bias_ocl_buf,
-                                     params,
-                                     solution,
-                                     elapsed_time);
-    }
-
-    int RunAndMeasureSolutionBwd(miopen::Handle& profile_h,
-                                 Data_t bot_ocl_buf,
-                                 ConstData_t top_ocl_buf,
-                                 ConstData_t wei_ocl_buf,
-                                 ConstData_t bias_ocl_buf,
-                                 const ConvolutionContext& params,
-                                 const ConvSolution& solution,
-                                 float& elapsed_time) const override
-    {
-        return RunAndMeasureSolution(profile_h,
-                                     bot_ocl_buf,
-                                     top_ocl_buf,
-                                     wei_ocl_buf,
-                                     bias_ocl_buf,
-                                     params,
-                                     solution,
-                                     elapsed_time);
-    }
-
-    protected:
-    bool IsApplicableBase(const ConvolutionContext& params) const;
-
-	private:
     template <typename B, typename TopT>
     int RunAndMeasureSolution(miopen::Handle& profile_h,
                               B bot_ocl_buf,
@@ -1398,6 +1212,9 @@ struct ConvSCGemmFwd final : SearchableSolver<ConvolutionContext>
                               const ConvolutionContext& params,
                               const ConvSolution& solution,
                               float& elapsed_time) const;
+
+    protected:
+    bool IsApplicableBase(const ConvolutionContext& params) const;
 };
 
 extern template struct PerformanceConfigSCGemmFwd<SCGemmOpFGemm>;
