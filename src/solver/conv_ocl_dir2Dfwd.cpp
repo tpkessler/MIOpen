@@ -456,7 +456,7 @@ ConvSolution ConvOclDirectFwd::GetSolution(const ConvolutionContext& params,
                                            bool) const
 {
     const auto& searched_params = dynamic_cast<const LegacyPerformanceConfig&>(searched_params_);
-    ConvSolution result = BaseGetSolution(params, searched_params);
+    ConvSolution result         = BaseGetSolution(params, searched_params);
 
     if(result.Succeeded())
     {
@@ -473,7 +473,7 @@ ConvSolution ConvOclDirectFwdFused::GetSolution(const ConvolutionContext& params
                                                 bool) const
 {
     const auto& searched_params = dynamic_cast<const LegacyPerformanceConfig&>(searched_params_);
-    ConvSolution result = BaseGetSolution(params, searched_params);
+    ConvSolution result         = BaseGetSolution(params, searched_params);
     if(result.Succeeded())
     {
         result.construction_params[0].comp_options += params.general_compile_options;

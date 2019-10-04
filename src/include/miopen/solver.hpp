@@ -119,62 +119,20 @@ struct SolverBase
 template <class TContext>
 struct SearchableSolver : virtual SolverBase<TContext>
 {
-    /// Initialize performance config for generic search.
-    virtual std::shared_ptr<IPerformanceConfig> GetGenericSearchStart(bool sparce) const = 0;
-
     /// Initializes performance config to the default values.
     /// The function may involve some euristic to guess the best solution
     /// configuration. It is assumed that the function takes constant time
     /// to finish and does not run kernels to measure performance etc.
     /// The function shall always return valid config.
-    /// Only implemented by SearchableSolvers
     virtual std::shared_ptr<IPerformanceConfig> GetPerformanceConfig(const TContext&) const = 0;
 
-    /// Searchable solvers provide a GetSolution that takes a Context and PerformanceConfig
     virtual ConvSolution GetSolution(const TContext& params,
                                      const IPerformanceConfig& config,
                                      bool disableConfigOverrideFromEnv = false) const = 0;
 
-    virtual int RunAndMeasureSolutionWrW(miopen::Handle& /*profile_h*/,
-                                         ConstData_t /*bot_ocl_buf*/,
-                                         ConstData_t /*top_ocl_buf*/,
-                                         Data_t /*wei_ocl_buf*/,
-                                         ConstData_t /*bias_ocl_buf*/,
-                                         const ConvolutionContext& /*params*/,
-                                         const ConvSolution& /*solution*/,
-                                         float& /*elapsed_time*/) const
-    {
-        MIOPEN_THROW("Not implemented");
-    }
-
-    virtual int RunAndMeasureSolutionFwd(miopen::Handle& /*profile_h*/,
-                                         ConstData_t /*bot_ocl_buf*/,
-                                         Data_t /*top_ocl_buf*/,
-                                         ConstData_t /*wei_ocl_buf*/,
-                                         ConstData_t /*bias_ocl_buf*/,
-                                         const ConvolutionContext& /*params*/,
-                                         const ConvSolution& /*solution*/,
-                                         float& /*elapsed_time*/) const
-    {
-        MIOPEN_THROW("Not implemented");
-    }
-
-    virtual int RunAndMeasureSolutionBwd(miopen::Handle& /*profile_h*/,
-                                         Data_t /*bot_ocl_buf*/,
-                                         ConstData_t /*top_ocl_buf*/,
-                                         ConstData_t /*wei_ocl_buf*/,
-                                         ConstData_t /*bias_ocl_buf*/,
-                                         const ConvolutionContext& /*params*/,
-                                         const ConvSolution& /*solution*/,
-                                         float& /*elapsed_time*/) const
-    {
-        MIOPEN_THROW("Not implemented");
-    }
-
     protected:
     /// Should return false if performance config is wrong for a problem.
     /// Main use is validation of values read from the perf db.
-    /// Only implemented by SearchableSolvers
     virtual bool IsValidPerformanceConfig(const TContext&, const IPerformanceConfig&) const
     {
         return true; // Do not check by default.
@@ -242,9 +200,52 @@ struct SearchableSolver : virtual SolverBase<TContext>
     }
 };
 
+template <class TContext>
+struct GenericSearchableSolver : virtual SearchableSolver<TContext>
+{
+    /// Initialize performance config for the generic search.
+    virtual std::shared_ptr<IPerformanceConfig> GetGenericSearchStart(bool sparce) const = 0;
+
+    virtual int RunAndMeasureSolutionWrW(miopen::Handle& /*profile_h*/,
+                                         ConstData_t /*bot_ocl_buf*/,
+                                         ConstData_t /*top_ocl_buf*/,
+                                         Data_t /*wei_ocl_buf*/,
+                                         ConstData_t /*bias_ocl_buf*/,
+                                         const ConvolutionContext& /*params*/,
+                                         const ConvSolution& /*solution*/,
+                                         float& /*elapsed_time*/) const
+    {
+        MIOPEN_THROW("Not implemented");
+    }
+
+    virtual int RunAndMeasureSolutionFwd(miopen::Handle& /*profile_h*/,
+                                         ConstData_t /*bot_ocl_buf*/,
+                                         Data_t /*top_ocl_buf*/,
+                                         ConstData_t /*wei_ocl_buf*/,
+                                         ConstData_t /*bias_ocl_buf*/,
+                                         const ConvolutionContext& /*params*/,
+                                         const ConvSolution& /*solution*/,
+                                         float& /*elapsed_time*/) const
+    {
+        MIOPEN_THROW("Not implemented");
+    }
+
+    virtual int RunAndMeasureSolutionBwd(miopen::Handle& /*profile_h*/,
+                                         Data_t /*bot_ocl_buf*/,
+                                         ConstData_t /*top_ocl_buf*/,
+                                         ConstData_t /*wei_ocl_buf*/,
+                                         ConstData_t /*bias_ocl_buf*/,
+                                         const ConvolutionContext& /*params*/,
+                                         const ConvSolution& /*solution*/,
+                                         float& /*elapsed_time*/) const
+    {
+        MIOPEN_THROW("Not implemented");
+    }
+};
+
 namespace detail {
 template <class TSolver, class TContext>
-struct RunAndMeasureHelperFwdBwd : virtual SearchableSolver<TContext>
+struct RunAndMeasureHelperFwdBwd : virtual GenericSearchableSolver<TContext>
 {
     int RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
                                  ConstData_t bot_ocl_buf,
@@ -665,7 +666,7 @@ struct PerformanceImplicitGemm : Serializable<PerformanceImplicitGemm>, IPerform
     std::string ToString() const;
 };
 
-struct ConvHipImplicitGemmV4Fwd final : SearchableSolver<ConvolutionContext>
+struct ConvHipImplicitGemmV4Fwd final : GenericSearchableSolver<ConvolutionContext>
 {
     const std::string& DbId() const override { return SolverDbId(*this); }
     std::shared_ptr<IPerformanceConfig> GetGenericSearchStart(bool) const override
@@ -703,11 +704,6 @@ struct ConvHipImplicitGemmV4_1x1 final : SolverBase<ConvolutionContext>
 /// "legacy exhaustive search" machinery.
 struct ConvOclDirectFwdLegacyExhaustiveSearch : SearchableSolver<ConvolutionContext>
 {
-    std::shared_ptr<IPerformanceConfig> GetGenericSearchStart(bool) const override
-    {
-        MIOPEN_THROW("LegacyPerformanceConfig doesn't support generic_search");
-        return {};
-    }
     std::shared_ptr<IPerformanceConfig>
     GetPerformanceConfig(const ConvolutionContext&) const override;
     std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const override;
@@ -970,7 +966,7 @@ struct PerformanceConfigConvAsmBwdWrW1x1 : Serializable<PerformanceConfigConvAsm
     std::string ToString() const;
 };
 
-struct ConvAsmBwdWrW1x1 final : SearchableSolver<ConvolutionContext>
+struct ConvAsmBwdWrW1x1 final : GenericSearchableSolver<ConvolutionContext>
 {
     const std::string& DbId() const override { return SolverDbId(*this); }
     std::shared_ptr<IPerformanceConfig> GetGenericSearchStart(bool sparce) const override
@@ -1074,7 +1070,7 @@ struct ConvOclBwdWrW2Base
 };
 
 template <int N_BATCH_LOOPS>
-struct ConvOclBwdWrW2 final : SearchableSolver<ConvolutionContext>,
+struct ConvOclBwdWrW2 final : GenericSearchableSolver<ConvolutionContext>,
                               ConvOclBwdWrW2Base<N_BATCH_LOOPS>
 {
     const std::string& DbId() const override { return SolverDbId(*this); }

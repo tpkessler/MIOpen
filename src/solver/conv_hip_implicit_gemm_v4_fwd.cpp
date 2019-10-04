@@ -579,7 +579,8 @@ int ConvHipImplicitGemmV4Fwd::RunAndMeasureSolutionFwd(miopen::Handle& profile_h
     return 0;
 }
 
-std::shared_ptr<IPerformanceConfig> ConvHipImplicitGemmV4Fwd::Search(const ConvolutionContext& context) const
+std::shared_ptr<IPerformanceConfig>
+ConvHipImplicitGemmV4Fwd::Search(const ConvolutionContext& context) const
 {
     return GenericSearchFwd(*this, context);
 }

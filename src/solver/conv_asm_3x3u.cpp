@@ -65,8 +65,7 @@ PerformanceConfigConvAsm3x3U::PerformanceConfigConvAsm3x3U(int lwc, int fpw, int
 {
 }
 
-inline bool PerformanceConfigConvAsm3x3U::
-operator==(const IPerformanceConfig& other_) const
+inline bool PerformanceConfigConvAsm3x3U::operator==(const IPerformanceConfig& other_) const
 {
     const auto& other = dynamic_cast<const PerformanceConfigConvAsm3x3U&>(other_);
     // clang-format off

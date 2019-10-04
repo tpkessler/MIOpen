@@ -271,8 +271,7 @@ PerformanceConfigConvAsmBwdWrW1x1::PerformanceConfigConvAsmBwdWrW1x1(int chunk_s
 {
 }
 
-inline bool PerformanceConfigConvAsmBwdWrW1x1::
-operator==(const IPerformanceConfig& other_) const
+inline bool PerformanceConfigConvAsmBwdWrW1x1::operator==(const IPerformanceConfig& other_) const
 {
     const auto& other = dynamic_cast<const PerformanceConfigConvAsmBwdWrW1x1&>(other_);
     // clang-format off
@@ -815,7 +814,8 @@ int ConvAsmBwdWrW1x1::RunAndMeasureSolutionWrW(miopen::Handle& profile_h,
     return 0;
 }
 
-std::shared_ptr<IPerformanceConfig> ConvAsmBwdWrW1x1::Search(const ConvolutionContext& context) const
+std::shared_ptr<IPerformanceConfig>
+ConvAsmBwdWrW1x1::Search(const ConvolutionContext& context) const
 {
     if(UseSubsample(context))
         return GenericSearchWrW(*this, context, SearchTweak::WorkspaceInsteadOfXBuffer);

@@ -342,7 +342,8 @@ int ConvSCGemmFwd<T>::RunAndMeasureSolution(miopen::Handle& profile_h,
 }
 
 template <SCGemmOpType T>
-std::shared_ptr<IPerformanceConfig> ConvSCGemmFwd<T>::Search(const ConvolutionContext& context) const
+std::shared_ptr<IPerformanceConfig>
+ConvSCGemmFwd<T>::Search(const ConvolutionContext& context) const
 {
     return GenericSearchFwd(*this, context);
 }

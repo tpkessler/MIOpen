@@ -107,8 +107,7 @@ PerformanceConfigAsmDirect3x3WrW::PerformanceConfigAsmDirect3x3WrW(
 {
 }
 
-inline bool PerformanceConfigAsmDirect3x3WrW::
-operator==(const IPerformanceConfig& other_) const
+inline bool PerformanceConfigAsmDirect3x3WrW::operator==(const IPerformanceConfig& other_) const
 {
     const auto& other = dynamic_cast<const PerformanceConfigAsmDirect3x3WrW&>(other_);
     // clang-format off
@@ -558,7 +557,8 @@ int ConvAsmBwdWrW3x3::RunAndMeasureSolution(miopen::Handle& profile_h,
     return 0;
 }
 
-std::shared_ptr<IPerformanceConfig> ConvAsmBwdWrW3x3::Search(const ConvolutionContext& context) const
+std::shared_ptr<IPerformanceConfig>
+ConvAsmBwdWrW3x3::Search(const ConvolutionContext& context) const
 {
     return GenericSearchWrW(*this, context);
 }

@@ -767,8 +767,7 @@ int ConvAsm1x1U::RunAndMeasureSolution(miopen::Handle& profile_h,
     return 0;
 }
 
-std::shared_ptr<IPerformanceConfig>
-ConvAsm1x1U::Search(const ConvolutionContext& context) const
+std::shared_ptr<IPerformanceConfig> ConvAsm1x1U::Search(const ConvolutionContext& context) const
 {
     if(context.direction.IsForward())
     {

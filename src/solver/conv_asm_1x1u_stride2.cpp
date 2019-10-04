@@ -284,8 +284,7 @@ PerformanceConfigConvAsm1x1UV2::PerformanceConfigConvAsm1x1UV2(int chunk_size_,
 {
 }
 
-inline bool PerformanceConfigConvAsm1x1UV2::
-operator==(const IPerformanceConfig& other_) const
+inline bool PerformanceConfigConvAsm1x1UV2::operator==(const IPerformanceConfig& other_) const
 {
     const auto& other = dynamic_cast<const PerformanceConfigConvAsm1x1UV2&>(other_);
     // clang-format off

@@ -37,8 +37,7 @@
 namespace miopen {
 namespace solver {
 
-struct LegacyPerformanceConfig : Serializable<LegacyPerformanceConfig>,
-                                 IPerformanceConfig
+struct LegacyPerformanceConfig : Serializable<LegacyPerformanceConfig>, IPerformanceConfig
 {
     int grp_tile1       = 0;
     int grp_tile0       = 0;
