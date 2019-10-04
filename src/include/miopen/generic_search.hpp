@@ -324,34 +324,6 @@ enum class SearchTweak
 ///         bot[] (dy) --> +--------+
 /// ------------------------------------------------
 /// clang-format-on
-#if MIOPEN_ALLOC_BUFFERS
-template <class PerformanceConfig, class Context>
-auto GenericSearchFwd(const SearchableSolver<Context, PerformanceConfig>& s,
-                      const Context& context,
-                      const SearchTweak tweak = SearchTweak::None)
-    -> decltype(s.GetPerformanceConfig(context))
-{
-    return GenericSearch(s, context, tweak);
-}
-
-template <class PerformanceConfig, class Context>
-auto GenericSearchBwd(const SearchableSolver<Context, PerformanceConfig>& s,
-                      const Context& context,
-                      const SearchTweak tweak = SearchTweak::None)
-    -> decltype(s.GetPerformanceConfig(context))
-{
-    return GenericSearch(s, context, tweak);
-}
-
-template <class PerformanceConfig, class Context>
-auto GenericSearchWrW(const SearchableSolver<Context, PerformanceConfig>& s,
-                      const Context& context,
-                      const SearchTweak tweak = SearchTweak::None)
-    -> decltype(s.GetPerformanceConfig(context))
-{
-    return GenericSearch(s, context, tweak);
-}
-#else
 template <class PerformanceConfig, class Context>
 auto GenericSearchFwd(const SearchableSolver<Context, PerformanceConfig>& s,
                       const Context& context,
@@ -381,14 +353,7 @@ auto GenericSearchWrW(const SearchableSolver<Context, PerformanceConfig>& s,
     const auto& bufs = context.GetBufs().io.wrw;
     return GenericSearch(s, context, tweak, bufs.dx, bufs.dy, bufs.dw);
 }
-#endif
 
-#if MIOPEN_ALLOC_BUFFERS
-template <class PerformanceConfig, class Context>
-auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
-                   const Context& context,
-                   const SearchTweak tweak = SearchTweak::None)
-#else
 template <class PerformanceConfig, class Context, typename TopT, typename BotT, typename WeiT>
 auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
                    const Context& context,
@@ -396,7 +361,6 @@ auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
                    TopT top_ocl_ptr,
                    BotT bot_ocl_ptr,
                    WeiT wei_ocl_ptr)
-#endif
     -> decltype(s.GetPerformanceConfig(context))
 {
     using PerformanceConfigInstance = decltype(s.GetPerformanceConfig(context));
@@ -404,49 +368,6 @@ auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
     const auto default_config   = s.GetPerformanceConfig(context);
     const auto default_solution = s.GetSolution(context, detail::GetConfigRef(default_config));
 
-#if MIOPEN_ALLOC_BUFFERS
-    // Allocate buffers, init input buffers.
-    size_t top_size  = context.top_sz / sizeof(float);
-    size_t bot_size  = context.bot_sz / sizeof(float);
-    size_t wei_size  = context.weights_sz / sizeof(float);
-    size_t bias_size = context.bias_sz / sizeof(float);
-
-    if(tweak == SearchTweak::WorkspaceInsteadOfXBuffer)
-    {
-        assert(default_solution.workspce_sz != 0);
-        if(context.direction.IsForward())
-            bot_size = default_solution.workspce_sz;
-        else
-            top_size = default_solution.workspce_sz; // Ok for both Bwd and WrW.
-    }
-    else if(tweak == SearchTweak::WorkspaceInsteadOfWeightsBuffer)
-    {
-        assert(default_solution.workspce_sz != 0);
-        wei_size = default_solution.workspce_sz;
-    }
-
-    std::vector<float> top(top_size);
-    std::vector<float> bot(bot_size);
-    std::vector<float> wei(wei_size);
-    std::vector<float> bias(bias_size);
-    InitRandomly(bot);
-    if(!(context.direction.IsBackwardData() || context.direction.IsForward()))
-        InitRandomly(top);
-    if(!context.direction.IsBackwardWrW())
-        InitRandomly(wei, -0.5, 0.001);
-    if(context.bias)
-        InitRandomly(bias);
-
-    miopen::Handle profile_h;
-    auto bot_ocl_buf  = profile_h.Write(bot);
-    auto top_ocl_buf  = profile_h.Write(top);
-    auto wei_ocl_buf  = profile_h.Write(wei);
-    auto bias_ocl_buf = context.bias ? profile_h.Write(bias) : nullptr;
-    auto bot_ocl_ptr  = bot_ocl_buf.get();
-    auto top_ocl_ptr  = top_ocl_buf.get();
-    auto wei_ocl_ptr  = wei_ocl_buf.get();
-    auto bias_ocl_ptr = bias_ocl_buf.get();
-#else
     auto& profile_h          = context.GetStream();
     ConstData_t bias_ocl_ptr = context.GetBufs().bias;
     if(context.bias != 0 && bias_ocl_ptr == nullptr)
@@ -478,7 +399,7 @@ auto GenericSearch(const SearchableSolver<Context, PerformanceConfig>& s,
     break;
     default: MIOPEN_THROW("GenericSearch: Unsupported SearchTweak value.");
     }
-#endif
+
     AutoEnableProfiling enableProfiling{profile_h};
 
 	using ConfigContainer = ComputedContainer<PerformanceConfig, Context>;
