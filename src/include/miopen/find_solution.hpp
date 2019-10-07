@@ -42,75 +42,67 @@ namespace miopen {
 namespace solver {
 
 template <class TContext>
-struct Container
+ConvSolution SearchForSolution(const std::vector<SolverBase<TContext>*>& solvers,
+                               const TContext& search_params)
 {
-    Container(const std::initializer_list<SolverBase<TContext>*>& solvers_) : solvers(solvers_) {}
-    Container(const std::vector<SolverBase<TContext>*>& solvers_) : solvers(solvers_) {}
-    Container(std::vector<SolverBase<TContext>*>&& solvers_) : solvers(solvers_) {}
-
-    ConvSolution SearchForSolution(const TContext& search_params) const
-    {
 // Using const here causes gcc to ICE
 #if(!defined(__GNUC__) || defined(__clang__))
-        const
+    const
 #endif
-            auto no_perf_filtering =
-                miopen::IsDisabled(MIOPEN_DEBUG_AMD_ASM_KERNELS_PERF_FILTERING{});
+        auto no_perf_filtering = miopen::IsDisabled(MIOPEN_DEBUG_AMD_ASM_KERNELS_PERF_FILTERING{});
 
-        for(const auto solver : solvers)
-        {
-            if(!solver->IsApplicable(search_params) ||
-               !(no_perf_filtering || solver->IsFast(search_params)))
-            {
-                MIOPEN_LOG_I2(solver->DbId() << ": Not applicable");
-                continue;
-            }
-
-            const auto solution = solver->GetSolution(search_params);
-            if(!solution.Succeeded())
-                continue;
-            MIOPEN_LOG_I2(solver->DbId() << ": Success.");
-            if(!solution.construction_params.empty())
-                return solution;
-            MIOPEN_THROW(std::string("Internal error in solver: ") + solver->DbId());
-        }
-
-        return ConvSolution{miopenStatusUnknownError};
-    }
-
-    // Search for all applicable solutions among many solvers
-    std::vector<ConvSolution> SearchForAllSolutions(const TContext& search_params) const
+    for(const auto solver : solvers)
     {
-        std::vector<ConvSolution> ss;
-        for(const auto& solver : solvers)
+        if(!solver->IsApplicable(search_params) ||
+           !(no_perf_filtering || solver->IsFast(search_params)))
         {
-            if(!solver->IsApplicable(search_params))
-            {
-                MIOPEN_LOG_I2(solver->DbId() << ": Not applicable");
-                continue;
-            }
-
-            const auto s = solver->GetSolution(search_params);
-            if(s.Succeeded())
-            {
-                ss.push_back(s);
-                MIOPEN_LOG_I2(solver->DbId() << ": Success.");
-                continue;
-            }
-
-            /// \todo If Solver is applicable it must provide an appropriate ConvSolution.
-            /// This is not the case for some 20x5 convolutions (and possibly others).
-            /// Normally we should not get here and message level should be Error.
-            /// For now, let's use Info (not Warning) level to avoid
-            /// flooding the console.
-            MIOPEN_LOG_I(solver->DbId() << ": [Warning] Applicable Solver not succeeded.");
+            MIOPEN_LOG_I2(solver->DbId() << ": Not applicable");
+            continue;
         }
-        return ss;
+
+        const auto solution = solver->GetSolution(search_params);
+        if(!solution.Succeeded())
+            continue;
+        MIOPEN_LOG_I2(solver->DbId() << ": Success.");
+        if(!solution.construction_params.empty())
+            return solution;
+        MIOPEN_THROW(std::string("Internal error in solver: ") + solver->DbId());
     }
 
-    private:
-    std::vector<SolverBase<TContext>*> solvers;
-};
+    return ConvSolution{miopenStatusUnknownError};
+}
+
+// Search for all applicable solutions among many solvers
+template <class TContext>
+std::vector<ConvSolution> SearchForAllSolutions(const std::vector<SolverBase<TContext>*>& solvers,
+                                                const TContext& search_params)
+{
+    std::vector<ConvSolution> ss;
+    for(const auto& solver : solvers)
+    {
+        if(!solver->IsApplicable(search_params))
+        {
+            MIOPEN_LOG_I2(solver->DbId() << ": Not applicable");
+            continue;
+        }
+
+        const auto s = solver->GetSolution(search_params);
+        if(s.Succeeded())
+        {
+            ss.push_back(s);
+            MIOPEN_LOG_I2(solver->DbId() << ": Success.");
+            continue;
+        }
+
+        /// \todo If Solver is applicable it must provide an appropriate ConvSolution.
+        /// This is not the case for some 20x5 convolutions (and possibly others).
+        /// Normally we should not get here and message level should be Error.
+        /// For now, let's use Info (not Warning) level to avoid
+        /// flooding the console.
+        MIOPEN_LOG_I(solver->DbId() << ": [Warning] Applicable Solver not succeeded.");
+    }
+    return ss;
+}
 
 } // namespace solver
 } // namespace miopen

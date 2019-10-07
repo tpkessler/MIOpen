@@ -169,11 +169,11 @@ static solver::ConvSolution FindSolution(const ConvolutionContext& ctx, const st
     test::db_path_override() = db_path;
 
     const auto solvers =
-        solver::Container<ConvolutionContext>{&StaticContainer<TrivialSlowTestSolver>::Instance(),
-                                              &StaticContainer<TrivialTestSolver>::Instance(),
-                                              &StaticContainer<SearchableTestSolver>::Instance()};
+        std::vector<ConvSolver*>{&StaticContainer<TrivialSlowTestSolver>::Instance(),
+                                 &StaticContainer<TrivialTestSolver>::Instance(),
+                                 &StaticContainer<SearchableTestSolver>::Instance()};
 
-    return solvers.SearchForSolution(ctx);
+    return SearchForSolution(solvers, ctx);
 }
 
 class SolverTest

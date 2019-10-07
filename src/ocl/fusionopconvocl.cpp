@@ -32,8 +32,7 @@ miopenStatus_t ConvForwardOpDescriptor::GetCompileParms(std::string& compile_con
                                                         const std::vector<ConvSolver*>& solvers)
 {
     mlo_construct_direct2D_fusion construct_params = ConstructParams(handle);
-    const auto sc                                  = solver::Container<ConvolutionContext>(solvers);
-    const auto solution = sc.SearchForSolution(construct_params.GetConvContext());
+    const auto solution = SearchForSolution(solvers, construct_params.GetConvContext());
     if(!solution.Succeeded())
     {
         return solution.status;
