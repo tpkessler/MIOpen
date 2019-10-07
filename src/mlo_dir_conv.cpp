@@ -76,23 +76,7 @@ miopen::PerfDb miopen::GetDb(const ConvolutionContext& ctx)
 miopen::solver::ConvSolution
 mlo_construct_direct2D_fusion::FindSolution(const std::vector<miopen::ConvSolver*>& solvers)
 {
-    miopen::solver::ConvSolution solution{miopenStatusUnknownError};
-    std::string solver_id;
-    for(auto& solver : solvers)
-    {
-        solution = solver->GetSolution(_search_params);
-        if(solution.Succeeded() && solver->IsApplicable(_search_params) &&
-           solver->IsFast(_search_params))
-        {
-            solver_id = solver->DbId();
-            break;
-        }
-    }
-    if(solution.Succeeded() && solution.construction_params.empty())
-    {
-        MIOPEN_THROW(std::string("Internal error in solver: ") + solver_id);
-    }
-    return solution;
+    return miopen::solver::SearchForSolution(solvers, _search_params);
 }
 
 static const auto& GetDirectSolvers()
