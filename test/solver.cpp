@@ -121,24 +121,22 @@ class SearchableTestSolver final : public solver::SearchableSolver<ConvolutionCo
     static int searches_done() { return _serches_done; }
     static const char* FileName() { return "SearchableTestSolver"; }
     static const char* NoSearchFileName() { return "SearchableTestSolver.NoSearch"; }
-    const std::string& DbId() const override { return SolverDbId(*this); }
-    bool IsApplicable(const ConvolutionContext& /* context */) const override { return true; }
+    const std::string& DbId() const final { return SolverDbId(*this); }
+    bool IsApplicable(const ConvolutionContext& /* context */) const final { return true; }
 
-    std::shared_ptr<IPerformanceConfig>
-    GetPerformanceConfig(const ConvolutionContext&) const override
+    std::shared_ptr<IPerformanceConfig> GetPerformanceConfig(const ConvolutionContext&) const final
     {
         TestConfig config{};
         config.str = NoSearchFileName();
         return std::make_shared<TestConfig>(config);
     }
 
-    bool IsValidPerformanceConfig(const ConvolutionContext&,
-                                  const IPerformanceConfig&) const override
+    bool IsValidPerformanceConfig(const ConvolutionContext&, const IPerformanceConfig&) const final
     {
         return true;
     }
 
-    std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const
+    std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final
     {
         TestConfig config;
         config.str = FileName();
@@ -147,7 +145,7 @@ class SearchableTestSolver final : public solver::SearchableSolver<ConvolutionCo
     }
 
     solver::ConvSolution
-    GetSolution(const ConvolutionContext&, const IPerformanceConfig& config_, bool) const override
+    GetSolution(const ConvolutionContext&, const IPerformanceConfig& config_, bool) const final
     {
         auto config = dynamic_cast<const TestConfig&>(config_);
         solver::ConvSolution ret;

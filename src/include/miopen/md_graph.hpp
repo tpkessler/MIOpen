@@ -76,7 +76,7 @@ struct MDGraph_vertex
     std::string& operator[](std::string& x) { return vertex_data[x]; }
     std::vector<DefaultKernelArg> default_args;
 
-    ConvSolver* solver;
+    ConvSolver* solver = nullptr;
     friend std::ostream& operator<<(std::ostream& stream, const MDGraph_vertex& v);
 };
 
