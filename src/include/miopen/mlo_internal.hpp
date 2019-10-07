@@ -155,6 +155,10 @@ class StaticContainer
     }
 };
 
+namespace test {
+boost::optional<std::string>& db_path_override();
+} // namespace test
+
 using PerfDb = DbTimer<MultiFileDb<Db, Db, true>>;
 PerfDb GetDb(const ConvolutionContext& ctx);
 

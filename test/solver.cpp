@@ -26,6 +26,7 @@
 
 #include <miopen/convolution.hpp>
 #include <miopen/db.hpp>
+#include <miopen/find_solution.hpp>
 #include <miopen/solver.hpp>
 #include <miopen/mlo_internal.hpp>
 #include <miopen/temp_file.hpp>
@@ -44,10 +45,14 @@ class TrivialSlowTestSolver : public solver::SolverBase<ConvolutionContext>
 {
     public:
     static const char* FileName() { return "TrivialSlowTestSolver"; }
-    bool IsFast(const ConvolutionContext& context) const { return context.in_height == 1; }
-    bool IsApplicable(const ConvolutionContext& context) const { return context.in_width == 1; }
+    const std::string& DbId() const override { return SolverDbId(*this); }
+    bool IsFast(const ConvolutionContext& context) const override { return context.in_height == 1; }
+    bool IsApplicable(const ConvolutionContext& context) const override
+    {
+        return context.in_width == 1;
+    }
 
-    solver::ConvSolution GetSolution(const ConvolutionContext&) const
+    solver::ConvSolution GetSolution(const ConvolutionContext&) const override
     {
         solver::ConvSolution ret;
         solver::KernelInfo kernel;
@@ -64,9 +69,13 @@ class TrivialTestSolver : public solver::SolverBase<ConvolutionContext>
 {
     public:
     static const char* FileName() { return "TrivialTestSolver"; }
-    bool IsApplicable(const ConvolutionContext& context) const { return context.in_width == 1; }
+    const std::string& DbId() const override { return SolverDbId(*this); }
+    bool IsApplicable(const ConvolutionContext& context) const override
+    {
+        return context.in_width == 1;
+    }
 
-    solver::ConvSolution GetSolution(const ConvolutionContext&) const
+    solver::ConvSolution GetSolution(const ConvolutionContext&) const override
     {
         solver::ConvSolution ret;
         solver::KernelInfo kernel;
@@ -79,7 +88,7 @@ class TrivialTestSolver : public solver::SolverBase<ConvolutionContext>
     }
 };
 
-struct TestConfig : solver::Serializable<TestConfig>
+struct TestConfig : solver::Serializable<TestConfig>, IPerformanceConfig
 {
     std::string str;
 
@@ -88,39 +97,58 @@ struct TestConfig : solver::Serializable<TestConfig>
     {
         f(self.str, "str");
     }
+
+    bool SetNextValue() override
+    {
+        MIOPEN_THROW("TestConfig doesn't support generic_search");
+        return false;
+    };
+    bool IsValid(const ConvolutionContext&) const override
+    {
+        MIOPEN_THROW("TestConfig doesn't support generic_search");
+        return false;
+    };
+    bool operator==(const IPerformanceConfig&) const override
+    {
+        MIOPEN_THROW("TestConfig doesn't support generic_search");
+        return false;
+    };
 };
 
-class SearchableTestSolver : public solver::SolverBase<ConvolutionContext>
+class SearchableTestSolver : public solver::SearchableSolver<ConvolutionContext>
 {
     public:
     static int searches_done() { return _serches_done; }
     static const char* FileName() { return "SearchableTestSolver"; }
     static const char* NoSearchFileName() { return "SearchableTestSolver.NoSearch"; }
-    bool IsApplicable(const ConvolutionContext& /* context */) const { return true; }
+    const std::string& DbId() const override { return SolverDbId(*this); }
+    bool IsApplicable(const ConvolutionContext& /* context */) const override { return true; }
 
-    TestConfig GetPerformanceConfig(const ConvolutionContext&) const
+    std::shared_ptr<IPerformanceConfig> GetPerformanceConfig(const ConvolutionContext&) const override
     {
         TestConfig config{};
         config.str = NoSearchFileName();
-        return config;
+        return std::make_shared<TestConfig>(config);
     }
 
-    bool IsValidPerformanceConfig(const ConvolutionContext&, const TestConfig&) const
+    bool IsValidPerformanceConfig(const ConvolutionContext&,
+                                  const IPerformanceConfig&) const override
     {
         return true;
     }
 
-    TestConfig Search(const ConvolutionContext&) const
+    std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const
     {
         TestConfig config;
         config.str = FileName();
         _serches_done++;
-        return config;
+        return std::make_shared<TestConfig>(config);
     }
 
-    solver::ConvSolution GetSolution(const ConvolutionContext&, const TestConfig& config) const
+    solver::ConvSolution
+    GetSolution(const ConvolutionContext&, const IPerformanceConfig& config_, bool) const override
     {
-
+        auto config = dynamic_cast<const TestConfig&>(config_);
         solver::ConvSolution ret;
         solver::KernelInfo kernel;
 
@@ -139,12 +167,14 @@ int SearchableTestSolver::_serches_done = 0;
 
 static solver::ConvSolution FindSolution(const ConvolutionContext& ctx, const std::string& db_path)
 {
-    Db db(db_path);
+    test::db_path_override() = db_path;
 
     const auto solvers =
-        solver::SolverContainer<TrivialSlowTestSolver, TrivialTestSolver, SearchableTestSolver>{};
+        solver::Container<ConvolutionContext>{&StaticContainer<TrivialSlowTestSolver>::Instance(),
+                                              &StaticContainer<TrivialTestSolver>::Instance(),
+                                              &StaticContainer<SearchableTestSolver>::Instance()};
 
-    return solvers.SearchForSolution(ctx, db);
+    return solvers.SearchForSolution(ctx);
 }
 
 class SolverTest

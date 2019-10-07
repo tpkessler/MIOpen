@@ -50,6 +50,16 @@
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_GCN_ASM_KERNELS)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_AMD_ROCM_PRECOMPILED_BINARIES)
 
+namespace miopen {
+namespace test {
+boost::optional<std::string>& db_path_override()
+{
+    static boost::optional<std::string> path = boost::none;
+    return path;
+}
+} // namespace miopen
+} // namespace test
+
 miopen::PerfDb mlo_construct_base::GetDb() const
 {
     return {{db_path(), _search_params.GetUserPerfDbPath()}};
@@ -57,7 +67,10 @@ miopen::PerfDb mlo_construct_base::GetDb() const
 
 miopen::PerfDb miopen::GetDb(const ConvolutionContext& ctx)
 {
-    return {{ctx.GetPerfDbPath(), ctx.GetUserPerfDbPath()}};
+    if(test::db_path_override())
+        return {{*test::db_path_override(), *test::db_path_override()}};
+    else
+        return {{ctx.GetPerfDbPath(), ctx.GetUserPerfDbPath()}};
 }
 
 miopen::solver::ConvSolution
