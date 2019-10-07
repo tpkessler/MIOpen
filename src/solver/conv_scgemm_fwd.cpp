@@ -299,13 +299,13 @@ ConvSolution ConvSCGemmFwd<T>::GetSolution(const ConvolutionContext& params,
 
 template <typename B, typename TopT>
 int RunAndMeasureSolution(miopen::Handle& profile_h,
-                                            B bot_ocl_buf,
-                                            TopT top_ocl_buf,
-                                            ConstData_t wei_ocl_buf,
-                                            ConstData_t bias_ocl_buf,
-                                            const ConvolutionContext& params,
-                                            const ConvSolution& solution,
-                                            float& elapsed_time)
+                          B bot_ocl_buf,
+                          TopT top_ocl_buf,
+                          ConstData_t wei_ocl_buf,
+                          ConstData_t bias_ocl_buf,
+                          const ConvolutionContext& params,
+                          const ConvSolution& solution,
+                          float& elapsed_time)
 {
 
 #ifdef NDEBUG
@@ -352,8 +352,8 @@ template <SCGemmOpType T>
 RUN_AND_MEASURE_HELPER_FROM_TEMPLATE_BWD(ConvSCGemmFwd<T>)
 
 template <SCGemmOpType T>
-std::shared_ptr<IPerformanceConfig>
-ConvSCGemmFwd<T>::Search(const ConvolutionContext& context) const
+std::shared_ptr<IPerformanceConfig> ConvSCGemmFwd<T>::Search(
+    const ConvolutionContext& context) const
 {
     return GenericSearchFwd(*this, context);
 }

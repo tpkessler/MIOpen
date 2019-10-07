@@ -124,7 +124,8 @@ class SearchableTestSolver final : public solver::SearchableSolver<ConvolutionCo
     const std::string& DbId() const override { return SolverDbId(*this); }
     bool IsApplicable(const ConvolutionContext& /* context */) const override { return true; }
 
-    std::shared_ptr<IPerformanceConfig> GetPerformanceConfig(const ConvolutionContext&) const override
+    std::shared_ptr<IPerformanceConfig>
+    GetPerformanceConfig(const ConvolutionContext&) const override
     {
         TestConfig config{};
         config.str = NoSearchFileName();

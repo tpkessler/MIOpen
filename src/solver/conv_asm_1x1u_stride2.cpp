@@ -715,13 +715,13 @@ ConvSolution ConvAsm1x1UV2::GetSolution(const ConvolutionContext& params,
 
 template <typename B, typename T>
 int RunAndMeasureSolution(miopen::Handle& profile_h,
-                                         B bot_ocl_buf,
-                                         T top_ocl_buf,
-                                         ConstData_t wei_ocl_buf,
-                                         ConstData_t bias_ocl_buf,
-                                         const ConvolutionContext& params,
-                                         const ConvSolution& solution,
-                                         float& elapsed_time)
+                          B bot_ocl_buf,
+                          T top_ocl_buf,
+                          ConstData_t wei_ocl_buf,
+                          ConstData_t bias_ocl_buf,
+                          const ConvolutionContext& params,
+                          const ConvSolution& solution,
+                          float& elapsed_time)
 {
     assert(bias_ocl_buf == nullptr);
     (void)bias_ocl_buf;

@@ -308,7 +308,8 @@ struct GenericSearchableSolver : virtual SearchableSolver<TContext>
                                      elapsed_time);                        \
     }
 
-struct PerformanceConfigConvAsm3x3U final : Serializable<PerformanceConfigConvAsm3x3U>, IPerformanceConfig
+struct PerformanceConfigConvAsm3x3U final : Serializable<PerformanceConfigConvAsm3x3U>,
+                                            IPerformanceConfig
 {
     int limit_wave_cnt;        // [0..9]
     int filters_per_wave;      // [1..8]
@@ -421,8 +422,7 @@ struct ConvAsm1x1UBase : virtual SearchableSolver<ConvolutionContext>
                              bool disableConfigOverrideFromEnv) const final;
 };
 
-struct ConvAsm1x1U final : ConvAsm1x1UBase,
-                           GenericSearchableSolver<ConvolutionContext>
+struct ConvAsm1x1U final : ConvAsm1x1UBase, GenericSearchableSolver<ConvolutionContext>
 {
     const std::string& DbId() const override { return SolverDbId(*this); }
     std::shared_ptr<IPerformanceConfig> GetPerformanceConfig(const ConvolutionContext&) const final;
@@ -447,9 +447,7 @@ struct PerformanceConfigConvBiasActivAsm1x1U final : PerformanceConfigConvAsm1x1
     bool operator==(const IPerformanceConfig& other) const final;
 };
 
-struct ConvBiasActivAsm1x1U final
-    : ConvAsm1x1UBase,
-      GenericSearchableSolver<ConvolutionContext>
+struct ConvBiasActivAsm1x1U final : ConvAsm1x1UBase, GenericSearchableSolver<ConvolutionContext>
 {
     const std::string& DbId() const override { return SolverDbId(*this); }
     std::shared_ptr<IPerformanceConfig> GetPerformanceConfig(const ConvolutionContext&) const final;
@@ -464,7 +462,7 @@ struct ConvBiasActivAsm1x1U final
 };
 
 struct PerformanceConfigConvAsm1x1UV2 final : Serializable<PerformanceConfigConvAsm1x1UV2>,
-                                        IPerformanceConfig
+                                              IPerformanceConfig
 {
     // ----------------- // Full set          Optimized       Spare
     // ----------------------------------------------------------------------------
@@ -690,8 +688,7 @@ struct ConvHipImplicitGemmV4_1x1 final : SolverBase<ConvolutionContext>
 /// "legacy exhaustive search" machinery.
 struct ConvOclDirectFwdLegacyExhaustiveSearch : SearchableSolver<ConvolutionContext>
 {
-    std::shared_ptr<IPerformanceConfig>
-    GetPerformanceConfig(const ConvolutionContext&) const final;
+    std::shared_ptr<IPerformanceConfig> GetPerformanceConfig(const ConvolutionContext&) const final;
     std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
 
     private:
@@ -702,8 +699,7 @@ struct ConvOclDirectFwdLegacyExhaustiveSearch : SearchableSolver<ConvolutionCont
 struct ConvOclDirectFwdBase : ConvOclDirectFwdLegacyExhaustiveSearch
 {
     bool IsApplicable(const ConvolutionContext& params) const final;
-    bool IsValidPerformanceConfig(const ConvolutionContext&,
-                                  const IPerformanceConfig&) const final;
+    bool IsValidPerformanceConfig(const ConvolutionContext&, const IPerformanceConfig&) const final;
 
     protected:
     bool IsApplicableBase(const ConvolutionContext& params) const;
@@ -729,8 +725,7 @@ struct ConvOclDirectFwd1x1 final : ConvOclDirectFwdLegacyExhaustiveSearch
 {
     const std::string& DbId() const final { return SolverDbId(*this); }
     bool IsApplicable(const ConvolutionContext& params) const final;
-    bool IsValidPerformanceConfig(const ConvolutionContext&,
-                                  const IPerformanceConfig&) const final
+    bool IsValidPerformanceConfig(const ConvolutionContext&, const IPerformanceConfig&) const final
     {
         return true;
     }
@@ -788,7 +783,7 @@ struct ConvWinograd3x3MultipassWrW final : SolverBase<ConvolutionContext>
 };
 
 struct PerformanceConfigAsmDirect3x3WrW final : Serializable<PerformanceConfigAsmDirect3x3WrW>,
-                                          IPerformanceConfig
+                                                IPerformanceConfig
 {
     int limit_wave_cnt;   // [0..9]
     int reverse_inout;    // [0..1], 1 is allowed for stride=1x1 only.
@@ -838,10 +833,8 @@ struct ConvAsmBwdWrW3x3 final : GenericSearchableSolver<ConvolutionContext>
     {
         return std::make_shared<PerformanceConfigAsmDirect3x3WrW>(sparce);
     }
-    std::shared_ptr<IPerformanceConfig>
-    GetPerformanceConfig(const ConvolutionContext&) const final;
-    bool IsValidPerformanceConfig(const ConvolutionContext&,
-                                  const IPerformanceConfig&) const final;
+    std::shared_ptr<IPerformanceConfig> GetPerformanceConfig(const ConvolutionContext&) const final;
+    bool IsValidPerformanceConfig(const ConvolutionContext&, const IPerformanceConfig&) const final;
     std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
     bool IsApplicable(const ConvolutionContext& params) const final;
     bool IsFast(const ConvolutionContext& params) const final;
@@ -854,7 +847,7 @@ struct ConvAsmBwdWrW3x3 final : GenericSearchableSolver<ConvolutionContext>
 };
 
 struct PerformanceConfigConvAsmBwdWrW1x1 final : Serializable<PerformanceConfigConvAsmBwdWrW1x1>,
-                                           IPerformanceConfig
+                                                 IPerformanceConfig
 {
     int chunk_size;    // {1,2,4,8,16}
     int c_per_gpr;     // {1,2,4,8,16}
@@ -951,10 +944,8 @@ struct ConvAsmBwdWrW1x1 final : GenericSearchableSolver<ConvolutionContext>
     {
         return std::make_shared<PerformanceConfigConvAsmBwdWrW1x1>(sparce);
     }
-    std::shared_ptr<IPerformanceConfig>
-    GetPerformanceConfig(const ConvolutionContext&) const final;
-    bool IsValidPerformanceConfig(const ConvolutionContext&,
-                                  const IPerformanceConfig&) const final;
+    std::shared_ptr<IPerformanceConfig> GetPerformanceConfig(const ConvolutionContext&) const final;
+    bool IsValidPerformanceConfig(const ConvolutionContext&, const IPerformanceConfig&) const final;
     std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
     bool IsApplicable(const ConvolutionContext& params) const final;
     bool IsFast(const ConvolutionContext& params) const final;
@@ -1170,10 +1161,8 @@ struct ConvSCGemmFwd final : detail::RunAndMeasureHelperFwdBwd<ConvSCGemmFwd<T>,
     {
         return std::make_shared<PerformanceConfigSCGemmFwd>(sparce);
     }
-    std::shared_ptr<IPerformanceConfig>
-    GetPerformanceConfig(const ConvolutionContext&) const final;
-    bool IsValidPerformanceConfig(const ConvolutionContext&,
-                                  const IPerformanceConfig&) const final;
+    std::shared_ptr<IPerformanceConfig> GetPerformanceConfig(const ConvolutionContext&) const final;
+    bool IsValidPerformanceConfig(const ConvolutionContext&, const IPerformanceConfig&) const final;
     std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
     bool IsApplicable(const ConvolutionContext& params) const final;
     bool IsFast(const ConvolutionContext& params) const final;
