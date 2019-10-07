@@ -53,24 +53,6 @@ namespace miopen {
 namespace solver {
 /// \todo Move wave_size into abstraction wich represent GPU information
 const int wave_size = 64;
-template <class Solver>
-std::string ComputeSolverDbId(const Solver&)
-{
-    const auto& name = get_type_name<Solver>();
-    auto idx         = name.find_last_of(':');
-    return name.substr(idx + 1);
-}
-
-// This will retrieve the id of the solver to write to the database. By
-// default it uses the class name. If the class is renamed, this function can
-// overriden to keep the name to avoid DB corruption.
-template <class Solver>
-const std::string& SolverDbId(const Solver& solver)
-{
-    static const auto result = ComputeSolverDbId(solver);
-    return result;
-}
-
 /// Base class for problem solvers.
 ///
 /// Solvers are to be instantiated as const objects and shall not have any variable
@@ -118,6 +100,23 @@ struct SolverBase
     ///                          float& elapsed_time) const;
 
     virtual const std::string& DbId() const = 0;
+
+    protected:
+    template <class Solver>
+    static const std::string& SolverDbId(const Solver& solver)
+    {
+        static const auto result = ComputeSolverDbId(solver);
+        return result;
+    }
+
+    private:
+    template <class Solver>
+    static std::string ComputeSolverDbId(const Solver&)
+    {
+        const auto& name = get_type_name<Solver>();
+        auto idx         = name.find_last_of(':');
+        return name.substr(idx + 1);
+    }
 };
 
 /// Base class for problem solvers which use exhaustive search mechanism.

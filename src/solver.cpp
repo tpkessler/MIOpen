@@ -151,10 +151,12 @@ inline bool Register(IdRegistryData& registry,
 }
 
 template <class TSolver>
-inline void
-RegisterWithSolver(IdRegistryData& registry, uint64_t value, TSolver, miopenConvAlgorithm_t algo)
+inline void RegisterWithSolver(IdRegistryData& registry,
+                               uint64_t value,
+                               const TSolver& solver,
+                               miopenConvAlgorithm_t algo)
 {
-    if(Register(registry, value, SolverDbId(TSolver{}), algo))
+    if(Register(registry, value, solver.DbId(), algo))
         registry.value_to_solver.emplace(value, &StaticContainer<TSolver>::Instance());
 }
 

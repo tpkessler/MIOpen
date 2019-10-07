@@ -78,14 +78,13 @@ mlo_construct_direct2D_fusion::FindSolution(const std::vector<miopen::ConvSolver
 {
     miopen::solver::ConvSolution solution{miopenStatusUnknownError};
     std::string solver_id;
-    auto db = this->GetDb();
     for(auto& solver : solvers)
     {
         solution = solver->GetSolution(_search_params);
         if(solution.Succeeded() && solver->IsApplicable(_search_params) &&
            solver->IsFast(_search_params))
         {
-            solver_id = miopen::solver::SolverDbId(solver);
+            solver_id = solver->DbId();
             break;
         }
     }
