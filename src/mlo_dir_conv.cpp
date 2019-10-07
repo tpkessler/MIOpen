@@ -161,9 +161,9 @@ static const auto& GetBwdWrW2DSolvers()
 
 static const auto& GetFwdSCGemmSolvers()
 {
-    static const auto inst = miopen::solver::Container<miopen::ConvolutionContext>{{
+    static const auto inst = miopen::solver::Container<miopen::ConvolutionContext>{
         &miopen::StaticContainer<miopen::solver::ConvSCGemmFwd<miopen::SCGemmOpFGemm>>::Instance(),
-    }};
+    };
     return inst;
 }
 

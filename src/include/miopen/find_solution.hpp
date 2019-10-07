@@ -44,8 +44,9 @@ namespace solver {
 template <class TContext>
 struct Container
 {
-    Container(std::initializer_list<SolverBase<TContext>*> solvers_) : solvers(solvers_) {}
-    Container(std::vector<SolverBase<TContext>*> solvers_) : solvers(solvers_) {}
+    Container(const std::initializer_list<SolverBase<TContext>*>& solvers_) : solvers(solvers_) {}
+    Container(const std::vector<SolverBase<TContext>*>& solvers_) : solvers(solvers_) {}
+    Container(std::vector<SolverBase<TContext>*>&& solvers_) : solvers(solvers_) {}
 
     ConvSolution SearchForSolution(const TContext& search_params) const
     {

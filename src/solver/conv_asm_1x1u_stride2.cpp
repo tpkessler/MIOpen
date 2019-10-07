@@ -714,14 +714,14 @@ ConvSolution ConvAsm1x1UV2::GetSolution(const ConvolutionContext& params,
 }
 
 template <typename B, typename T>
-int ConvAsm1x1UV2::RunAndMeasureSolution(miopen::Handle& profile_h,
+int RunAndMeasureSolution(miopen::Handle& profile_h,
                                          B bot_ocl_buf,
                                          T top_ocl_buf,
                                          ConstData_t wei_ocl_buf,
                                          ConstData_t bias_ocl_buf,
                                          const ConvolutionContext& params,
                                          const ConvSolution& solution,
-                                         float& elapsed_time) const
+                                         float& elapsed_time)
 {
     assert(bias_ocl_buf == nullptr);
     (void)bias_ocl_buf;
@@ -772,6 +772,9 @@ int ConvAsm1x1UV2::RunAndMeasureSolution(miopen::Handle& profile_h,
 #endif
     return 0;
 }
+
+RUN_AND_MEASURE_HELPER_FROM_TEMPLATE_FWD(ConvAsm1x1UV2)
+RUN_AND_MEASURE_HELPER_FROM_TEMPLATE_BWD(ConvAsm1x1UV2)
 
 std::shared_ptr<IPerformanceConfig> ConvAsm1x1UV2::Search(const ConvolutionContext& context) const
 {

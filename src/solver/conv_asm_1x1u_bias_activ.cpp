@@ -77,14 +77,14 @@ ConvBiasActivAsm1x1U::GetPerformanceConfig(const ConvolutionContext& params) con
 }
 
 template <typename B, typename T>
-int ConvBiasActivAsm1x1U::RunAndMeasureSolution(miopen::Handle& profile_h,
+int RunAndMeasureSolution(miopen::Handle& profile_h,
                                                 B bot_ocl_buf,
                                                 T top_ocl_buf,
                                                 ConstData_t wei_ocl_buf,
                                                 ConstData_t bias_ocl_buf,
                                                 const ConvolutionContext& params,
                                                 const ConvSolution& solution,
-                                                float& elapsed_time) const
+                                                float& elapsed_time)
 {
     KernelInfo k_info;
     k_info = solution.construction_params[0];
@@ -141,6 +141,9 @@ int ConvBiasActivAsm1x1U::RunAndMeasureSolution(miopen::Handle& profile_h,
 #endif
     return 0;
 }
+
+RUN_AND_MEASURE_HELPER_FROM_TEMPLATE_FWD(ConvBiasActivAsm1x1U)
+RUN_AND_MEASURE_HELPER_FROM_TEMPLATE_BWD(ConvBiasActivAsm1x1U)
 
 std::shared_ptr<IPerformanceConfig>
 ConvBiasActivAsm1x1U::Search(const ConvolutionContext& context) const

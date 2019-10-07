@@ -24,6 +24,9 @@
  *
  *******************************************************************************/
 
+// To suppress misleading warning
+#define SOLVER_CONV_SCGEMM_FWD_CPP
+
 #include <sstream>
 #include <limits>
 #include <cassert>
@@ -37,6 +40,8 @@
 
 namespace miopen {
 namespace solver {
+
+#if MIOPEN_USE_SCGEMM
 
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_SCGEMM)
 
@@ -292,16 +297,15 @@ ConvSolution ConvSCGemmFwd<T>::GetSolution(const ConvolutionContext& params,
     return result;
 }
 
-template <SCGemmOpType T>
 template <typename B, typename TopT>
-int ConvSCGemmFwd<T>::RunAndMeasureSolution(miopen::Handle& profile_h,
+int RunAndMeasureSolution(miopen::Handle& profile_h,
                                             B bot_ocl_buf,
                                             TopT top_ocl_buf,
                                             ConstData_t wei_ocl_buf,
                                             ConstData_t bias_ocl_buf,
                                             const ConvolutionContext& params,
                                             const ConvSolution& solution,
-                                            float& elapsed_time) const
+                                            float& elapsed_time)
 {
 
 #ifdef NDEBUG
@@ -342,6 +346,12 @@ int ConvSCGemmFwd<T>::RunAndMeasureSolution(miopen::Handle& profile_h,
 }
 
 template <SCGemmOpType T>
+RUN_AND_MEASURE_HELPER_FROM_TEMPLATE_FWD(ConvSCGemmFwd<T>)
+
+template <SCGemmOpType T>
+RUN_AND_MEASURE_HELPER_FROM_TEMPLATE_BWD(ConvSCGemmFwd<T>)
+
+template <SCGemmOpType T>
 std::shared_ptr<IPerformanceConfig>
 ConvSCGemmFwd<T>::Search(const ConvolutionContext& context) const
 {
@@ -349,7 +359,6 @@ ConvSCGemmFwd<T>::Search(const ConvolutionContext& context) const
 }
 
 template struct PerformanceConfigSCGemmFwd<SCGemmOpFGemm>;
-template struct ConvSCGemmFwd<SCGemmOpFGemm>;
 template <>
 bool ConvSCGemmFwd<SCGemmOpFGemm>::IsApplicableBase(const ConvolutionContext& params) const
 {
@@ -384,5 +393,18 @@ bool ConvSCGemmFwd<SCGemmOpFGemm>::IsApplicableBase(const ConvolutionContext& pa
 
     return true;
 }
+
+#endif
+
+// To suppress misleading warning
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wweak-template-vtables"
+#endif
+template struct ConvSCGemmFwd<SCGemmOpFGemm>;
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+
 } // namespace solver
 } // namespace miopen

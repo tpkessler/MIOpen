@@ -41,7 +41,7 @@
 
 namespace miopen {
 namespace tests {
-class TrivialSlowTestSolver : public solver::SolverBase<ConvolutionContext>
+class TrivialSlowTestSolver final : public solver::SolverBase<ConvolutionContext>
 {
     public:
     static const char* FileName() { return "TrivialSlowTestSolver"; }
@@ -65,7 +65,7 @@ class TrivialSlowTestSolver : public solver::SolverBase<ConvolutionContext>
     }
 };
 
-class TrivialTestSolver : public solver::SolverBase<ConvolutionContext>
+class TrivialTestSolver final : public solver::SolverBase<ConvolutionContext>
 {
     public:
     static const char* FileName() { return "TrivialTestSolver"; }
@@ -88,7 +88,7 @@ class TrivialTestSolver : public solver::SolverBase<ConvolutionContext>
     }
 };
 
-struct TestConfig : solver::Serializable<TestConfig>, IPerformanceConfig
+struct TestConfig final : solver::Serializable<TestConfig>, IPerformanceConfig
 {
     std::string str;
 
@@ -115,7 +115,7 @@ struct TestConfig : solver::Serializable<TestConfig>, IPerformanceConfig
     };
 };
 
-class SearchableTestSolver : public solver::SearchableSolver<ConvolutionContext>
+class SearchableTestSolver final : public solver::SearchableSolver<ConvolutionContext>
 {
     public:
     static int searches_done() { return _serches_done; }

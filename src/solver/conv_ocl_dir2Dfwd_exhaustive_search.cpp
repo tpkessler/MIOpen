@@ -148,7 +148,7 @@ static int MeasurePerfConfig(Handle& handle,
                 {
                     if(s.IsValidPerformanceConfig(params, result))
                     {
-                        kernel_search_result = s.GetSolution(params, result);
+                        kernel_search_result = s.GetSolution(params, result, false);
                     }
                 }
             }

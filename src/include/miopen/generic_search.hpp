@@ -311,7 +311,7 @@ std::shared_ptr<IPerformanceConfig> GenericSearch(const GenericSearchableSolver<
 {
     std::shared_ptr<IPerformanceConfig> best_config;
     const auto default_config   = s.GetPerformanceConfig(context);
-    const auto default_solution = s.GetSolution(context, *default_config);
+    const auto default_solution = s.GetSolution(context, *default_config, false);
 
     auto& profile_h          = context.GetStream();
     ConstData_t bias_ocl_ptr = context.GetBufs().bias;

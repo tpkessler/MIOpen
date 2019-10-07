@@ -179,6 +179,7 @@ set( MIOpen_Source
     solver/conv_winoRxS_f3x2.cpp
     solver/conv_ocl_dir2D_bwdWrW_2.cpp
     solver/conv_ocl_dir2D_bwdWrW_53.cpp
+    solver/conv_scgemm_fwd.cpp
     solver/conv_ocl_dir2D_bwdWrW_1x1.cpp
     solver/conv_ocl_dir2Dfwdgen.cpp
     solver/conv_ocl_dir2D11x11.cpp
@@ -418,7 +419,6 @@ if(MIOPEN_USE_SCGEMM)
         scgemm/gemm.cpp
         include/miopen/scgemm_utils.hpp
         scgemm_utils.cpp
-        solver/conv_scgemm_fwd.cpp
     )
 
 endif()

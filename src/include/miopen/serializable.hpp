@@ -51,6 +51,10 @@ struct Parse
 
 struct ISerializable
 {
+    ISerializable() = default;
+    ISerializable(const ISerializable&) {}
+    ISerializable& operator                            =(const ISerializable&) { return *this; }
+    virtual ~ISerializable()                           = default;
     virtual void Serialize(std::ostream& stream) const = 0;
     virtual bool Deserialize(const std::string& s)     = 0;
 

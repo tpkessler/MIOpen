@@ -24,6 +24,9 @@
  *
  *******************************************************************************/
 
+// To suppress misleading warning
+#define CONV_OCL_DIR2D_BWDWRW_2_CPP
+
 #include <miopen/solver.hpp>
 
 #include <miopen/env.hpp>
@@ -825,11 +828,20 @@ ConvOclBwdWrW2<N_BATCH_LOOPS>::Search(const ConvolutionContext& context) const
 /// We need to instantiate required classes implicitly.
 /// The reason is that we do not define the whole template class
 /// in the header, only declaring it there.
+
+// To suppress misleading warning
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wweak-template-vtables"
+#endif
 template struct ConvOclBwdWrW2<1>;
 template struct ConvOclBwdWrW2<2>;
 template struct ConvOclBwdWrW2<4>;
 template struct ConvOclBwdWrW2<8>;
 template struct ConvOclBwdWrW2<16>;
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 } // namespace solver
 } // namespace miopen
