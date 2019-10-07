@@ -57,8 +57,8 @@ boost::optional<std::string>& db_path_override()
     static boost::optional<std::string> path = boost::none;
     return path;
 }
-} // namespace miopen
 } // namespace test
+} // namespace miopen
 
 miopen::PerfDb mlo_construct_base::GetDb() const
 {
