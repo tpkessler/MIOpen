@@ -317,7 +317,7 @@ struct ConvolutionContext : ProblemDescription
             + "/miopen.db";
 #else
             + "/"
-            + GetStream().GetDbPathFilename()
+            + GetStream().GetDbBasename()
             + ".cd.pdb.txt";
 #endif
         // clang-format on

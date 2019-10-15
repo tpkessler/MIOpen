@@ -48,7 +48,9 @@
 #include <unordered_map>
 
 #include <miopen/solver.hpp>
+#if MIOPEN_ENABLE_SQLITE
 #include <miopen/sqlite_db.hpp>
+#endif
 #include <miopen/db.hpp>
 #include <miopen/env.hpp>
 #include <miopen/gcn_asm_utils.hpp>
@@ -78,26 +80,26 @@ miopen::PerfDb mlo_construct_base::GetDb() const
 {
     auto& h = _search_params.GetStream();
     return {
-        {db_path(), _search_params.GetUserPerfDbPath(), h.GetDeviceName(), h.GetMaxComputeUnits()}};
+        db_path(), _search_params.GetUserPerfDbPath(), h.GetDeviceName(), h.GetMaxComputeUnits()};
 }
 miopen::PerfDb miopen::GetDb(const miopen::ConvolutionContext& ctx)
 {
     auto& h = ctx.GetStream();
     return {
-        {ctx.GetPerfDbPath(), ctx.GetUserPerfDbPath(), h.GetDeviceName(), h.GetMaxComputeUnits()}};
+        ctx.GetPerfDbPath(), ctx.GetUserPerfDbPath(), h.GetDeviceName(), h.GetMaxComputeUnits()};
 }
 #else
 miopen::PerfDb mlo_construct_base::GetDb() const
 {
-    return {{db_path(), _search_params.GetUserPerfDbPath()}};
+    return {db_path(), _search_params.GetUserPerfDbPath()};
 }
 
 miopen::PerfDb miopen::GetDb(const ConvolutionContext& ctx)
 {
     if(test::db_path_override())
-        return {{*test::db_path_override(), *test::db_path_override()}};
+        return {*test::db_path_override(), *test::db_path_override()};
     else
-        return {{ctx.GetPerfDbPath(), ctx.GetUserPerfDbPath()}};
+        return {ctx.GetPerfDbPath(), ctx.GetUserPerfDbPath()};
 }
 #endif
 miopen::solver::ConvSolution
@@ -130,6 +132,7 @@ static const auto& GetImplicitGemmSolvers()
 		&miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4R4Xdlops_1x1>::Instance(),
 		&miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4R4FwdXdlops>::Instance(),
         &miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4_1x1>::Instance(),
+		& miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4R1Fwd>::Instance(),
 		& miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4Fwd>::Instance(),
     }};
     return inst;
@@ -148,6 +151,7 @@ static const auto& GetWindogradSolvers()
 static auto GetImplicitGemmWrWSolvers()
 {
 	static const auto inst = std::vector<miopen::ConvSolver*>{ {
+		&miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4R1WrW>::Instance(),
 		&miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4WrW>::Instance(),
 	} };
 	return inst;

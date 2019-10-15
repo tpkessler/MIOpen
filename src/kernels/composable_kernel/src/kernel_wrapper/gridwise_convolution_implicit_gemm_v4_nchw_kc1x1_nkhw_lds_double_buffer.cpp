@@ -1,8 +1,7 @@
 #include "common_header.hpp"
-#include "ConstantTensorDescriptor.hpp"
+#include "ConstantTensorDescriptor_deprecated.hpp"
 #include "gridwise_convolution_implicit_gemm_v4_nchw_kc1x1_nkhw_lds_double_buffer.hpp"
 #include "float_types.h"
-#include "implicitgemm_params.hpp"
 
 extern "C" __global__
     __launch_bounds__(CK_PARAM_TUNABLE_BLOCK_SIZE, 2) void gridwise_convolution_implicit_gemm_v4_nchw_kc1x1_nkhw_lds_double_buffer(
@@ -12,7 +11,15 @@ extern "C" __global__
 {
     using namespace ck;
 
-    // read params: problem decription
+// read params: problem decription
+#if CK_PARAM_PROBLEM_CONV_DIRECTION_FORWARD
+    constexpr auto ConvDirection = ConvolutionDirection::Forward;
+#elif CK_PARAM_PROBLEM_CONV_DIRECTION_BACKWARD_DATA
+    constexpr auto ConvDirection = ConvolutionDirection::BackwardData;
+#else
+    static_assert(false, "wrong! convolution direction should be either forward of backward-data");
+#endif
+
     constexpr index_t N  = CK_PARAM_PROBLEM_N;
     constexpr index_t K  = CK_PARAM_PROBLEM_K;
     constexpr index_t C  = CK_PARAM_PROBLEM_C;
@@ -92,8 +99,8 @@ extern "C" __global__
     using WeiBlockCopySrcAccessOrder            = Sequence<1, 0>; // [K, E]
     using WeiBlockCopyDstAccessOrder            = Sequence<0, 1>; // [E, K]
 
-    constexpr index_t WeiBlockCopySrcDataPerRead_E  = CK_PARAM_WEI_BLOCK_COPY_SRC_DATE_PER_READ_E;
-    constexpr index_t WeiBlockCopyDstDataPerWrite_K = CK_PARAM_WEI_BLOCK_COPY_DST_DATE_PER_WRITE_K;
+    constexpr index_t WeiBlockCopySrcDataPerRead_E  = CK_PARAM_WEI_BLOCK_COPY_SRC_DATA_PER_READ_E;
+    constexpr index_t WeiBlockCopyDstDataPerWrite_K = CK_PARAM_WEI_BLOCK_COPY_DST_DATA_PER_WRITE_K;
 
     constexpr auto gridwise_conv =
         GridwiseConvolutionImplicitGemm_v4_nchw_kc1x1_nkhw_lds_double_buffer<
@@ -105,7 +112,7 @@ extern "C" __global__
             decltype(wei_ck_desc),
             decltype(out_nkhw_desc),
             ConvStrides,
-            static_cast<ImplicitGemmDirection>(CK_PARAM_PROBLEM_DIRECTION),
+            ConvDirection,
             BPerBlock,
             KPerBlock,
             CPerBlock,
