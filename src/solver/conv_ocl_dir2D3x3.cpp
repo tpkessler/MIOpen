@@ -24,14 +24,19 @@
  *
  *******************************************************************************/
 
-#include "miopen/solver.hpp"
-#include "miopen/handle.hpp"
+#include <miopen/solver.hpp>
+#include <miopen/handle.hpp>
+#include <miopen/env.hpp>
+
+MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_DIRECT_OCL_FWD3X3)
 
 namespace miopen {
 namespace solver {
 
 bool ConvOclDirectFwd3x3::IsApplicable(const ConvolutionContext& params) const
 {
+    if(miopen::IsDisabled(MIOPEN_DEBUG_CONV_DIRECT_OCL_FWD3X3{}))
+        return false;
     if(!params.Is2d())
         return false;
     if(!(params.IsFp32() || params.IsFp16() || params.IsBfp16()))
@@ -177,7 +182,6 @@ ConvSolution ConvOclDirectFwd3x3::GetSolution(const ConvolutionContext& params) 
         std::to_string(static_cast<long long>(read_unit)) + std::string(" -DMLO_CONV_BIAS=") +
         std::to_string(static_cast<long long>(params.bias)) + params.general_compile_options;
 
-    std::cout << " MIOpenConvD3x3 " << construction_parameters.comp_options << std::endl;
     construction_parameters.l_wk.push_back(result.grp_tile0);
     construction_parameters.l_wk.push_back(result.grp_tile1);
     construction_parameters.l_wk.push_back(grp_tile2);

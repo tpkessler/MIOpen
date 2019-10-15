@@ -2,7 +2,46 @@
 ## MIOpen Release notes
 
 
-### 08/01/2019 [ 2.0.1 ]
+
+### 10/31/2019 [ 2.2.0 ]
+
+- This release contains bug fixes, performance improvements, and expanded applicability for specific convolutional algorithms
+
+Changes:
+
+- Added per solution algorithm filtering environmental variable for debugging
+- Added SQLite database and build dependency, replacing text-based performance database
+- Added citation page to documentation pointing to MIOpen's paper
+- Added to documentation
+- Fixed fusion compilation check issue
+- Improved performance of forward pooling
+- Improved performance of convolutions
+- Improved performance of spatial training batch normalization for some large batch size input configurations
+- Improved applicability of implicit GEMM convolution algorithm
+- Improved performance of calls to miopenConvolutionXXXGetWorkSpaceSize() functions
+
+
+
+### 09/01/2019 [ 2.1.0 ]
+
+- This release contains new layers, bug fixes, and a new convolution algorithm.
+
+Changes:
+
+- Added a dropout layer API for training
+- Added a new SCGEMM algorithm for convolutions
+- Added further support for bfp16 in convolutions
+- Added a [docker hub link](https://hub.docker.com/r/rocm/miopen/tags) for MIOpen docker images.
+- Fixed issue with NaN appearing on batch normalization backwards pass in fp16
+- Fixed softmax kernel bug in log mode [#112](https://github.com/ROCmSoftwarePlatform/MIOpen/issues/112)
+- Fixed ROCm gfx803 support issue [#869](https://github.com/RadeonOpenCompute/ROCm/issues/869)
+- Improved performance of batch normalization fp16 forward training layers
+- Improved performance of convolutions layers
+- Removed MIOpenGEMM as a requirement for the HIP backend. It is now optional.
+
+
+
+### 08/13/2019 [ 2.0.1 ]
 
 - This release contains bug fixes and performance improvements.
 - Additionally, the convolution algorithm Implicit GEMM is now enabled by default

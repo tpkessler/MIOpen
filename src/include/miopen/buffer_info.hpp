@@ -1,3 +1,28 @@
+/*******************************************************************************
+ *
+ * MIT License
+ *
+ * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ *******************************************************************************/
 #ifndef GUARD_MIOPEN_BUFFER_INFO_HPP_
 #define GUARD_MIOPEN_BUFFER_INFO_HPP_
 
@@ -36,14 +61,13 @@ enum class ConvWinoBuffType
     Weight,
     Output,
 };
-template <int WinoDataW, int WinoFilterW, int WinoDataH = WinoDataW, int WinoFilterH = WinoFilterW>
+template <int WinoDataH, int WinoFilterH, int WinoDataW = WinoDataH, int WinoFilterW = WinoFilterH>
 struct WinogradBufferInfo
 {
 
     const int WinoDataHW[2] = {WinoDataH, WinoDataW}, WinoFilterHW[2] = {WinoFilterH, WinoFilterW};
     const bool direct[2] = {(WinoDataW == 1) && (WinoFilterW == 1),
                             (WinoDataH == 1) && (WinoFilterH == 1)};
-    const int wino_xtile[2] = {WinoDataW + WinoFilterW - 1, WinoDataH + WinoFilterH - 1};
 
     struct WinoInfo
     {
@@ -63,20 +87,23 @@ struct WinogradBufferInfo
                        MemLayout_t layout,
                        int vec_c,
                        int data_len_t,
-                       ConvWinoBuffType buff_type)
+                       ConvWinoBuffType buff_type,
+                       int wino_xform_h,
+                       int wino_xform_w)
     {
         WinoInfo wino_in, wino_out, wino_wei;
-        int out_HW[2] = {out_h, out_w};
-        int wei_HW[2] = {wei_h, wei_w};
-        wino_c        = c;
+        const int out_HW[2] = {out_h, out_w};
+        const int wei_HW[2] = {wei_h, wei_w};
+
+        const int wino_xtile[2] = {wino_xform_h, wino_xform_w};
+        wino_c                  = c;
         for(int i = 0; i < 2; i++)
         {
             wino_out.wino_tiles_HW[i] = (out_HW[i] + WinoDataHW[i] - 1) / WinoDataHW[i];
             wino_wei.wino_tiles_HW[i] = (wei_HW[i] + WinoFilterHW[i] - 1) / WinoFilterHW[i];
-            wino_in.wino_tiles_HW[i] =
-                direct[i] ? (out_HW[i] + wei_HW[i] - 1) : wino_out.wino_tiles_HW[i];
+            wino_in.wino_tiles_HW[i]  = wino_out.wino_tiles_HW[i];
 
-            wino_c *= direct[i] ? 1 : wino_wei.wino_tiles_HW[i];
+            wino_c *= wino_wei.wino_tiles_HW[i];
 
             wino_in.wino_HW[i]  = wino_xtile[i] * wino_in.wino_tiles_HW[i];
             wino_wei.wino_HW[i] = wino_xtile[i];

@@ -35,8 +35,9 @@
 #include <miopen/solver.hpp>
 #include <miopen/generic_search.hpp>
 
-MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_GCN_ASM_DIRECT_1X1U_PERF_VALS)
-MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_GCN_ASM_DIRECT_1X1U_SEARCH_OPTIMIZED)
+MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U_PERF_VALS)
+MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U_SEARCH_OPTIMIZED)
+MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U)
 
 namespace miopen {
 namespace solver {
@@ -148,7 +149,7 @@ bool PerformanceConfigConvAsm1x1U::SetNextValue()
     {
         if(!NextLinear<1, 4>(read_size))
             break;
-        if(!miopen::IsDisabled(MIOPEN_DEBUG_GCN_ASM_DIRECT_1X1U_SEARCH_OPTIMIZED{}))
+        if(!miopen::IsDisabled(MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U_SEARCH_OPTIMIZED{}))
         {
             /// Narrow search space in optimized mode.
             if(use_spare_set ? !Next_1_4(k_mult) : !NextTwoPower<8, 32>(k_mult))
@@ -192,7 +193,7 @@ bool PerformanceConfigConvAsm1x1U::SetNextValue()
 PerformanceConfigConvAsm1x1U::PerformanceConfigConvAsm1x1U(bool spare)
     : PerformanceConfigConvAsm1x1U(1, 1, 1, 1, 1, 1, 1, 1, spare)
 {
-    if(!miopen::IsDisabled(MIOPEN_DEBUG_GCN_ASM_DIRECT_1X1U_SEARCH_OPTIMIZED{}))
+    if(!miopen::IsDisabled(MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U_SEARCH_OPTIMIZED{}))
     {
         k_mult     = spare ? 1 : 8;
         chunk_size = spare ? 1 : 16;
@@ -370,11 +371,13 @@ bool ConvAsm1x1U::IsValidPerformanceConfig(const ConvolutionContext& problem,
 
 bool ConvAsm1x1U::IsApplicable(const ConvolutionContext& params) const
 {
+    if(miopen::IsDisabled(MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U{}))
+        return false;
     if(!params.use_asm_kernels)
         return false;
     if(!params.Is2d())
         return false;
-    if(params.rmv != rocm_meta_version::AMDHSA_1_0)
+    if(!params.rmv.IsV2())
         return false;
     if(!(params.IsFp32() || params.IsFp16()))
         return false;
@@ -443,6 +446,17 @@ bool ConvAsm1x1U::IsApplicable(const ConvolutionContext& params) const
     return ok;
 }
 
+size_t ConvAsm1x1U::GetWorkspaceSize(const ConvolutionContext& params) const
+{
+    if(UseSubsample(params) || UseUpsample(params))
+    {
+        int in_batch_stride = AsmImgWidth(params) * AsmImgHeight(params) *
+                              (UseSubsample(params) ? params.n_inputs : params.n_outputs);
+        int data_len = GetTypeSize(params.out_data_type);
+        return in_batch_stride * params.batch_sz * data_len;
+    }
+    return 0;
+}
 bool ConvAsm1x1U::IsFast(const ConvolutionContext&) const { return true; }
 
 static int divide_round_plus_inf(const int x, const int y)
@@ -460,8 +474,6 @@ ConvSolution ConvAsm1x1U::GetSolution(const ConvolutionContext& params,
     ConvSolution result;
 
     std::ostringstream options;
-
-    result.workspce_sz = 0;
 
     KernelInfo kernel;
     int data_len = GetTypeSize(params.out_data_type);
@@ -515,9 +527,8 @@ ConvSolution ConvAsm1x1U::GetSolution(const ConvolutionContext& params,
             kernel.kernel_name = "UpSample";
 
         kernel.comp_options = subsample_kernel_compilation_options;
-
-        result.workspce_sz = in_batch_stride * params.batch_sz * data_len;
     }
+    result.workspce_sz = GetWorkspaceSize(params);
 
     GenerateClangDefsym(options, "stride_h", 1);
     GenerateClangDefsym(options, "stride_w", 1);
@@ -637,7 +648,7 @@ ConvSolution ConvAsm1x1U::GetSolution(const ConvolutionContext& params,
     if(!disableConfigOverrideFromEnv)
     {
         std::string s;
-        const auto p_asciz = miopen::GetStringEnv(MIOPEN_DEBUG_GCN_ASM_DIRECT_1X1U_PERF_VALS{});
+        const auto p_asciz = miopen::GetStringEnv(MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U_PERF_VALS{});
         if(p_asciz != nullptr)
         {
             s = std::string(p_asciz);
@@ -645,7 +656,7 @@ ConvSolution ConvAsm1x1U::GetSolution(const ConvolutionContext& params,
             {
                 if(!fromEnv.Deserialize(s) || !fromEnv.IsValidValue())
                 {
-                    MIOPEN_LOG_E("MIOPEN_DEBUG_GCN_ASM_DIRECT_1X1U_PERF_VALS: "
+                    MIOPEN_LOG_E("MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U_PERF_VALS: "
                                  "Bad format or invalid for the problem config: "
                                  << s);
                 }

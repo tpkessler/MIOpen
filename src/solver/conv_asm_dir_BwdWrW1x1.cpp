@@ -35,8 +35,9 @@
 #include <miopen/solver.hpp>
 #include <miopen/generic_search.hpp>
 
-MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_GCN_ASM_DIRECT_1X1WRW_PERF_VALS)
-MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_GCN_ASM_DIRECT_1X1WRW_SEARCH_OPTIMIZED)
+MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_DIRECT_ASM_WRW1X1_PERF_VALS)
+MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_DIRECT_ASM_WRW1X1_SEARCH_OPTIMIZED)
+MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_DIRECT_ASM_WRW1X1)
 
 namespace miopen {
 namespace solver {
@@ -143,7 +144,7 @@ bool PerformanceConfigConvAsmBwdWrW1x1::SetNextValue()
 {
     // Increment with wrap-around:
     // select fast or full method
-    if(miopen::IsDisabled(MIOPEN_DEBUG_GCN_ASM_DIRECT_1X1WRW_SEARCH_OPTIMIZED{}))
+    if(miopen::IsDisabled(MIOPEN_DEBUG_CONV_DIRECT_ASM_WRW1X1_SEARCH_OPTIMIZED{}))
     {
         do
         {
@@ -463,11 +464,13 @@ bool ConvAsmBwdWrW1x1::IsValidPerformanceConfig(const ConvolutionContext& proble
 
 bool ConvAsmBwdWrW1x1::IsApplicable(const ConvolutionContext& params) const
 {
+    if(miopen::IsDisabled(MIOPEN_DEBUG_CONV_DIRECT_ASM_WRW1X1{}))
+        return false;
     if(!params.use_asm_kernels)
         return false;
     if(!params.Is2d())
         return false;
-    if(params.rmv != rocm_meta_version::AMDHSA_1_0)
+    if(!params.rmv.IsV2())
         return false;
 
     const std::string name = params.GetStream().GetDeviceName();
@@ -523,6 +526,18 @@ static int divide_round_plus_inf(const int x, const int y)
     return x / y;
 }
 
+size_t ConvAsmBwdWrW1x1::GetWorkspaceSize(const ConvolutionContext& params) const
+{
+    if(UseSubsample(params))
+    {
+        int data_len        = GetTypeSize(params.out_data_type);
+        int in_batch_stride = params.in_stride * params.in_height * params.n_outputs;
+        return in_batch_stride * params.batch_sz * data_len;
+    }
+    else
+        return 0;
+}
+
 ConvSolution ConvAsmBwdWrW1x1::GetSolution(const ConvolutionContext& params,
                                            const PerformanceConfigConvAsmBwdWrW1x1& config,
                                            const bool disableConfigOverrideFromEnv) const
@@ -532,8 +547,7 @@ ConvSolution ConvAsmBwdWrW1x1::GetSolution(const ConvolutionContext& params,
     std::ostringstream options;
 
     assert(params.pad_h == 0 && params.pad_w == 0);
-    result.workspce_sz = 0;
-    int data_len       = GetTypeSize(params.out_data_type);
+    int data_len = GetTypeSize(params.out_data_type);
     if(UseSubsample(params))
     {
         // subsampled input, in_height equals to image size after downsampling
@@ -578,9 +592,8 @@ ConvSolution ConvAsmBwdWrW1x1::GetSolution(const ConvolutionContext& params,
         kernel.comp_options = subsample_kernel_compilation_options;
 
         result.construction_params.push_back(kernel);
-
-        result.workspce_sz = in_batch_stride * params.batch_sz * data_len;
     }
+    result.workspce_sz = GetWorkspaceSize(params);
     GenerateClangDefsym(options, "stride_h", 1);
     GenerateClangDefsym(options, "stride_w", 1);
     GenerateClangDefsym(options, "img_h", AsmImgHeight(params)); // H
@@ -696,7 +709,7 @@ ConvSolution ConvAsmBwdWrW1x1::GetSolution(const ConvolutionContext& params,
     if(!disableConfigOverrideFromEnv)
     {
         std::string s;
-        const auto p_asciz = miopen::GetStringEnv(MIOPEN_DEBUG_GCN_ASM_DIRECT_1X1WRW_PERF_VALS{});
+        const auto p_asciz = miopen::GetStringEnv(MIOPEN_DEBUG_CONV_DIRECT_ASM_WRW1X1_PERF_VALS{});
         if(p_asciz != nullptr)
         {
             s = std::string(p_asciz);
@@ -704,7 +717,7 @@ ConvSolution ConvAsmBwdWrW1x1::GetSolution(const ConvolutionContext& params,
             {
                 if(!fromEnv.Deserialize(s) || !fromEnv.IsValid(params))
                 {
-                    MIOPEN_LOG_E("MIOPEN_DEBUG_GCN_ASM_DIRECT_1X1WRW_PERF_VALS: "
+                    MIOPEN_LOG_E("MIOPEN_DEBUG_CONV_DIRECT_ASM_WRW1X1_PERF_VALS: "
                                  "Bad format or invalid for the problem config: "
                                  << s);
                 }
