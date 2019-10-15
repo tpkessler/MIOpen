@@ -683,11 +683,11 @@ struct ConvHipImplicitGemmV4Fwd final : GenericSearchableSolver<ConvolutionConte
 
     std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
     int RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
-                                 ConstData_t bot_ocl_buf,
-                                 Data_t top_ocl_buf,
-                                 ConstData_t wei_ocl_buf,
-                                 ConstData_t bias_ocl_buf,
-                                 const ConvolutionContext& params,
+                                 ConstData_t bot_buf,
+                                 Data_t top_buf,
+                                 ConstData_t wei_buf,
+                                 ConstData_t bias_buf,
+                                 const ConvolutionContext& ctx,
                                  const ConvSolution& solution,
                                  float& elapsed_time) const final;
     ConvSolution GetSolution(const ConvolutionContext& ctx,
@@ -1245,7 +1245,7 @@ struct ConvOclBwdWrW2Base : virtual SolverBase<ConvolutionContext>
 
 template <int N_BATCH_LOOPS>
 struct ConvOclBwdWrW2 final : GenericSearchableSolver<ConvolutionContext>,
-                              ConvOclBwdWrW2Base<N_BATCH_LOOPS>
+                              virtual ConvOclBwdWrW2Base<N_BATCH_LOOPS>
 {
     const std::string& DbId() const final { return SolverDbId(*this); }
     std::shared_ptr<IPerformanceConfig> GetGenericSearchStart(bool sparce) const final
@@ -1275,6 +1275,8 @@ struct ConvOclBwdWrW2 final : GenericSearchableSolver<ConvolutionContext>,
                                  const ConvolutionContext& context,
                                  const ConvSolution& solution,
                                  float& elapsed_time) const final;
+
+	using SolverBase<ConvolutionContext>::GetSolution;
     ConvSolution GetSolution(const ConvolutionContext& params,
                              const IPerformanceConfig& config_,
                              bool disableConfigOverrideFromEnv) const final

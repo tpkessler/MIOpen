@@ -460,9 +460,9 @@ bool ConvHipImplicitGemmV4WrW::IsApplicable(const ConvolutionContext& ctx) const
 }
 
 std::shared_ptr<IPerformanceConfig>
-ConvHipImplicitGemmV4Fwd::GetPerformanceConfig(const ConvolutionContext& ctx) const
+ConvHipImplicitGemmV4Fwd::GetPerformanceConfig(const ConvolutionContext& problem) const
 {
-    return GetPerformanceConfigBase<PerformanceImplicitGemm>(ctx);
+    return GetPerformanceConfigBase<PerformanceImplicitGemm>(problem);
 }
 
 std::shared_ptr<IPerformanceConfig>
@@ -477,12 +477,12 @@ ConvHipImplicitGemmV4_1x1::GetPerformanceConfig(const ConvolutionContext& ctx) c
     return GetPerformanceConfigBase<PerformanceImplicitGemm>(ctx);
 }
 
-bool ConvHipImplicitGemmV4Fwd::IsValidPerformanceConfig(const ConvolutionContext& ctx,
+bool ConvHipImplicitGemmV4Fwd::IsValidPerformanceConfig(const ConvolutionContext& problem,
                                                         const IPerformanceConfig& c_) const
 {
     const auto& c = dynamic_cast<const PerformanceImplicitGemm&>(c_);
     MIOPEN_LOG_I("");
-    return c.IsValidValue() && c.IsValid(ctx);
+    return c.IsValidValue() && c.IsValid(problem);
 }
 
 bool ConvHipImplicitGemmV4WrW::IsValidPerformanceConfig(const ConvolutionContext& ctx,
