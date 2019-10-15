@@ -117,6 +117,8 @@ set( MIOpen_Source
     kernel_build_params.cpp
     find_db.cpp
     conv_algo_name.cpp
+    dropout.cpp
+    dropout_api.cpp
     readonlyramdb.cpp
     include/miopen/buffer_info.hpp
     include/miopen/temp_file.hpp
@@ -153,14 +155,18 @@ set( MIOpen_Source
     include/miopen/mdg_expr.hpp
     include/miopen/kernel_build_params.hpp
     include/miopen/algorithm.hpp
+    include/miopen/sqlite_db.hpp
     include/miopen/finddb_kernel_cache_key.hpp
     include/miopen/hip_build_utils.hpp
     include/miopen/solver_id.hpp
     include/miopen/conv_solution.hpp
     include/miopen/conv_algo_name.hpp
+    include/miopen/dropout.hpp
     include/miopen/readonlyramdb.hpp
+    include/miopen/rnn_util.hpp
     md_graph.cpp
     mdg_expr.cpp
+    sqlite_db.cpp
     tensor.cpp
     tensor_api.cpp
     solver.cpp
@@ -179,7 +185,6 @@ set( MIOpen_Source
     solver/conv_winoRxS_f3x2.cpp
     solver/conv_ocl_dir2D_bwdWrW_2.cpp
     solver/conv_ocl_dir2D_bwdWrW_53.cpp
-    solver/conv_scgemm_fwd.cpp
     solver/conv_ocl_dir2D_bwdWrW_1x1.cpp
     solver/conv_ocl_dir2Dfwdgen.cpp
     solver/conv_ocl_dir2D11x11.cpp
@@ -187,8 +192,8 @@ set( MIOpen_Source
     solver/conv_ocl_dir2Dfwd_exhaustive_search.cpp
     solver/conv_ocl_dir2Dfwd.cpp
     solver/conv_ocl_dir2Dfwd1x1.cpp
-    solver/conv_hip_implicit_gemm_v4_fwd.cpp
-    solver/conv_hip_implicit_gemm_v4_1x1.cpp
+    solver/conv_hip_implicit_gemm_v4.cpp
+    solver/conv_hip_implicit_gemm_v4r4_xdlops.cpp
     )
 
 list(APPEND MIOpen_Source tmp_dir.cpp binary_cache.cpp md5.cpp)
@@ -199,6 +204,7 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
 
     set(MIOPEN_KERNEL_INCLUDES
         ${COMPOSABLE_KERNEL_INCLUDE}
+        include/miopen/implicitgemm_params.hpp
         kernels/Conv_Winograd_v13_3_12_fp16dot_stride1.inc
         kernels/Conv_Winograd_v13_3_12_fp16dot_stride2_dec.inc
         kernels/Conv_Winograd_v13_3_12_fp16dot_stride2_dil.inc
@@ -276,6 +282,7 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         kernels/MIOpenConvBwdWrW1x1_PAD_read4.cl
         kernels/MIOpenConvFwd_LxL_11.cl
         kernels/MIOpenConvFFT.cl
+        kernels/MIOpenRNNHiddenStateUpdate.cl
         kernels/bugzilla_34765_detect.s
         kernels/dummy_kernel.s
         kernels/conv3x3.s
@@ -312,6 +319,7 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         kernels/MIOpenConvBwdBias.cl
         kernels/MIOpenBatchNormActivInfer.cl
         kernels/MIOpenCTCLoss.cl
+        kernels/MIOpenDropout.cl
         kernels/xform_data.s
         kernels/xform_filter.s)
 
@@ -344,7 +352,9 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         ocl/rnnocl.cpp
         ocl/utilocl.cpp
         ocl/ctcocl.cpp
+        ocl/dropoutocl.cpp
         ocl/gcn_asm_utils.cpp
+        ocl/rnn_util_ocl.cpp
         hip/hip_build_utils.cpp
         pooling.cpp
         ocl/fusionopconvocl.cpp
@@ -419,6 +429,7 @@ if(MIOPEN_USE_SCGEMM)
         scgemm/gemm.cpp
         include/miopen/scgemm_utils.hpp
         scgemm_utils.cpp
+		solver/conv_scgemm_fwd.cpp
     )
 
 endif()
@@ -522,7 +533,14 @@ local:
     # set_target_properties(MIOpen PROPERTIES CXX_VISIBILITY_PRESET protected)
     set_target_properties(MIOpen PROPERTIES VISIBILITY_INLINES_HIDDEN 1)
 endif()
-
+#######################################
+# MIOpen depends on SQLite
+target_include_directories(MIOpen SYSTEM PRIVATE ${SQLITE3_STATIC_INCLUDE_DIRS})
+target_include_directories(MIOpen SYSTEM INTERFACE $<BUILD_INTERFACE:${SQLITE3_STATIC_INCLUDE_DIRS}>)
+target_compile_options(MIOpen PRIVATE ${SQLITE3_STATIC_CFLAGS})
+target_compile_options(MIOpen INTERFACE $<BUILD_INTERFACE:${SQLITE3_STATIC_CFLAGS}>)
+target_link_libraries(MIOpen PRIVATE ${SQLITE3_STATIC_LDFLAGS})
+target_link_libraries(MIOpen INTERFACE $<BUILD_INTERFACE:${SQLITE3_STATIC_LDFLAGS}>)
 ############################################################
 # MIOpen depends on librt for Boost.Interprocess
 if(NOT WIN32 AND NOT APPLE)
@@ -551,6 +569,7 @@ rocm_export_targets(
 )
 
 
+
 # Install db files
 install(FILES
     kernels/gfx803_36.cd.pdb.txt
@@ -559,6 +578,7 @@ install(FILES
     kernels/gfx900_56.cd.pdb.txt
     kernels/gfx906_64.cd.pdb.txt
     kernels/gfx906_60.cd.pdb.txt
+    kernels/miopen.db
     kernels/gfx803_36.HIP.fdb.txt
     kernels/gfx803_64.HIP.fdb.txt
     kernels/gfx900_64.HIP.fdb.txt

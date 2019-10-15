@@ -2,6 +2,7 @@
 #define CK_CONSTANT_MATRIX_DESCRIPTOR_HPP
 
 #include "common_header.hpp"
+#include "ConstantTensorDescriptor.hpp"
 
 namespace ck {
 
@@ -30,6 +31,11 @@ struct ConstantMatrixDescriptor
         return irow * RowStride_ + icol;
     }
 
+    __host__ __device__ static index_t CalculateOffset(index_t irow, index_t icol)
+    {
+        return GetOffsetFromMultiIndex(irow, icol);
+    }
+
     template <index_t SubNRow, index_t SubNCol>
     __host__ __device__ static constexpr auto MakeSubMatrixDescriptor(Number<SubNRow>,
                                                                       Number<SubNCol>)
@@ -39,7 +45,7 @@ struct ConstantMatrixDescriptor
 };
 
 template <index_t NRow, index_t NCol>
-__host__ __device__ constexpr auto make_ConstantMatrixDescriptor(Number<NRow>, Number<NCol>)
+__host__ __device__ constexpr auto make_ConstantMatrixDescriptor_packed(Number<NRow>, Number<NCol>)
 {
     return ConstantMatrixDescriptor<NRow, NCol, NCol>{};
 }
@@ -51,7 +57,18 @@ __host__ __device__ constexpr auto
     return ConstantMatrixDescriptor<NRow, NCol, RowStride>{};
 }
 
-template <class TDesc>
+template <typename... Ts>
+__host__ __device__ constexpr auto make_ConstantMatrixDescriptor(ConstantTensorDescriptor<Ts...>)
+{
+    using TDesc = ConstantTensorDescriptor<Ts...>;
+    static_assert(TDesc::GetNumOfDimension() == 2, "wrong");
+    static_assert(TDesc::GetStrides()[1] == 1, "wrong");
+    return ConstantMatrixDescriptor<TDesc::GetLengths()[0],
+                                    TDesc::GetLengths()[1],
+                                    TDesc::GetStrides()[0]>{};
+}
+
+template <typename TDesc>
 __host__ __device__ void print_ConstantMatrixDescriptor(TDesc, const char* s)
 {
     printf(

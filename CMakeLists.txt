@@ -23,7 +23,7 @@
 # SOFTWARE.
 #
 ################################################################################
-cmake_minimum_required( VERSION 2.8.12 )
+cmake_minimum_required( VERSION 3.5 )
 
 # This has to be initialized before the project() command appears
 # Set the default of CMAKE_BUILD_TYPE to be release, unless user specifies with -D.  MSVC_IDE does not use CMAKE_BUILD_TYPE
@@ -51,6 +51,10 @@ include(ROCMInstallSymlinks)
 include(ROCMCreatePackage)
 include(CheckCXXCompilerFlag)
 
+set(MIOPEN_ENABLE_SQLITE On CACHE BOOL "")
+# MIOpen now depends on SQLite as well
+find_package(PkgConfig)
+pkg_check_modules(SQLITE3 REQUIRED sqlite3)
 option( BUILD_DEV "Build for development only" OFF)
 
 # Strip symbols for release
@@ -59,7 +63,7 @@ if(NOT WIN32 AND NOT APPLE)
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -s")
 endif()
 
-rocm_setup_version(VERSION 2.1.0)
+rocm_setup_version(VERSION 2.2.0)
 
 list( APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake )
 include(TargetFlags)
@@ -246,11 +250,16 @@ else()
     set(MIOPEN_USER_DB_PATH "~/.config/miopen/" CACHE STRING "Default path of user db files")
     set(MIOPEN_CACHE_DIR "~/.cache/miopen/" CACHE STRING "")
 endif()
-set(MIOPEN_USER_FIND_DB_SUFFIX "${MIOPEN_BACKEND}.${MIOpen_VERSION_MAJOR}_${MIOpen_VERSION_MINOR}_${MIOpen_VERSION_PATCH}" CACHE PATH "Filename suffix for the user find-db files")
+set(MIOPEN_USER_DB_SUFFIX "${MIOPEN_BACKEND}.${MIOpen_VERSION_MAJOR}_${MIOpen_VERSION_MINOR}_${MIOpen_VERSION_PATCH}" CACHE PATH "Filename suffix for the user find-db files")
 set(MIOPEN_SYSTEM_FIND_DB_SUFFIX "${MIOPEN_BACKEND}" CACHE PATH "Filename suffix for the system find-db files")
 
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "rocm-opencl-dev, rocm-utils, hip_hcc, miopengemm")
-set(CPACK_RPM_PACKAGE_REQUIRES "rocm-opencl-devel, rocm-utils, hip_hcc, miopengemm")
+
+set(MIOPEN_PACKAGE_REQS "rocm-utils, hip_hcc")
+if(MIOPEN_USE_MIOPENGEMM)
+    set(MIOPEN_PACKAGE_REQS "${MIOPEN_PACKAGE_REQS}, miopengemm")
+endif()
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "${MIOPEN_PACKAGE_REQS}, rocm-opencl-dev")
+set(CPACK_RPM_PACKAGE_REQUIRES "${MIOPEN_PACKAGE_REQS}, rocm-opencl-devel")
 
 rocm_create_package(
     NAME MIOpen-${MIOPEN_BACKEND}
@@ -264,8 +273,9 @@ include(EnableCompilerWarnings)
 set(MIOPEN_TIDY_ERRORS ERRORS * -readability-inconsistent-declaration-parameter-name)
 if(CMAKE_CXX_COMPILER MATCHES ".*hcc")
     set(MIOPEN_TIDY_CHECKS -modernize-use-override -readability-non-const-parameter)
-elseif(MIOPEN_BACKEND STREQUAL "HIP")
-    set(MIOPEN_TIDY_ERRORS ALL)
+# Enable tidy on hip
+# elseif(MIOPEN_BACKEND STREQUAL "HIP")
+#     set(MIOPEN_TIDY_ERRORS ALL)
 endif()
 
 include(ClangTidy)

@@ -32,6 +32,7 @@
 #include <miopen/logger.hpp>
 #include <miopen/solver.hpp>
 
+#include <cassert>
 #include <chrono>
 #include <cstdlib>
 #include <iterator>
@@ -237,7 +238,7 @@ inline void InitRandomly(std::vector<float>& vec)
 
 inline size_t divide_round_plus_inf(const size_t x, const unsigned y)
 {
-    assert(/*x >= 0 &&*/ y > 0);
+    assert(y > 0);
     if(x % y != 0)
         return x / y + 1;
     return x / y;

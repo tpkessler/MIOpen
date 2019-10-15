@@ -104,6 +104,27 @@ std::vector<ConvSolution> SearchForAllSolutions(const std::vector<SolverBase<TCo
     return ss;
 }
 
+template <class TContext>
+std::vector<std::pair<std::string, size_t>>
+GetWorkspaceSize(const std::vector<SolverBase<TContext>*>& solvers, const TContext& search_params)
+{
+    std::vector<std::pair<std::string, size_t>> res;
+
+    for(const auto solver : solvers)
+    {
+        if(!solver->IsApplicable(search_params))
+        {
+            MIOPEN_LOG_I2(solver->DbId() << ": Not applicable");
+            continue;
+        }
+
+        const auto sz = solver->GetWorkspaceSize(search_params);
+        res.emplace_back(solver->DbId(), sz);
+    }
+
+	return res;
+}
+
 } // namespace solver
 } // namespace miopen
 

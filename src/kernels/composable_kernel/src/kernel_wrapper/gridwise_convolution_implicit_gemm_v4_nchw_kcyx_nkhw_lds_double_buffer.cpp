@@ -4,10 +4,11 @@
 #include "gridwise_convolution_implicit_gemm_v4_fp16_bfp16_nchw_kcyx_nkhw_lds_double_buffer.hpp"
 #include "float_types.h"
 
-extern "C" __global__ void gridwise_convolution_implicit_gemm_v4_nchw_kcyx_nkhw_lds_double_buffer(
-    const FLOAT* const __restrict__ p_in_global,
-    const FLOAT* const __restrict__ p_wei_global,
-    FLOAT* const __restrict__ p_out_global)
+extern "C" __global__
+    __launch_bounds__(CK_PARAM_TUNABLE_BLOCK_SIZE, 2) void gridwise_convolution_implicit_gemm_v4_nchw_kcyx_nkhw_lds_double_buffer(
+        const FLOAT* const __restrict__ p_in_global,
+        const FLOAT* const __restrict__ p_wei_global,
+        FLOAT* const __restrict__ p_out_global)
 {
     using namespace ck;
 
@@ -38,22 +39,38 @@ extern "C" __global__ void gridwise_convolution_implicit_gemm_v4_nchw_kcyx_nkhw_
     // read params: dependent params
     constexpr index_t GridSize = CK_PARAM_DEPENDENT_GRID_SIZE;
 
-    // calculate dependent params amd heuristic params
+// calculate dependent params amd heuristic params
+#if CK_PARAM_PROBLEM_DIRECTION == 2
+    // In the WrW direction the filter is the output, while the output image is the input being
+    // convolved with the (original) input image. This requires that the tensordescriptors be
+    // swapped
+    // To reuse the fwd kernel for this operation we need to swap the n and c dimension of the
+    // input descriptor, the n and k dimension of the output descriptor
+    // This change is necessary so that reduction dimensions are consistent with the requirement
+    // of the wrw convolution when used in a fwd context
+    constexpr auto tmp_in_nchw_desc =
+        make_ConstantTensorDescriptor_packed(Sequence<N, C, Hi, Wi>{});
+    constexpr auto tmp_wei_kcyx_desc = make_ConstantTensorDescriptor_packed(Sequence<K, C, Y, X>{});
+    constexpr auto tmp_out_nkhw_desc =
+        make_ConstantTensorDescriptor_packed(Sequence<N, K, Ho, Wo>{});
+    constexpr auto in_nchw_desc = tmp_in_nchw_desc.ReorderGivenNew2Old(Sequence<1, 0, 2, 3>{});
+    // wei and out are swapped in the solver
+    constexpr auto wei_kcyx_desc = tmp_out_nkhw_desc.ReorderGivenNew2Old(Sequence<1, 0, 2, 3>{});
+    constexpr auto out_nkhw_desc = tmp_wei_kcyx_desc.ReorderGivenNew2Old(Sequence<1, 0, 2, 3>{});
+    constexpr auto dir           = ImplicitGemmDirection::BackwardWeight;
+
+    // swap stride and dilation
+    using ConvDilations = Sequence<ConvStrideH, ConvStrideW>;
+    using ConvStrides   = Sequence<ConvDilationH, ConvDilationW>;
+#else
     constexpr auto in_nchw_desc  = make_ConstantTensorDescriptor_packed(Sequence<N, C, Hi, Wi>{});
     constexpr auto wei_kcyx_desc = make_ConstantTensorDescriptor_packed(Sequence<K, C, Y, X>{});
     constexpr auto out_nkhw_desc = make_ConstantTensorDescriptor_packed(Sequence<N, K, Ho, Wo>{});
 
+    constexpr auto dir  = ImplicitGemmDirection::ForwardData;
     using ConvStrides   = Sequence<ConvStrideH, ConvStrideW>;
     using ConvDilations = Sequence<ConvDilationH, ConvDilationW>;
-
-#if MIOPEN_USE_FP16 == 1
-    constexpr index_t EPACK = 4;
-#elif MIOPEN_USE_BFP16 == 1
-    // EPACK (ES) set to 2 as dot2 operator is supported on bfp16
-    constexpr index_t EPACK = 2;
-#else
-// do nothing
-#endif
+#endif // CK_PARAM_PROBLEM_DIRECTION == 2
 
     constexpr index_t GemmMPerThreadSubC = CK_PARAM_GEMM_M_PER_THREAD_SUB_C;
     constexpr index_t GemmNPerThreadSubC = CK_PARAM_GEMM_N_PER_THREAD_SUB_C;
@@ -62,8 +79,6 @@ extern "C" __global__ void gridwise_convolution_implicit_gemm_v4_nchw_kcyx_nkhw_
     constexpr index_t GemmMLevel1Cluster = CK_PARAM_GEMM_M_LEVEL1_CLUSTER;
     constexpr index_t GemmNLevel1Cluster = CK_PARAM_GEMM_N_LEVEL1_CLUSTER;
     constexpr index_t GemmKPerThreadLoop = 1;
-    constexpr index_t GemmDataPerReadA   = GemmMPerThreadSubC;
-    constexpr index_t GemmDataPerReadB   = GemmNPerThreadSubC;
 
     constexpr index_t GemmNRepeat = CK_PARAM_GEMM_N_REPEAT;
     constexpr index_t N1          = GemmNRepeat;
@@ -84,7 +99,10 @@ extern "C" __global__ void gridwise_convolution_implicit_gemm_v4_nchw_kcyx_nkhw_
     constexpr index_t WeiBlockCopySubLengths_E     = EPerBlock / WeiBlockCopyClusterLengths_E;
     constexpr index_t WeiBlockCopySubLengths_K     = KPerBlock / WeiBlockCopyClusterLengths_K;
 
-#if MIOPEN_USE_FP32 == 1
+#if MIOPEN_USE_FP32
+    constexpr index_t GemmDataPerReadA = GemmMPerThreadSubC;
+    constexpr index_t GemmDataPerReadB = GemmNPerThreadSubC;
+
     using InBlockCopySubLengths_E_N1_B_N2 = Sequence<InBlockCopySubLengths_E,
                                                      InBlockCopySubLengths_N1,
                                                      InBlockCopySubLengths_B,
@@ -98,22 +116,24 @@ extern "C" __global__ void gridwise_convolution_implicit_gemm_v4_nchw_kcyx_nkhw_
     using InBlockCopySrcAccessOrder            = Sequence<0, 1, 3, 2>; // [E, N1, N2, B]
     using InBlockCopyDstAccessOrder            = Sequence<0, 1, 2, 3>; // [E, N1, B, N2]
 
-    constexpr index_t InBlockCopySrcDataPerRead_B   = 1;
+    constexpr index_t InBlockCopySrcDataPerRead_B   = CK_PARAM_IN_BLOCK_COPY_SRC_DATA_PER_READ_B;
     constexpr index_t InBlockCopyDstDataPerWrite_N2 = CK_PARAM_IN_BLOCK_COPY_DST_DATA_PER_WRITE_N2;
 
     using WeiBlockCopySubLengths_E_K = Sequence<WeiBlockCopySubLengths_E, WeiBlockCopySubLengths_K>;
     using WeiBlockCopyClusterLengths_E_K =
-
         Sequence<WeiBlockCopyClusterLengths_E, WeiBlockCopyClusterLengths_K>;
+
     using WeiBlockCopyThreadClusterArrangeOrder = Sequence<1, 0>; // [K, E]
     using WeiBlockCopySrcAccessOrder            = Sequence<1, 0>; // [K, E]
     using WeiBlockCopyDstAccessOrder            = Sequence<0, 1>; // [E, K]
 
     constexpr index_t WeiBlockCopySrcDataPerRead_E  = CK_PARAM_WEI_BLOCK_COPY_SRC_DATE_PER_READ_E;
-    constexpr index_t WeiBlockCopyDstDataPerWrite_K = 1;
+    constexpr index_t WeiBlockCopyDstDataPerWrite_K = CK_PARAM_WEI_BLOCK_COPY_DST_DATE_PER_WRITE_K;
 
-#elif MIOPEN_USE_FP16 == 1 || MIOPEN_USE_BFP16 == 1
-
+#elif MIOPEN_USE_FP16 || MIOPEN_USE_BFP16
+    constexpr index_t GemmDataPerReadA          = 1;
+    constexpr index_t GemmDataPerReadB          = 1;
+    constexpr index_t EPACK                     = CK_PARAM_EPACK_LENGTH;
     using InBlockCopySubLengths_E_N1_B_N2_EPACK = Sequence<InBlockCopySubLengths_E,
                                                            InBlockCopySubLengths_N1,
                                                            InBlockCopySubLengths_B,
@@ -148,7 +168,7 @@ extern "C" __global__ void gridwise_convolution_implicit_gemm_v4_nchw_kcyx_nkhw_
     static_assert(false, "wrong! Only kperblock could be 32/64/128 not supported");
 #endif
 
-#if MIOPEN_USE_FP32 == 1
+#if MIOPEN_USE_FP32
     constexpr auto gridwise_conv =
         GridwiseConvolutionImplicitGemm_v4_nchw_kcyx_nkhw_lds_double_buffer<
             GridSize,
@@ -186,8 +206,9 @@ extern "C" __global__ void gridwise_convolution_implicit_gemm_v4_nchw_kcyx_nkhw_
             WeiBlockCopySrcAccessOrder,
             WeiBlockCopyDstAccessOrder,
             WeiBlockCopySrcDataPerRead_E,
-            WeiBlockCopyDstDataPerWrite_K>{};
-#elif MIOPEN_USE_FP16 == 1 || MIOPEN_USE_BFP16 == 1
+            WeiBlockCopyDstDataPerWrite_K,
+            dir>{};
+#elif MIOPEN_USE_FP16 || MIOPEN_USE_BFP16
     constexpr auto gridwise_conv =
         GridwiseConvolutionImplicitGemm_v4_fp16_bfp16_nchw_kcyx_nkhw_lds_double_buffer<
             GridSize,
@@ -226,8 +247,10 @@ extern "C" __global__ void gridwise_convolution_implicit_gemm_v4_nchw_kcyx_nkhw_
             WeiBlockCopySrcAccessOrder,
             WeiBlockCopyDstAccessOrder,
             WeiBlockCopySrcDataPerRead_E,
-            WeiBlockCopyDstDataPerWrite_K>{};
-
+            WeiBlockCopyDstDataPerWrite_K,
+            dir>{};
+#else
+    static_assert(false, "wrong! Only fp32, fp16 and bfp16 are supported.");
 #endif
     gridwise_conv.Run(p_in_global, p_wei_global, p_out_global);
 }

@@ -37,6 +37,7 @@
 #include "softmax_driver.hpp"
 #include "rnn_driver.hpp"
 #include "ctc_driver.hpp"
+#include "dropout_driver.hpp"
 #include "miopen/config.h"
 
 int main(int argc, char* argv[])
@@ -137,6 +138,14 @@ int main(int argc, char* argv[])
     {
         drv = new CTCDriver<float>();
     }
+    else if(base_arg == "dropout")
+    {
+        drv = new DropoutDriver<float, float>();
+    }
+    else if(base_arg == "dropoutfp16")
+    {
+        drv = new DropoutDriver<float16, float>();
+    }
     else
     {
         printf("Incorrect BaseArg\n");
@@ -170,7 +179,10 @@ int main(int argc, char* argv[])
         rc = drv->RunForwardGPU();
         cumulative_rc |= rc;
         if(rc != 0)
+        {
             std::cout << "RunForwardGPU() failed, rc = " << rc << std::endl;
+            return rc;
+        }
         if(verifyarg) // Verify even if Run() failed.
             cumulative_rc |= drv->VerifyForward();
     }
@@ -180,7 +192,10 @@ int main(int argc, char* argv[])
         rc = drv->RunBackwardGPU();
         cumulative_rc |= rc;
         if(rc != 0)
+        {
             std::cout << "RunBackwardGPU() failed, rc = " << rc << std::endl;
+            return rc;
+        }
         if(verifyarg) // Verify even if Run() failed.
             cumulative_rc |= drv->VerifyBackward();
     }

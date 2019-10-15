@@ -24,7 +24,7 @@
  *
  *******************************************************************************/
 
-.ifdef EXPERIMENTAL_COv3
+.if ROCM_METADATA_VERSION == 5
     .ifdef .option.machine_version_major
         .error ".option.machine_version_major already defined"
         .end
@@ -147,7 +147,7 @@ log2 wave_size_log2, wave_size
 .endm
 
 .macro u32_div numer, denom, uquo, v_tmp, s_tmp
-    u_div   v[\numer], v[\denom] v[\uquo], \v_tmp, \s_tmp, \s_tmp + 2 
+    u_div   v[\numer], v[\denom] v[\uquo], \v_tmp, \s_tmp, \s_tmp + 2
 .endm
 
 
@@ -228,6 +228,39 @@ log2 wave_size_log2, wave_size
     s_branch \l\n
 .endm
 
+.macro v_reg_data_type_convert v_dst_reg, dst_type, v_src_reg, src_type, v_tmp_reg = 0x7fffffff, s2_tmp_b64 = 0x7fffffff
+    .if(\src_type == TYPE_FP16 && \dst_type == TYPE_FP32)
+        v_cvt_f32_f16 \v_dst_reg, \v_src_reg
+    .elseif(\src_type == TYPE_FP32 && \dst_type == TYPE_FP16)
+        v_cvt_f16_f32 \v_dst_reg, \v_src_reg
+    .elseif(\src_type == TYPE_FP32 && \dst_type == TYPE_BFP16)
+        v_mov_b32 \v_tmp_reg, 0x1
+        v_cmp_class_f32 \s2_tmp_b64, \v_src_reg, \v_tmp_reg //Signaling NaN  
+        s_and_saveexec_b64 \s2_tmp_b64, \s2_tmp_b64
+        
+        v_or_b32 \v_src_reg,  0x10000, \v_src_reg
+        s_mov_b64 exec, \s2_tmp_b64        
+        .ifdef MIOPEN_USE_RNE_BFLOAT16
+            .if(MIOPEN_USE_RNE_BFLOAT16 == 1)
+                v_mov_b32 \v_tmp_reg, 0x207
+                v_cmp_class_f32 exec, \v_src_reg, \v_tmp_reg //check NANs and INFs
+                
+                s_xor_b64 exec, exec, \s2_tmp_b64
+                v_bfe_u32 \v_tmp_reg, \v_src_reg, 16, 1
+                v_add_u32 \v_tmp_reg, 0x7fff, \v_tmp_reg
+                v_add_u32 \v_dst_reg, \v_src_reg, \v_tmp_reg
+
+                s_mov_b64 exec, \s2_tmp_b64
+            .endif
+        .endif        
+        
+        v_lshrrev_b32 \v_dst_reg, 16, \v_src_reg
+    .elseif(\src_type == TYPE_BFP16 && \dst_type == TYPE_FP32)
+        v_lshlrev_b32 \v_dst_reg, 16, \v_src_reg
+    .elseif (\dst_type != \src_type)
+        .error "wrong convertion type" 
+    .endif
+.endm
 
 div_const_1_2=0x80000000
 div_const_1_3=0x55555556

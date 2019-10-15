@@ -520,6 +520,23 @@ ConvOclBwdWrW2Base<N_BATCH_LOOPS>::GetPerformanceConfigBase(const ConvolutionCon
 }
 
 template <int N_BATCH_LOOPS>
+size_t ConvOclBwdWrW2Base<N_BATCH_LOOPS>::GetWorkspaceSize(const ConvolutionContext& params) const
+{
+    const size_t n_batch_blks = GetNBatchBlks<N_BATCH_LOOPS>(params);
+    if(n_batch_blks > 1)
+    {
+        const auto n_input_channels_per_group = params.n_outputs / params.group_counts;
+        const auto wei_cstride                = params.kernel_size_w * params.kernel_size_h;
+        const auto wei_bstride                = n_input_channels_per_group * wei_cstride;
+        int data_len                          = GetTypeSize(params.out_data_type);
+        return static_cast<std::size_t>(wei_bstride) * static_cast<std::size_t>(params.n_inputs) *
+               static_cast<std::size_t>(n_batch_blks) * static_cast<std::size_t>(data_len);
+    }
+    else
+        return 0;
+}
+
+template <int N_BATCH_LOOPS>
 ConvSolution ConvOclBwdWrW2Base<N_BATCH_LOOPS>::GetSolutionBase(
     const ConvolutionContext& params,
     const PerformanceConfigConvOclBwdWrw2<N_BATCH_LOOPS>& config,
@@ -690,7 +707,6 @@ ConvSolution ConvOclBwdWrW2Base<N_BATCH_LOOPS>::GetSolutionBase(
         kernel.comp_options = comp_options;
 
         result.construction_params.push_back(kernel);
-        result.workspce_sz = 0;
     }
 
     // sum over batch
@@ -714,12 +730,8 @@ ConvSolution ConvOclBwdWrW2Base<N_BATCH_LOOPS>::GetSolutionBase(
         kernel.g_wk.push_back(1);
         kernel.g_wk.push_back(1);
         result.construction_params.push_back(kernel);
-
-        int data_len = GetTypeSize(params.out_data_type);
-        result.workspce_sz =
-            static_cast<std::size_t>(wei_bstride) * static_cast<std::size_t>(params.n_inputs) *
-            static_cast<std::size_t>(n_batch_blks) * static_cast<std::size_t>(data_len);
     }
+    result.workspce_sz = GetWorkspaceSize(params);
 
     return result;
 }

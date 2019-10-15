@@ -1,7 +1,6 @@
 #ifndef CK_VECTOR_TYPE_HPP
 #define CK_VECTOR_TYPE_HPP
 
-#include "hip/hip_fp16.h"
 #include "config.hpp"
 #include "integral_constant.hpp"
 
@@ -208,7 +207,6 @@ struct vector_type<ushort, 4>
         return data.vector;
     }
 };
-
 } // namespace ck
 
 #endif

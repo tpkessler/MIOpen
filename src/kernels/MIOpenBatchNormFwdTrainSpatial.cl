@@ -434,10 +434,14 @@ MIOpenBatchNormFwdTrainSpatialNorm(const __global _FLOAT* __restrict in,
         invVariance = lcl_ivar;
         pvt_scale   = lcl_scale;
         pvt_bias    = lcl_bias;
+#if(MIO_BN_HW > MIO_BN_LOOP_UNROLL_MAXHW)
+        for(unsigned int n = 0; n < MIO_BN_N; n++)
+#else
         __attribute__((opencl_unroll_hint(2))) for(unsigned int n = 0; n < MIO_BN_N; n++)
+#endif
         { // apply normalization
-            index        = n * MIO_BN_CHW + cidx + ygid;
-            _FLOAT inhat = (*(in + index) - mean) * invVariance;
+            index = n * MIO_BN_CHW + cidx + ygid;
+            inhat = (*(in + index) - mean) * invVariance;
             // #5 Gamma and Beta adjust :: y_i = gamma*x_hat + beta
             out[index] = mad(pvt_scale, inhat, pvt_bias);
         } // end for(n)
@@ -544,7 +548,11 @@ MIOpenBatchNormFwdTrainSpatialMeanVariance(const __global _FLOAT* __restrict in,
 
     if(ygid < MIO_BN_HW)
     {
+#if(MIO_BN_HW > MIO_BN_LOOP_UNROLL_MAXHW)
+        for(unsigned int n = 0; n < MIO_BN_N; n++)
+#else
         __attribute__((opencl_unroll_hint(2))) for(unsigned int n = 0; n < MIO_BN_N; n++)
+#endif
         {
             index = n * MIO_BN_CHW + cidx + ygid;
             value = *(in + index);

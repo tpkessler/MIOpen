@@ -52,7 +52,7 @@ MIOPEN_DECLARE_ENV_VAR(MIOPEN_EXPERIMENTAL_GCN_ASM_PATH)
 
 static const char option_no_co_v3[] = "-mno-code-object-v3";
 
-static bool GcnAssemblerSupportsCOv3();
+static bool GcnAssemblerSupportsNoCOv3();
 static std::string CleanupPath(const char* p);
 
 // Redirecting both input and output is not supported.
@@ -93,7 +93,7 @@ bool ValidateGcnAssemblerImpl()
 
     std::stringstream clang_stdout;
     std::string clang_result_line;
-    MIOPEN_LOG_I2("Running: " << '\'' << path << " --version" << '\'');
+    MIOPEN_LOG_NQI2("Running: " << '\'' << path << " --version" << '\'');
     auto clang_rc = ExecuteGcnAssembler(path + " --version", nullptr, &clang_stdout);
 
     if(clang_rc != 0)
@@ -102,13 +102,13 @@ bool ValidateGcnAssemblerImpl()
     }
 
     std::getline(clang_stdout, clang_result_line);
-    MIOPEN_LOG_I2(clang_result_line);
+    MIOPEN_LOG_NQI2(clang_result_line);
     if(clang_result_line.find("clang") != std::string::npos)
     {
         while(!clang_stdout.eof())
         {
             std::getline(clang_stdout, clang_result_line);
-            MIOPEN_LOG_I2(clang_result_line);
+            MIOPEN_LOG_NQI2(clang_result_line);
             if(clang_result_line.find("Target: ") != std::string::npos)
             {
                 return clang_result_line.find("amdgcn") != std::string::npos;
@@ -207,16 +207,17 @@ void AmdgcnAssemble(std::string& source, const std::string& params)
 
     std::ostringstream options;
     options << " -x assembler -target amdgcn--amdhsa";
-    if(GcnAssemblerSupportsCOv3())
-    {
-        options << ' ' << option_no_co_v3;
-    }
+    /// \todo Hacky way to find out which CO version we need to assemble for.
+    if(params.find("ROCM_METADATA_VERSION=5", 0) == std::string::npos) // Assume that !COv3 == COv2.
+        if(GcnAssemblerSupportsNoCOv3()) // If assembling for COv2, then disable COv3.
+            options << ' ' << option_no_co_v3;
+
     options << ' ' << params;
     if(GcnAssemblerHasBug34765())
-    {
         GenerateClangDefsym(options, "WORKAROUND_BUG_34765", 1);
-    }
+
     options << " - -o " << outfile.Path();
+    MIOPEN_LOG_I2("'" << options.str() << "'");
 
     std::istringstream clang_stdin(source);
     const auto clang_path = GetGcnAssemblerPath();
@@ -271,7 +272,7 @@ static void AmdgcnAssembleQuiet(std::string& source, const std::string& params)
     const auto args       = " -x assembler -target amdgcn--amdhsa " + params + " " + source +
                       " -o /dev/null" + // We do not need output file
                       " 2>&1";          // Keep console clean from error messages.
-    MIOPEN_LOG_I2(clang_path << " " << args);
+    MIOPEN_LOG_NQI2(clang_path << " " << args);
     const int clang_rc =
         ExecuteGcnAssembler(clang_path + " " + args, nullptr, &clang_stdout_unused);
     if(clang_rc != 0)
@@ -295,7 +296,7 @@ static bool GcnAssemblerHasBug34765Impl()
     }
     catch(...)
     {
-        MIOPEN_LOG_I("Detected");
+        MIOPEN_LOG_NQI("Detected");
         return true;
     }
 }
@@ -314,17 +315,17 @@ static bool GcnAssemblerSupportsOption(const std::string& option)
     try
     {
         AmdgcnAssembleQuiet(src, "-mcpu=gfx900 " + option);
-        MIOPEN_LOG_I("Supported: '" << option << '\'');
+        MIOPEN_LOG_NQI("Supported: '" << option << '\'');
         return true;
     }
     catch(...)
     {
-        MIOPEN_LOG_I("Not supported: '" << option << '\'');
+        MIOPEN_LOG_NQI("Not supported: '" << option << '\'');
         return false;
     }
 }
 
-static bool GcnAssemblerSupportsCOv3()
+static bool GcnAssemblerSupportsNoCOv3()
 {
     const static bool b = GcnAssemblerSupportsOption(option_no_co_v3);
     return b;

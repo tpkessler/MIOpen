@@ -375,7 +375,7 @@ bool ConvAsm1x1UBase::IsApplicable(const ConvolutionContext& params) const
         return false;
     if(!params.Is2d())
         return false;
-    if(params.rmv != rocm_meta_version::AMDHSA_1_0)
+    if(!params.rmv.IsV2())
         return false;
     if(!(params.IsFp32() || params.IsFp16()))
         return false;
@@ -444,6 +444,17 @@ bool ConvAsm1x1UBase::IsApplicable(const ConvolutionContext& params) const
     return ok;
 }
 
+size_t ConvAsm1x1UBase::GetWorkspaceSize(const ConvolutionContext& params) const
+{
+    if(UseSubsample(params) || UseUpsample(params))
+    {
+        int in_batch_stride = AsmImgWidth(params) * AsmImgHeight(params) *
+                              (UseSubsample(params) ? params.n_inputs : params.n_outputs);
+        int data_len = GetTypeSize(params.out_data_type);
+        return in_batch_stride * params.batch_sz * data_len;
+    }
+    return 0;
+}
 bool ConvAsm1x1UBase::IsFast(const ConvolutionContext&) const { return true; }
 
 static int divide_round_plus_inf(const int x, const int y)
@@ -463,8 +474,6 @@ ConvSolution ConvAsm1x1UBase::GetSolution(const ConvolutionContext& params,
     ConvSolution result;
 
     std::ostringstream options;
-
-    result.workspce_sz = 0;
 
     KernelInfo kernel;
     int data_len = GetTypeSize(params.out_data_type);
@@ -518,9 +527,8 @@ ConvSolution ConvAsm1x1UBase::GetSolution(const ConvolutionContext& params,
             kernel.kernel_name = "UpSample";
 
         kernel.comp_options = subsample_kernel_compilation_options;
-
-        result.workspce_sz = in_batch_stride * params.batch_sz * data_len;
     }
+    result.workspce_sz = GetWorkspaceSize(params);
 
     GenerateClangDefsym(options, "stride_h", 1);
     GenerateClangDefsym(options, "stride_w", 1);

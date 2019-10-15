@@ -39,8 +39,6 @@ boost::filesystem::path HipBuild(boost::optional<TmpDir>& tmp_dir,
                                  const std::string& dev_name)
 {
 #ifdef __linux__
-    if(dev_name.find("gfx80") != std::string::npos)
-        MIOPEN_THROW("HIP kernel are not supported on " + dev_name + " architecture");
     const auto isHCC = EndsWith(MIOPEN_HIP_COMPILER, "hcc");
     // write out the include files
     auto inc_list = GetKernelIncList();
@@ -68,7 +66,7 @@ boost::filesystem::path HipBuild(boost::optional<TmpDir>& tmp_dir,
     params += " ";
     auto bin_file = tmp_dir->path / (filename + ".o");
     // compile
-    auto env = std::string("KMOPTLLC=-mattr=+enable-ds128");
+    auto env = std::string("KMOPTLLC=\"-mattr=+enable-ds128 -amdgpu-enable-global-sgpr-addr\"");
     tmp_dir->Execute(env + std::string(" ") + MIOPEN_HIP_COMPILER,
                      params + filename + " -o " + bin_file.string());
     if(!boost::filesystem::exists(bin_file))
