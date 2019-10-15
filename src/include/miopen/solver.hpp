@@ -676,8 +676,8 @@ struct ConvHipImplicitGemmV4Fwd final : GenericSearchableSolver<ConvolutionConte
         return std::make_shared<PerformanceImplicitGemm>();
     }
     std::shared_ptr<IPerformanceConfig>
-    GetPerformanceConfig(const ConvolutionContext& params) const final;
-    bool IsValidPerformanceConfig(const ConvolutionContext& problem,
+    GetPerformanceConfig(const ConvolutionContext& ctx) const final;
+    bool IsValidPerformanceConfig(const ConvolutionContext& ctx,
                                   const IPerformanceConfig& c) const final;
     bool IsApplicable(const ConvolutionContext& ctx) const final;
 
