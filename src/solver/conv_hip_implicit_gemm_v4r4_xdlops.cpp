@@ -41,8 +41,7 @@ namespace solver {
 
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_IMPLICIT_GEMM_XDLOPS_INLINE_ASM)
 
-inline bool PerformanceImplicitGemmXdlops::
-operator==(const IPerformanceConfig& other_) const
+inline bool PerformanceImplicitGemmXdlops::operator==(const IPerformanceConfig& other_) const
 {
     const auto& other = dynamic_cast<const PerformanceImplicitGemmXdlops&>(other_);
     // clang-format off

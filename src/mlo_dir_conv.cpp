@@ -129,11 +129,11 @@ static const auto& GetDirectSolvers()
 static const auto& GetImplicitGemmSolvers()
 {
     static const auto inst = std::vector<miopen::ConvSolver*>{{
-		&miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4R4Xdlops_1x1>::Instance(),
-		&miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4R4FwdXdlops>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4R4Xdlops_1x1>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4R4FwdXdlops>::Instance(),
         &miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4_1x1>::Instance(),
-		& miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4R1Fwd>::Instance(),
-		& miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4Fwd>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4R1Fwd>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4Fwd>::Instance(),
     }};
     return inst;
 }
@@ -150,16 +150,16 @@ static const auto& GetWindogradSolvers()
 
 static auto GetImplicitGemmWrWSolvers()
 {
-	static const auto inst = std::vector<miopen::ConvSolver*>{ {
-		&miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4R1WrW>::Instance(),
-		&miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4WrW>::Instance(),
-	} };
-	return inst;
+    static const auto inst = std::vector<miopen::ConvSolver*>{{
+        &miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4R1WrW>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4WrW>::Instance(),
+    }};
+    return inst;
 }
 
 static auto GetWindogradWrWSolvers()
 {
-	static const auto inst = std::vector<miopen::ConvSolver*>{ {
+    static const auto inst = std::vector<miopen::ConvSolver*>{{
         &miopen::StaticContainer<miopen::solver::ConvBinWinogradRxS>::Instance(),
         &miopen::StaticContainer<miopen::solver::ConvWinograd3x3MultipassWrW<3, 2>>::Instance(),
         &miopen::StaticContainer<miopen::solver::ConvWinograd3x3MultipassWrW<3, 3>>::Instance(),
@@ -168,12 +168,16 @@ static auto GetWindogradWrWSolvers()
         &miopen::StaticContainer<miopen::solver::ConvWinograd3x3MultipassWrW<3, 6>>::Instance(),
         &miopen::StaticContainer<miopen::solver::ConvWinograd3x3MultipassWrW<7, 2>>::Instance(),
         &miopen::StaticContainer<miopen::solver::ConvWinograd3x3MultipassWrW<7, 3>>::Instance(),
-        &miopen::StaticContainer<miopen::solver::ConvWinograd3x3MultipassWrW<7, 3, 1, 1>>::Instance(),
-        &miopen::StaticContainer<miopen::solver::ConvWinograd3x3MultipassWrW<7, 2, 1, 1>>::Instance(),
-        &miopen::StaticContainer<miopen::solver::ConvWinograd3x3MultipassWrW<1, 1, 7, 2>>::Instance(),
-        &miopen::StaticContainer<miopen::solver::ConvWinograd3x3MultipassWrW<1, 1, 7, 3>>::Instance(),
-	} };
-	return inst;
+        &miopen::StaticContainer<
+            miopen::solver::ConvWinograd3x3MultipassWrW<7, 3, 1, 1>>::Instance(),
+        &miopen::StaticContainer<
+            miopen::solver::ConvWinograd3x3MultipassWrW<7, 2, 1, 1>>::Instance(),
+        &miopen::StaticContainer<
+            miopen::solver::ConvWinograd3x3MultipassWrW<1, 1, 7, 2>>::Instance(),
+        &miopen::StaticContainer<
+            miopen::solver::ConvWinograd3x3MultipassWrW<1, 1, 7, 3>>::Instance(),
+    }};
+    return inst;
 }
 
 static const auto& GetBwdWrW2DSolvers()

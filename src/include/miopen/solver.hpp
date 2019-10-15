@@ -1276,7 +1276,7 @@ struct ConvOclBwdWrW2 final : GenericSearchableSolver<ConvolutionContext>,
                                  const ConvSolution& solution,
                                  float& elapsed_time) const final;
 
-	using SolverBase<ConvolutionContext>::GetSolution;
+    using SolverBase<ConvolutionContext>::GetSolution;
     ConvSolution GetSolution(const ConvolutionContext& params,
                              const IPerformanceConfig& config_,
                              bool disableConfigOverrideFromEnv) const final

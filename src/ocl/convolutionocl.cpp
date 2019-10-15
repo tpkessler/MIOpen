@@ -2556,7 +2556,7 @@ std::size_t ConvolutionDescriptor::GetForwardSolutionWorkspaceSize(Handle& handl
     if(solver_id != solver::Id::gemm() && solver_id != solver::Id::fft())
     {
         const auto& sol = solver_id.GetSolver();
-        auto ctx = ConvolutionContext{xDesc, wDesc, yDesc, *this, 1};
+        auto ctx        = ConvolutionContext{xDesc, wDesc, yDesc, *this, 1};
         ctx.SetStream(&handle);
         ctx.DetectRocm();
         if(sol.IsApplicable(ctx))
@@ -3889,7 +3889,7 @@ std::size_t ConvolutionDescriptor::GetBackwardSolutionWorkspaceSize(Handle& hand
     if(solver_id != solver::Id::gemm() && solver_id != solver::Id::fft())
     {
         const auto& sol = solver_id.GetSolver();
-        auto ctx = ConvolutionContext{dxDesc, wDesc, dyDesc, *this, 0};
+        auto ctx        = ConvolutionContext{dxDesc, wDesc, dyDesc, *this, 0};
         ctx.SetStream(&handle);
         ctx.DetectRocm();
         if(sol.IsApplicable(ctx))
@@ -5378,7 +5378,7 @@ std::size_t ConvolutionDescriptor::GetWrwSolutionWorkspaceSize(Handle& handle,
     if(solver_id != solver::Id::gemm() && solver_id != solver::Id::fft())
     {
         const auto& sol = solver_id.GetSolver();
-        auto problem = ProblemDescription{xDesc, dwDesc, dyDesc, *this, 0};
+        auto problem    = ProblemDescription{xDesc, dwDesc, dyDesc, *this, 0};
         problem.direction.SetBackwardWrW();
         auto ctx = ConvolutionContext{problem};
         ctx.SetStream(&handle);

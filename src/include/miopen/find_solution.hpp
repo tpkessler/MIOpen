@@ -122,7 +122,7 @@ GetWorkspaceSize(const std::vector<SolverBase<TContext>*>& solvers, const TConte
         res.emplace_back(solver->DbId(), sz);
     }
 
-	return res;
+    return res;
 }
 
 } // namespace solver

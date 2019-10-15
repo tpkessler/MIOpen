@@ -131,8 +131,9 @@ bool PerformanceImplicitGemm::IsValid(const ConvolutionContext& ctx) const
     if(block_size < 64 || block_size > 512)
         return false;
 
-    if(block_size != InBlockCopyClusterLengths_E * InBlockCopyClusterLengths_N1 *
-                         InBlockCopyClusterLengths_B * InBlockCopyClusterLengths_N2)
+    if(block_size !=
+       InBlockCopyClusterLengths_E * InBlockCopyClusterLengths_N1 * InBlockCopyClusterLengths_B *
+           InBlockCopyClusterLengths_N2)
         return false;
 
     if(block_size != WeiBlockCopyClusterLengths_K * WeiBlockCopyClusterLengths_E)
@@ -754,7 +755,8 @@ int ConvHipImplicitGemmV4_1x1::RunAndMeasureSolutionFwd(miopen::Handle& profile_
         profile_h, bot_buf, top_buf, wei_buf, ctx, solution, elapsed_time);
 }
 
-std::shared_ptr<IPerformanceConfig> ConvHipImplicitGemmV4Fwd::Search(const ConvolutionContext& context) const
+std::shared_ptr<IPerformanceConfig>
+ConvHipImplicitGemmV4Fwd::Search(const ConvolutionContext& context) const
 {
     return GenericSearchFwd(*this, context);
 }
