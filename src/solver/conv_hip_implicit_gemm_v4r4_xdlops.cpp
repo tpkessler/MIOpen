@@ -248,12 +248,6 @@ std::string PerformanceImplicitGemmXdlops::ToString() const
     return ss.str();
 }
 
-std::shared_ptr<IPerformanceConfig>
-ConvHipImplicitGemmV4R4FwdXdlops::GetPerformanceConfig(const ConvolutionContext& ctx) const
-{
-    return GetPerformanceConfigBase<PerformanceImplicitGemmXdlops>(ctx);
-}
-
 PerformanceImplicitGemmXdlops::PerformanceImplicitGemmXdlops(bool spare)
 {
     BPerBlock = 64;
@@ -466,7 +460,7 @@ ConvSolution ConvHipImplicitGemmV4R4Xdlops_1x1::GetSolution(const ConvolutionCon
                            ImgWidth(ctx));
 }
 
-int ConvHipImplicitGemmV4R4FwdXdlops::RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
+int ConvHipImplicitGemmV4R4XdlopsBase::RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
                                                                ConstData_t bot_buf,
                                                                Data_t top_buf,
                                                                ConstData_t wei_buf,
@@ -474,22 +468,6 @@ int ConvHipImplicitGemmV4R4FwdXdlops::RunAndMeasureSolutionFwd(miopen::Handle& p
                                                                const ConvolutionContext& ctx,
                                                                const ConvSolution& solution,
                                                                float& elapsed_time) const
-{
-    assert(bias_buf == nullptr);
-    (void)bias_buf;
-
-    return RunAndMeasureSolutionBase(
-        profile_h, bot_buf, top_buf, wei_buf, ctx, solution, elapsed_time);
-}
-
-int ConvHipImplicitGemmV4R4Xdlops_1x1::RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
-                                                                ConstData_t bot_buf,
-                                                                Data_t top_buf,
-                                                                ConstData_t wei_buf,
-                                                                ConstData_t bias_buf,
-                                                                const ConvolutionContext& ctx,
-                                                                const ConvSolution& solution,
-                                                                float& elapsed_time) const
 {
     assert(bias_buf == nullptr);
     (void)bias_buf;
@@ -535,12 +513,12 @@ bool ConvHipImplicitGemmV4R4Xdlops_1x1::IsApplicable(const ConvolutionContext& c
 }
 
 std::shared_ptr<IPerformanceConfig>
-ConvHipImplicitGemmV4R4Xdlops_1x1::GetPerformanceConfig(const ConvolutionContext& ctx) const
+ConvHipImplicitGemmV4R4XdlopsBase::GetPerformanceConfig(const ConvolutionContext& ctx) const
 {
     return GetPerformanceConfigBase<PerformanceImplicitGemmXdlops>(ctx);
 }
 
-bool ConvHipImplicitGemmV4R4FwdXdlops::IsValidPerformanceConfig(const ConvolutionContext& ctx,
+bool ConvHipImplicitGemmV4R4XdlopsBase::IsValidPerformanceConfig(const ConvolutionContext& ctx,
                                                                 const IPerformanceConfig& c_) const
 {
     const auto& c = dynamic_cast<const PerformanceImplicitGemmXdlops&>(c_);
@@ -548,22 +526,8 @@ bool ConvHipImplicitGemmV4R4FwdXdlops::IsValidPerformanceConfig(const Convolutio
     return c.IsValidValue() && c.IsValid(ctx);
 }
 
-bool ConvHipImplicitGemmV4R4Xdlops_1x1::IsValidPerformanceConfig(const ConvolutionContext& ctx,
-                                                                 const IPerformanceConfig& c_) const
-{
-    const auto& c = dynamic_cast<const PerformanceImplicitGemmXdlops&>(c_);
-    MIOPEN_LOG_I("");
-    return c.IsValidValue() && c.IsValid(ctx);
-}
-
 std::shared_ptr<IPerformanceConfig>
-ConvHipImplicitGemmV4R4Xdlops_1x1::Search(const ConvolutionContext& ctx) const
-{
-    return GenericSearchFwd(*this, ctx);
-}
-
-std::shared_ptr<IPerformanceConfig>
-ConvHipImplicitGemmV4R4FwdXdlops::Search(const ConvolutionContext& ctx) const
+ConvHipImplicitGemmV4R4XdlopsBase::Search(const ConvolutionContext& ctx) const
 {
     return GenericSearchFwd(*this, ctx);
 }

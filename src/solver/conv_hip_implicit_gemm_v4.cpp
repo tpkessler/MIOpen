@@ -461,41 +461,13 @@ bool ConvHipImplicitGemmV4WrW::IsApplicable(const ConvolutionContext& ctx) const
 }
 
 std::shared_ptr<IPerformanceConfig>
-ConvHipImplicitGemmV4Fwd::GetPerformanceConfig(const ConvolutionContext& ctx) const
+ConvHipImplicitGemmV4Base::GetPerformanceConfig(const ConvolutionContext& ctx) const
 {
     return GetPerformanceConfigBase<PerformanceImplicitGemm>(ctx);
 }
 
-std::shared_ptr<IPerformanceConfig>
-ConvHipImplicitGemmV4WrW::GetPerformanceConfig(const ConvolutionContext& ctx) const
-{
-    return GetPerformanceConfigBase<PerformanceImplicitGemm>(ctx);
-}
-
-std::shared_ptr<IPerformanceConfig>
-ConvHipImplicitGemmV4_1x1::GetPerformanceConfig(const ConvolutionContext& ctx) const
-{
-    return GetPerformanceConfigBase<PerformanceImplicitGemm>(ctx);
-}
-
-bool ConvHipImplicitGemmV4Fwd::IsValidPerformanceConfig(const ConvolutionContext& ctx,
+bool ConvHipImplicitGemmV4Base::IsValidPerformanceConfig(const ConvolutionContext& ctx,
                                                         const IPerformanceConfig& c_) const
-{
-    const auto& c = dynamic_cast<const PerformanceImplicitGemm&>(c_);
-    MIOPEN_LOG_I("");
-    return c.IsValidValue() && c.IsValid(ctx);
-}
-
-bool ConvHipImplicitGemmV4WrW::IsValidPerformanceConfig(const ConvolutionContext& ctx,
-                                                        const IPerformanceConfig& c_) const
-{
-    const auto& c = dynamic_cast<const PerformanceImplicitGemm&>(c_);
-    MIOPEN_LOG_I("");
-    return c.IsValidValue() && c.IsValid(ctx);
-}
-
-bool ConvHipImplicitGemmV4_1x1::IsValidPerformanceConfig(const ConvolutionContext& ctx,
-                                                         const IPerformanceConfig& c_) const
 {
     const auto& c = dynamic_cast<const PerformanceImplicitGemm&>(c_);
     MIOPEN_LOG_I("");
@@ -709,7 +681,7 @@ ConvSolution ConvHipImplicitGemmV4_1x1::GetSolution(const ConvolutionContext& ct
                            ImgWidth(ctx));
 }
 
-int ConvHipImplicitGemmV4Fwd::RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
+int ConvHipImplicitGemmV4Base::RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
                                                        ConstData_t bot_buf,
                                                        Data_t top_buf,
                                                        ConstData_t wei_buf,
@@ -725,49 +697,8 @@ int ConvHipImplicitGemmV4Fwd::RunAndMeasureSolutionFwd(miopen::Handle& profile_h
         profile_h, bot_buf, top_buf, wei_buf, ctx, solution, elapsed_time);
 }
 
-int ConvHipImplicitGemmV4WrW::RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
-                                                       ConstData_t bot_buf,
-                                                       Data_t top_buf,
-                                                       ConstData_t wei_buf,
-                                                       ConstData_t bias_buf,
-                                                       const ConvolutionContext& ctx,
-                                                       const ConvSolution& solution,
-                                                       float& elapsed_time) const
-{
-    assert(bias_buf == nullptr);
-    (void)bias_buf;
-    return RunAndMeasureSolutionBase(
-        profile_h, bot_buf, top_buf, wei_buf, ctx, solution, elapsed_time);
-}
-
-int ConvHipImplicitGemmV4_1x1::RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
-                                                        ConstData_t bot_buf,
-                                                        Data_t top_buf,
-                                                        ConstData_t wei_buf,
-                                                        ConstData_t bias_buf,
-                                                        const ConvolutionContext& ctx,
-                                                        const ConvSolution& solution,
-                                                        float& elapsed_time) const
-{
-    assert(bias_buf == nullptr);
-    (void)bias_buf;
-    return RunAndMeasureSolutionBase(
-        profile_h, bot_buf, top_buf, wei_buf, ctx, solution, elapsed_time);
-}
-
 std::shared_ptr<IPerformanceConfig>
-ConvHipImplicitGemmV4Fwd::Search(const ConvolutionContext& context) const
-{
-    return GenericSearchFwd(*this, context);
-}
-std::shared_ptr<IPerformanceConfig>
-ConvHipImplicitGemmV4WrW::Search(const ConvolutionContext& context) const
-{
-    return GenericSearchFwd(*this, context);
-}
-
-std::shared_ptr<IPerformanceConfig>
-ConvHipImplicitGemmV4_1x1::Search(const ConvolutionContext& context) const
+ConvHipImplicitGemmV4Base::Search(const ConvolutionContext& context) const
 {
     return GenericSearchFwd(*this, context);
 }

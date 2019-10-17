@@ -149,6 +149,7 @@ struct SearchableSolver : virtual SolverBase<TContext>
     }
 
     private:
+    virtual std::unique_ptr<IPerformanceConfig> AllocateConfig() const        = 0;
     virtual std::shared_ptr<IPerformanceConfig> Search(const TContext&) const = 0;
 
     ConvSolution GetSolution(const TContext& context) const final
@@ -175,7 +176,7 @@ struct SearchableSolver : virtual SolverBase<TContext>
             }
             else
             {
-                std::shared_ptr<IPerformanceConfig> config;
+                auto config = AllocateConfig();
                 if(db.Load(context, db_id, *config))
                 {
                     MIOPEN_LOG_I2("Perf Db: record loaded: " << db_id);
@@ -185,7 +186,7 @@ struct SearchableSolver : virtual SolverBase<TContext>
                     }
                     MIOPEN_LOG(
                         (MIOPEN_INSTALLABLE ? LoggingLevel::Warning : miopen::LoggingLevel::Error),
-                        "Invalid config loaded from Perf Db: " << db_id << ": " << config
+                        "Invalid config loaded from Perf Db: " << db_id << ": " << *config
                                                                << ". Performance may degrade.");
                 }
                 else
@@ -366,6 +367,10 @@ struct ConvAsm3x3U final : GenericSearchableSolver<ConvolutionContext>
 
     private:
     bool IsValidPerformanceConfig(const ConvolutionContext&, const IPerformanceConfig&) const final;
+    std::unique_ptr<IPerformanceConfig> AllocateConfig() const final
+    {
+        return std::make_unique<PerformanceConfigConvAsm3x3U>();
+    }
 };
 
 struct PerformanceConfigConvAsm1x1U : Serializable<PerformanceConfigConvAsm1x1U>, IPerformanceConfig
@@ -445,6 +450,12 @@ struct ConvAsm1x1U final : ConvAsm1x1UBase, GenericSearchableSolver<ConvolutionC
 
     RUN_AND_MEASURE_HELPER_DECLARATION_FWD
     RUN_AND_MEASURE_HELPER_DECLARATION_BWD
+
+    private:
+    std::unique_ptr<IPerformanceConfig> AllocateConfig() const final
+    {
+        return std::make_unique<PerformanceConfigConvAsm1x1U>();
+    }
 };
 
 struct PerformanceConfigConvBiasActivAsm1x1U final : PerformanceConfigConvAsm1x1U
@@ -470,6 +481,12 @@ struct ConvBiasActivAsm1x1U final : ConvAsm1x1UBase, GenericSearchableSolver<Con
 
     RUN_AND_MEASURE_HELPER_DECLARATION_FWD
     RUN_AND_MEASURE_HELPER_DECLARATION_BWD
+
+    private:
+    std::unique_ptr<IPerformanceConfig> AllocateConfig() const final
+    {
+        return std::make_unique<PerformanceConfigConvBiasActivAsm1x1U>();
+    }
 };
 
 struct PerformanceConfigConvAsm1x1UV2 final : Serializable<PerformanceConfigConvAsm1x1UV2>,
@@ -551,6 +568,12 @@ struct ConvAsm1x1UV2 final : GenericSearchableSolver<ConvolutionContext>
 
     RUN_AND_MEASURE_HELPER_DECLARATION_FWD
     RUN_AND_MEASURE_HELPER_DECLARATION_BWD
+
+    private:
+    std::unique_ptr<IPerformanceConfig> AllocateConfig() const final
+    {
+        return std::make_unique<PerformanceConfigConvAsm1x1UV2>();
+    }
 };
 
 struct ConvAsm5x10u2v2f1 final : SolverBase<ConvolutionContext>
@@ -668,20 +691,16 @@ struct ConvHipImplicitGemmV4R1Fwd final : SolverBase<ConvolutionContext>
     ConvSolution GetSolution(const ConvolutionContext& ctx) const final;
 };
 
-struct ConvHipImplicitGemmV4Fwd final : GenericSearchableSolver<ConvolutionContext>
+struct ConvHipImplicitGemmV4Base : GenericSearchableSolver<ConvolutionContext>
 {
-    const std::string& DbId() const final { return SolverDbId(*this); }
     std::shared_ptr<IPerformanceConfig> GetGenericSearchStart(bool) const final
     {
         return std::make_shared<PerformanceImplicitGemm>();
     }
+
     std::shared_ptr<IPerformanceConfig>
     GetPerformanceConfig(const ConvolutionContext& ctx) const final;
-    bool IsValidPerformanceConfig(const ConvolutionContext& ctx,
-                                  const IPerformanceConfig& c) const final;
-    bool IsApplicable(const ConvolutionContext& ctx) const final;
 
-    std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
     int RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
                                  ConstData_t bot_buf,
                                  Data_t top_buf,
@@ -690,6 +709,25 @@ struct ConvHipImplicitGemmV4Fwd final : GenericSearchableSolver<ConvolutionConte
                                  const ConvolutionContext& ctx,
                                  const ConvSolution& solution,
                                  float& elapsed_time) const final;
+
+    protected:
+    bool IsValidPerformanceConfig(const ConvolutionContext& ctx,
+                                  const IPerformanceConfig& c) const final;
+
+    private:
+    std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
+
+    std::unique_ptr<IPerformanceConfig> AllocateConfig() const final
+    {
+        return std::make_unique<PerformanceImplicitGemm>();
+    }
+};
+
+struct ConvHipImplicitGemmV4Fwd final : ConvHipImplicitGemmV4Base
+{
+    const std::string& DbId() const final { return SolverDbId(*this); }
+    bool IsApplicable(const ConvolutionContext& ctx) const final;
+
     ConvSolution GetSolution(const ConvolutionContext& ctx,
                              const IPerformanceConfig& config,
                              bool disableConfigOverrideFromEnv) const final;
@@ -744,50 +782,17 @@ struct PerformanceImplicitGemmXdlops final : Serializable<PerformanceImplicitGem
     std::string ToString() const;
 };
 
-struct ConvHipImplicitGemmV4R4FwdXdlops final : GenericSearchableSolver<ConvolutionContext>
+struct ConvHipImplicitGemmV4R4XdlopsBase : GenericSearchableSolver<ConvolutionContext>
 {
-    const std::string& DbId() const final { return SolverDbId(*this); }
-    std::shared_ptr<IPerformanceConfig>
-    GetPerformanceConfig(const ConvolutionContext& ctx) const final;
     std::shared_ptr<IPerformanceConfig> GetGenericSearchStart(bool sparce) const final
     {
         return std::make_shared<PerformanceImplicitGemmXdlops>(sparce);
     }
-    bool IsValidPerformanceConfig(const ConvolutionContext& ctx,
-                                  const IPerformanceConfig& c) const final;
-    bool IsApplicable(const ConvolutionContext& ctx) const final;
-    ConvSolution GetSolution(const ConvolutionContext& ctx,
-                             const IPerformanceConfig& config,
-                             bool disableConfigOverrideFromEnv) const final;
-
-    std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
-    int RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
-                                 ConstData_t bot_buf,
-                                 Data_t top_buf,
-                                 ConstData_t wei_buf,
-                                 ConstData_t bias_buf,
-                                 const ConvolutionContext& ctx,
-                                 const ConvSolution& solution,
-                                 float& elapsed_time) const final;
-};
-
-struct ConvHipImplicitGemmV4R4Xdlops_1x1 final : GenericSearchableSolver<ConvolutionContext>
-{
-    const std::string& DbId() const final { return SolverDbId(*this); }
     std::shared_ptr<IPerformanceConfig>
     GetPerformanceConfig(const ConvolutionContext& ctx) const final;
-    std::shared_ptr<IPerformanceConfig> GetGenericSearchStart(bool sparce) const final
-    {
-        return std::make_shared<PerformanceImplicitGemmXdlops>(sparce);
-    }
     bool IsValidPerformanceConfig(const ConvolutionContext& ctx,
                                   const IPerformanceConfig& c) const final;
-    bool IsApplicable(const ConvolutionContext& ctx) const final;
-    ConvSolution GetSolution(const ConvolutionContext& ctx,
-                             const IPerformanceConfig& config,
-                             bool disableConfigOverrideFromEnv) const final;
 
-    std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
     int RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
                                  ConstData_t bot_buf,
                                  Data_t top_buf,
@@ -796,33 +801,40 @@ struct ConvHipImplicitGemmV4R4Xdlops_1x1 final : GenericSearchableSolver<Convolu
                                  const ConvolutionContext& ctx,
                                  const ConvSolution& solution,
                                  float& elapsed_time) const final;
+
+	private:
+    std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
+    std::unique_ptr<IPerformanceConfig> AllocateConfig() const final
+    {
+        return std::make_unique<PerformanceImplicitGemmXdlops>();
+    }
 };
 
-struct ConvHipImplicitGemmV4_1x1 final : GenericSearchableSolver<ConvolutionContext>
+struct ConvHipImplicitGemmV4R4FwdXdlops final : ConvHipImplicitGemmV4R4XdlopsBase
 {
     const std::string& DbId() const final { return SolverDbId(*this); }
-    std::shared_ptr<IPerformanceConfig>
-    GetPerformanceConfig(const ConvolutionContext& ctx) const final;
-    std::shared_ptr<IPerformanceConfig> GetGenericSearchStart(bool sparce) const final
-    {
-        return std::make_shared<PerformanceImplicitGemm>(sparce);
-    }
-    bool IsValidPerformanceConfig(const ConvolutionContext& ctx,
-                                  const IPerformanceConfig& c) const final;
     bool IsApplicable(const ConvolutionContext& ctx) const final;
     ConvSolution GetSolution(const ConvolutionContext& ctx,
                              const IPerformanceConfig& config,
                              bool disableConfigOverrideFromEnv) const final;
+};
 
-    std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
-    int RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
-                                 ConstData_t bot_buf,
-                                 Data_t top_buf,
-                                 ConstData_t wei_buf,
-                                 ConstData_t bias_buf,
-                                 const ConvolutionContext& ctx,
-                                 const ConvSolution& solution,
-                                 float& elapsed_time) const final;
+struct ConvHipImplicitGemmV4R4Xdlops_1x1 final : ConvHipImplicitGemmV4R4XdlopsBase
+{
+    const std::string& DbId() const final { return SolverDbId(*this); }
+    bool IsApplicable(const ConvolutionContext& ctx) const final;
+    ConvSolution GetSolution(const ConvolutionContext& ctx,
+                             const IPerformanceConfig& config,
+                             bool disableConfigOverrideFromEnv) const final;
+};
+
+struct ConvHipImplicitGemmV4_1x1 final : ConvHipImplicitGemmV4Base
+{
+    const std::string& DbId() const final { return SolverDbId(*this); }
+    bool IsApplicable(const ConvolutionContext& ctx) const final;
+    ConvSolution GetSolution(const ConvolutionContext& ctx,
+                             const IPerformanceConfig& config,
+                             bool disableConfigOverrideFromEnv) const final;
 };
 
 struct ConvHipImplicitGemmV4R1WrW final : SolverBase<ConvolutionContext>
@@ -832,31 +844,13 @@ struct ConvHipImplicitGemmV4R1WrW final : SolverBase<ConvolutionContext>
     ConvSolution GetSolution(const ConvolutionContext& ctx) const final;
 };
 
-struct ConvHipImplicitGemmV4WrW final : GenericSearchableSolver<ConvolutionContext>
+struct ConvHipImplicitGemmV4WrW final : ConvHipImplicitGemmV4Base
 {
     const std::string& DbId() const final { return SolverDbId(*this); }
-    std::shared_ptr<IPerformanceConfig>
-    GetPerformanceConfig(const ConvolutionContext& ctx) const final;
-    std::shared_ptr<IPerformanceConfig> GetGenericSearchStart(bool sparce) const final
-    {
-        return std::make_shared<PerformanceImplicitGemm>(sparce);
-    }
-    bool IsValidPerformanceConfig(const ConvolutionContext& ctx,
-                                  const IPerformanceConfig& c) const final;
     bool IsApplicable(const ConvolutionContext& ctx) const final;
     ConvSolution GetSolution(const ConvolutionContext& ctx,
                              const IPerformanceConfig& config,
                              bool disableConfigOverrideFromEnv) const final;
-
-    std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
-    int RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
-                                 ConstData_t bot_buf,
-                                 Data_t top_buf,
-                                 ConstData_t wei_buf,
-                                 ConstData_t bias_buf,
-                                 const ConvolutionContext& ctx,
-                                 const ConvSolution& solution,
-                                 float& elapsed_time) const final;
 };
 
 /// Holds common member functions for the Solvers which share the same
@@ -864,11 +858,16 @@ struct ConvHipImplicitGemmV4WrW final : GenericSearchableSolver<ConvolutionConte
 struct ConvOclDirectFwdLegacyExhaustiveSearch : SearchableSolver<ConvolutionContext>
 {
     std::shared_ptr<IPerformanceConfig> GetPerformanceConfig(const ConvolutionContext&) const final;
-    std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
 
     private:
+    std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
+
     template <typename Tgpu>
     LegacyPerformanceConfig SearchImpl(const ConvolutionContext&) const;
+    std::unique_ptr<IPerformanceConfig> AllocateConfig() const final
+    {
+        return std::make_unique<LegacyPerformanceConfig>();
+    }
 };
 
 struct ConvOclDirectFwdBase : ConvOclDirectFwdLegacyExhaustiveSearch
@@ -1038,7 +1037,6 @@ struct ConvAsmBwdWrW3x3 final : GenericSearchableSolver<ConvolutionContext>
     }
     std::shared_ptr<IPerformanceConfig> GetPerformanceConfig(const ConvolutionContext&) const final;
     bool IsValidPerformanceConfig(const ConvolutionContext&, const IPerformanceConfig&) const final;
-    std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
     bool IsApplicable(const ConvolutionContext& params) const final;
     bool IsFast(const ConvolutionContext& params) const final;
     ConvSolution GetSolution(const ConvolutionContext& params,
@@ -1047,6 +1045,13 @@ struct ConvAsmBwdWrW3x3 final : GenericSearchableSolver<ConvolutionContext>
 
     RUN_AND_MEASURE_HELPER_DECLARATION_FWD
     RUN_AND_MEASURE_HELPER_DECLARATION_BWD
+
+	private:
+    std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
+    std::unique_ptr<IPerformanceConfig> AllocateConfig() const final
+    {
+        return std::make_unique<LegacyPerformanceConfig>();
+    }
 };
 
 struct PerformanceConfigConvAsmBwdWrW1x1 final : Serializable<PerformanceConfigConvAsmBwdWrW1x1>,
@@ -1150,7 +1155,6 @@ struct ConvAsmBwdWrW1x1 final : GenericSearchableSolver<ConvolutionContext>
     std::shared_ptr<IPerformanceConfig> GetPerformanceConfig(const ConvolutionContext&) const final;
     bool IsValidPerformanceConfig(const ConvolutionContext&, const IPerformanceConfig&) const final;
     size_t GetWorkspaceSize(const ConvolutionContext& params) const final;
-    std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
     bool IsApplicable(const ConvolutionContext& params) const final;
     bool IsFast(const ConvolutionContext& params) const final;
     int RunAndMeasureSolutionWrW(miopen::Handle& profile_h,
@@ -1164,6 +1168,13 @@ struct ConvAsmBwdWrW1x1 final : GenericSearchableSolver<ConvolutionContext>
     ConvSolution GetSolution(const ConvolutionContext& params,
                              const IPerformanceConfig& config,
                              bool disableConfigOverrideFromEnv) const final;
+
+	private:
+    std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
+    std::unique_ptr<IPerformanceConfig> AllocateConfig() const final
+    {
+        return std::make_unique<LegacyPerformanceConfig>();
+    }
 };
 
 /// N_BATCH_LOOPS - {1,2,4,8,16} Num batches processed in single workitem.
@@ -1266,7 +1277,6 @@ struct ConvOclBwdWrW2 final : GenericSearchableSolver<ConvolutionContext>,
             dynamic_cast<const PerformanceConfigConvOclBwdWrw2<N_BATCH_LOOPS>&>(config_);
         return this->IsValidPerformanceConfigBase(context, config);
     }
-    std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
     int RunAndMeasureSolutionWrW(miopen::Handle& profile_h,
                                  ConstData_t bot_ocl_buf,
                                  ConstData_t top_ocl_buf,
@@ -1287,6 +1297,8 @@ struct ConvOclBwdWrW2 final : GenericSearchableSolver<ConvolutionContext>,
     }
 
     private:
+    std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
+
     template <typename Tgpu>
     int RunAndMeasureSolutionImpl(miopen::Handle& profile_h,
                                   ConstData_t bot_ocl_buf,
@@ -1296,6 +1308,11 @@ struct ConvOclBwdWrW2 final : GenericSearchableSolver<ConvolutionContext>,
                                   const ConvolutionContext& context,
                                   const ConvSolution& solution,
                                   float& elapsed_time) const;
+
+    std::unique_ptr<IPerformanceConfig> AllocateConfig() const final
+    {
+        return std::make_unique<PerformanceConfigConvOclBwdWrw2<N_BATCH_LOOPS>>();
+    }
 };
 
 // To suppress misleading warning
@@ -1366,7 +1383,6 @@ struct ConvSCGemmFwd final : GenericSearchableSolver<ConvolutionContext>
     }
     std::shared_ptr<IPerformanceConfig> GetPerformanceConfig(const ConvolutionContext&) const final;
     bool IsValidPerformanceConfig(const ConvolutionContext&, const IPerformanceConfig&) const final;
-    std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
     bool IsApplicable(const ConvolutionContext& params) const final;
     bool IsFast(const ConvolutionContext& params) const final;
     ConvSolution GetSolution(const ConvolutionContext& params,
@@ -1378,6 +1394,13 @@ struct ConvSCGemmFwd final : GenericSearchableSolver<ConvolutionContext>
 
     protected:
     bool IsApplicableBase(const ConvolutionContext& params) const;
+
+	private:
+    std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
+    std::unique_ptr<IPerformanceConfig> AllocateConfig() const final
+    {
+        return std::make_unique<PerformanceConfigConvOclBwdWrw2<N_BATCH_LOOPS>>();
+    }
 };
 
 extern template struct PerformanceConfigSCGemmFwd<SCGemmOpFGemm>;
