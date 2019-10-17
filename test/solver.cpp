@@ -168,7 +168,7 @@ static solver::ConvSolution FindSolution(const ConvolutionContext& ctx, const st
 {
     test::db_path_override() = db_path;
 
-    const auto solvers =
+    static const auto solvers =
         std::vector<ConvSolver*>{&StaticContainer<TrivialSlowTestSolver>::Instance(),
                                  &StaticContainer<TrivialTestSolver>::Instance(),
                                  &StaticContainer<SearchableTestSolver>::Instance()};
