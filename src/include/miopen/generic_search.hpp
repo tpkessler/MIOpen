@@ -428,7 +428,7 @@ std::shared_ptr<IPerformanceConfig> GenericSearch(const GenericSearchableSolver<
             {
                 MIOPEN_LOG_I2("Finding average for: " << elapsed_time << " / " << best_time << " = "
                                                       << (elapsed_time / best_time));
-                float temp;
+                float temp = 0;
                 for(int i = 0; i < 4; ++i)
                 {
                     ret = RunAndMeasure<direction>{}(s,

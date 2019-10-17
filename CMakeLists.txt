@@ -147,7 +147,7 @@ if( MIOPEN_BACKEND STREQUAL "HIP" OR MIOPEN_BACKEND STREQUAL "HIPOC")
     else()
         message(FATAL_ERROR "clang-ocl not found")
     endif()
-    
+
     if(CMAKE_CXX_COMPILER MATCHES ".*hcc")
         link_libraries(stdc++)
 
@@ -366,6 +366,7 @@ enable_cppcheck(
         # constStatement
         noExplicitConstructor
         passedByValue
+		missingOverride
         # preprocessorErrorDirective
         unusedStructMember
         # Ignore initializer lists in the tests
