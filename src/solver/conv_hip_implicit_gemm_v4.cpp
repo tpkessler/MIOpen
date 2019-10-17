@@ -467,7 +467,7 @@ ConvHipImplicitGemmV4Base::GetPerformanceConfig(const ConvolutionContext& ctx) c
 }
 
 bool ConvHipImplicitGemmV4Base::IsValidPerformanceConfig(const ConvolutionContext& ctx,
-                                                        const IPerformanceConfig& c_) const
+                                                         const IPerformanceConfig& c_) const
 {
     const auto& c = dynamic_cast<const PerformanceImplicitGemm&>(c_);
     MIOPEN_LOG_I("");
@@ -682,13 +682,13 @@ ConvSolution ConvHipImplicitGemmV4_1x1::GetSolution(const ConvolutionContext& ct
 }
 
 int ConvHipImplicitGemmV4Base::RunAndMeasureSolutionFwd(miopen::Handle& profile_h,
-                                                       ConstData_t bot_buf,
-                                                       Data_t top_buf,
-                                                       ConstData_t wei_buf,
-                                                       ConstData_t bias_buf,
-                                                       const ConvolutionContext& ctx,
-                                                       const ConvSolution& solution,
-                                                       float& elapsed_time) const
+                                                        ConstData_t bot_buf,
+                                                        Data_t top_buf,
+                                                        ConstData_t wei_buf,
+                                                        ConstData_t bias_buf,
+                                                        const ConvolutionContext& ctx,
+                                                        const ConvSolution& solution,
+                                                        float& elapsed_time) const
 {
     assert(bias_buf == nullptr);
     (void)bias_buf;

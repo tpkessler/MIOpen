@@ -164,7 +164,7 @@ class SearchableTestSolver final : public solver::SearchableSolver<ConvolutionCo
     std::unique_ptr<IPerformanceConfig> AllocateConfig() const final
     {
         return std::make_unique<TestConfig>();
-	}
+    }
 };
 
 int SearchableTestSolver::_serches_done = 0;
@@ -224,11 +224,11 @@ class SolverTest
     }
 
     private:
-    static void ConstructTest(
-        const std::string& db_path,
-        const char* expected_kernel,
-        const std::initializer_list<size_t>& in,
-        const std::function<void(ConvolutionContext&)>& context_filler = [](ConvolutionContext&) {})
+    static void ConstructTest(const std::string& db_path,
+                              const char* expected_kernel,
+                              const std::initializer_list<size_t>& in,
+                              const std::function<void(ConvolutionContext&)>& context_filler =
+                                  [](ConvolutionContext&) {})
     {
         auto ctx = ConvolutionContext{TensorDescriptor{miopenFloat, in},
                                       TensorDescriptor{},

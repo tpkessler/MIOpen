@@ -802,7 +802,7 @@ struct ConvHipImplicitGemmV4R4XdlopsBase : GenericSearchableSolver<ConvolutionCo
                                  const ConvSolution& solution,
                                  float& elapsed_time) const final;
 
-	private:
+    private:
     std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
     std::unique_ptr<IPerformanceConfig> AllocateConfig() const final
     {
@@ -1046,7 +1046,7 @@ struct ConvAsmBwdWrW3x3 final : GenericSearchableSolver<ConvolutionContext>
     RUN_AND_MEASURE_HELPER_DECLARATION_FWD
     RUN_AND_MEASURE_HELPER_DECLARATION_BWD
 
-	private:
+    private:
     std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
     std::unique_ptr<IPerformanceConfig> AllocateConfig() const final
     {
@@ -1169,7 +1169,7 @@ struct ConvAsmBwdWrW1x1 final : GenericSearchableSolver<ConvolutionContext>
                              const IPerformanceConfig& config,
                              bool disableConfigOverrideFromEnv) const final;
 
-	private:
+    private:
     std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
     std::unique_ptr<IPerformanceConfig> AllocateConfig() const final
     {
@@ -1395,7 +1395,7 @@ struct ConvSCGemmFwd final : GenericSearchableSolver<ConvolutionContext>
     protected:
     bool IsApplicableBase(const ConvolutionContext& params) const;
 
-	private:
+    private:
     std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
     std::unique_ptr<IPerformanceConfig> AllocateConfig() const final
     {
