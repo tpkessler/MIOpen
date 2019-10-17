@@ -807,7 +807,7 @@ struct ConvHipImplicitGemmV4_1x1 final : GenericSearchableSolver<ConvolutionCont
     {
         return std::make_shared<PerformanceImplicitGemm>(sparce);
     }
-    bool IsValidPerformanceConfig(const ConvolutionContext& problem,
+    bool IsValidPerformanceConfig(const ConvolutionContext& ctx,
                                   const IPerformanceConfig& c) const final;
     bool IsApplicable(const ConvolutionContext& ctx) const final;
     ConvSolution GetSolution(const ConvolutionContext& ctx,
