@@ -160,27 +160,24 @@ struct SearchableSolver : virtual SolverBase<TContext>
             MIOPEN_LOG_I(db_id << " (db access disabled)");
             return GetSolution(context, *GetPerformanceConfig(context), false);
         }
+        auto db = GetDb(context);
         const FindEnforce enforce;
         MIOPEN_LOG_I(db_id);
         if(enforce.IsDbClean(context))
         {
-            auto db = GetDb(context);
             if(db.Remove(context, db_id))
                 MIOPEN_LOG_W("Perf Db: record removed: " << db_id << ", enforce: " << enforce);
         }
         else
         {
-            boost::optional<PerfDb> db;
-
             if((context.do_search || enforce.IsSearch(context)) && enforce.IsDbUpdate(context))
             {
                 MIOPEN_LOG_W("Perf Db: load skipped: " << db_id << ", enforce: " << enforce);
             }
             else
             {
-                db          = GetDb(context);
                 auto config = AllocateConfig();
-                if(db->Load(context, db_id, *config))
+                if(db.Load(context, db_id, *config))
                 {
                     MIOPEN_LOG_I2("Perf Db: record loaded: " << db_id);
                     if(this->IsValidPerformanceConfig(context, *config))
@@ -205,9 +202,7 @@ struct SearchableSolver : virtual SolverBase<TContext>
                 try
                 {
                     auto c = Search(context);
-                    if(!db.is_initialized())
-                        db = GetDb(context);
-                    db->Update(context, db_id, *c);
+                    db.Update(context, db_id, *c);
                     return GetSolution(context, *c, false);
                 }
                 catch(const miopen::Exception& ex)
