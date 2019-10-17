@@ -24,6 +24,8 @@
  *
  *******************************************************************************/
 
+#define CONV_MULTIPASS_WINO3X3WRW_CPP
+
 #include <sstream>
 #include <limits>
 #include <cassert>
@@ -457,8 +459,8 @@ bool ConvWinograd3x3MultipassWrW<WinoDataH, WinoFilterH, WinoDataW, WinoFilterW>
     }
     bool ok = (
            (params.kernel_size_w == WinoDataW && params.kernel_size_h == WinoDataH)
-        && (params.kernel_stride_w == 1 
-            || 
+        && (params.kernel_stride_w == 1
+            ||
             (params.kernel_stride_w == 2 && params.kernel_size_h == 3 && params.kernel_size_w == 3)
             )
         && params.kernel_stride_h == params.kernel_stride_w
@@ -508,6 +510,12 @@ ConvWinograd3x3MultipassWrW<WinoDataH, WinoFilterH, WinoDataW, WinoFilterW>::Get
 
     return result;
 }
+
+// To suppress misleading warning
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wweak-template-vtables"
+#endif
 template struct ConvWinograd3x3MultipassWrW<3, 2>;
 template struct ConvWinograd3x3MultipassWrW<3, 3>;
 template struct ConvWinograd3x3MultipassWrW<3, 4>;
@@ -519,6 +527,9 @@ template struct ConvWinograd3x3MultipassWrW<1, 1, 7, 2>;
 template struct ConvWinograd3x3MultipassWrW<1, 1, 7, 3>;
 template struct ConvWinograd3x3MultipassWrW<7, 2, 1, 1>;
 template struct ConvWinograd3x3MultipassWrW<7, 3, 1, 1>;
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 } // namespace solver
 } // namespace miopen

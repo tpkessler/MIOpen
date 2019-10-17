@@ -235,8 +235,8 @@ struct GenericSearchableSolver : virtual SearchableSolver<TContext>
     }
 
     virtual int RunAndMeasureSolutionBwd(miopen::Handle& /*profile_h*/,
-                                         Data_t /*bot_ocl_buf*/,
-                                         ConstData_t /*top_ocl_buf*/,
+                                         ConstData_t /*bot_ocl_buf*/,
+                                         Data_t /*top_ocl_buf*/,
                                          ConstData_t /*wei_ocl_buf*/,
                                          ConstData_t /*bias_ocl_buf*/,
                                          const ConvolutionContext& /*params*/,
@@ -279,6 +279,16 @@ struct GenericSearchableSolver : virtual SearchableSolver<TContext>
                                  const ConvSolution& solution,     \
                                  float& elapsed_time) const final;
 
+#define RUN_AND_MEASURE_HELPER_DECLARATION_WRW                     \
+    int RunAndMeasureSolutionWrW(miopen::Handle& profile_h,        \
+                                 ConstData_t bot_ocl_buf,          \
+                                 ConstData_t top_ocl_buf,          \
+                                 Data_t wei_ocl_buf,               \
+                                 ConstData_t bias_ocl_buf,         \
+                                 const ConvolutionContext& params, \
+                                 const ConvSolution& solution,     \
+                                 float& elapsed_time) const final;
+
 #define RUN_AND_MEASURE_HELPER_FROM_TEMPLATE_FWD(SOLVER)                   \
     int SOLVER::RunAndMeasureSolutionFwd(miopen::Handle& profile_h,        \
                                          ConstData_t bot_ocl_buf,          \
@@ -301,8 +311,8 @@ struct GenericSearchableSolver : virtual SearchableSolver<TContext>
 
 #define RUN_AND_MEASURE_HELPER_FROM_TEMPLATE_BWD(SOLVER)                   \
     int SOLVER::RunAndMeasureSolutionBwd(miopen::Handle& profile_h,        \
-                                         Data_t bot_ocl_buf,               \
-                                         ConstData_t top_ocl_buf,          \
+                                         ConstData_t bot_ocl_buf,          \
+                                         Data_t top_ocl_buf,               \
                                          ConstData_t wei_ocl_buf,          \
                                          ConstData_t bias_ocl_buf,         \
                                          const ConvolutionContext& params, \
@@ -972,6 +982,8 @@ struct ConvWinograd3x3MultipassWrW final : SolverBase<ConvolutionContext>
     }
 };
 
+// To suppress misleading warning
+#ifndef CONV_MULTIPASS_WINO3X3WRW_CPP
 extern template struct ConvWinograd3x3MultipassWrW<3, 2>;
 extern template struct ConvWinograd3x3MultipassWrW<3, 3>;
 extern template struct ConvWinograd3x3MultipassWrW<3, 4>;
@@ -983,6 +995,7 @@ extern template struct ConvWinograd3x3MultipassWrW<1, 1, 7, 2>;
 extern template struct ConvWinograd3x3MultipassWrW<1, 1, 7, 3>;
 extern template struct ConvWinograd3x3MultipassWrW<7, 2, 1, 1>;
 extern template struct ConvWinograd3x3MultipassWrW<7, 3, 1, 1>;
+#endif
 
 struct PerformanceConfigAsmDirect3x3WrW final : Serializable<PerformanceConfigAsmDirect3x3WrW>,
                                                 IPerformanceConfig
@@ -1043,8 +1056,7 @@ struct ConvAsmBwdWrW3x3 final : GenericSearchableSolver<ConvolutionContext>
                              const IPerformanceConfig& config,
                              bool disableConfigOverrideFromEnv) const final;
 
-    RUN_AND_MEASURE_HELPER_DECLARATION_FWD
-    RUN_AND_MEASURE_HELPER_DECLARATION_BWD
+    RUN_AND_MEASURE_HELPER_DECLARATION_WRW
 
     private:
     std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
@@ -1157,14 +1169,7 @@ struct ConvAsmBwdWrW1x1 final : GenericSearchableSolver<ConvolutionContext>
     size_t GetWorkspaceSize(const ConvolutionContext& params) const final;
     bool IsApplicable(const ConvolutionContext& params) const final;
     bool IsFast(const ConvolutionContext& params) const final;
-    int RunAndMeasureSolutionWrW(miopen::Handle& profile_h,
-                                 ConstData_t bot_ocl_buf,
-                                 ConstData_t top_ocl_buf,
-                                 Data_t wei_ocl_buf,
-                                 ConstData_t bias_ocl_buf,
-                                 const ConvolutionContext& params,
-                                 const ConvSolution& solution,
-                                 float& elapsed_time) const final;
+    RUN_AND_MEASURE_HELPER_DECLARATION_WRW
     ConvSolution GetSolution(const ConvolutionContext& params,
                              const IPerformanceConfig& config,
                              bool disableConfigOverrideFromEnv) const final;
@@ -1256,7 +1261,7 @@ struct ConvOclBwdWrW2Base : virtual SolverBase<ConvolutionContext>
 
 template <int N_BATCH_LOOPS>
 struct ConvOclBwdWrW2 final : GenericSearchableSolver<ConvolutionContext>,
-                              virtual ConvOclBwdWrW2Base<N_BATCH_LOOPS>
+                              ConvOclBwdWrW2Base<N_BATCH_LOOPS>
 {
     const std::string& DbId() const final { return SolverDbId(*this); }
     std::shared_ptr<IPerformanceConfig> GetGenericSearchStart(bool sparce) const final
@@ -1277,14 +1282,7 @@ struct ConvOclBwdWrW2 final : GenericSearchableSolver<ConvolutionContext>,
             dynamic_cast<const PerformanceConfigConvOclBwdWrw2<N_BATCH_LOOPS>&>(config_);
         return this->IsValidPerformanceConfigBase(context, config);
     }
-    int RunAndMeasureSolutionWrW(miopen::Handle& profile_h,
-                                 ConstData_t bot_ocl_buf,
-                                 ConstData_t top_ocl_buf,
-                                 Data_t wei_ocl_buf,
-                                 ConstData_t bias_ocl_buf,
-                                 const ConvolutionContext& context,
-                                 const ConvSolution& solution,
-                                 float& elapsed_time) const final;
+    RUN_AND_MEASURE_HELPER_DECLARATION_WRW
 
     using SolverBase<ConvolutionContext>::GetSolution;
     ConvSolution GetSolution(const ConvolutionContext& params,
@@ -1317,6 +1315,11 @@ struct ConvOclBwdWrW2 final : GenericSearchableSolver<ConvolutionContext>,
 
 // To suppress misleading warning
 #ifndef CONV_OCL_DIR2D_BWDWRW_2_CPP
+extern template struct ConvOclBwdWrW2Base<1>;
+extern template struct ConvOclBwdWrW2Base<2>;
+extern template struct ConvOclBwdWrW2Base<4>;
+extern template struct ConvOclBwdWrW2Base<8>;
+extern template struct ConvOclBwdWrW2Base<16>;
 extern template struct ConvOclBwdWrW2<1>;
 extern template struct ConvOclBwdWrW2<2>;
 extern template struct ConvOclBwdWrW2<4>;
@@ -1374,36 +1377,36 @@ struct PerformanceConfigSCGemmFwd final : Serializable<PerformanceConfigSCGemmFw
     bool operator==(const IPerformanceConfig& other) const final;
     std::string ToString() const;
 };
-struct ConvSCGemmFwd final : GenericSearchableSolver<ConvolutionContext>
+struct ConvSCGemmFGemm final : GenericSearchableSolver<ConvolutionContext>
 {
     const std::string& DbId() const final { return SolverDbId(*this); }
     std::shared_ptr<IPerformanceConfig> GetGenericSearchStart(bool sparce) const final
     {
-        return std::make_shared<PerformanceConfigSCGemmFwd<SCGemmOpType>>(sparce);
+        return std::make_shared<PerformanceConfigSCGemmFwd<SCGemmOpFGemm>>(sparce);
     }
     std::shared_ptr<IPerformanceConfig> GetPerformanceConfig(const ConvolutionContext&) const final;
     bool IsValidPerformanceConfig(const ConvolutionContext&, const IPerformanceConfig&) const final;
     bool IsApplicable(const ConvolutionContext& params) const final;
-    bool IsFast(const ConvolutionContext& params) const final;
     ConvSolution GetSolution(const ConvolutionContext& params,
                              const IPerformanceConfig& config,
                              bool disableConfigOverrideFromEnv) const final;
+    size_t GetWorkspaceSize(const ConvolutionContext& params) const;
 
     RUN_AND_MEASURE_HELPER_DECLARATION_FWD
     RUN_AND_MEASURE_HELPER_DECLARATION_BWD
-
-    protected:
-    bool IsApplicableBase(const ConvolutionContext& params) const;
 
     private:
     std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
     std::unique_ptr<IPerformanceConfig> AllocateConfig() const final
     {
-        return std::make_unique<PerformanceConfigConvOclBwdWrw2<N_BATCH_LOOPS>>();
+        return std::make_unique<PerformanceConfigSCGemmFwd<SCGemmOpFGemm>>();
     }
 };
 
+// To suppress misleading warning
+#ifndef CONV_SCGEMM_FWD_CPP
 extern template struct PerformanceConfigSCGemmFwd<SCGemmOpFGemm>;
+#endif
 #endif
 
 /// Partial implementation.

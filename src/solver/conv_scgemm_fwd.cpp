@@ -25,7 +25,7 @@
  *******************************************************************************/
 
 // To suppress misleading warning
-#define SOLVER_CONV_SCGEMM_FWD_CPP
+#define CONV_SCGEMM_FWD_CPP
 
 #include <sstream>
 #include <limits>
@@ -133,7 +133,7 @@ static PerformanceConfigSCGemmFwd<T> GetPerformanceConfigBase(const ConvolutionC
     PerformanceConfigSCGemmFwd<T> pp;
     pp.EuristicInit(params);
     MIOPEN_LOG_I(pp.ToString());
-    return std::make_shared<PerformanceConfigSCGemmFwd<T>>(pp);
+    return pp;
 }
 
 template <SCGemmOpType T>
@@ -228,14 +228,14 @@ static bool IsApplicableBase(const ConvolutionContext& params)
 }
 
 template <typename B, typename TopT>
-static int RunAndMeasureSolutionBase(miopen::Handle& profile_h,
-                                     B bot_ocl_buf,
-                                     TopT top_ocl_buf,
-                                     ConstData_t wei_ocl_buf,
-                                     ConstData_t bias_ocl_buf,
-                                     const ConvolutionContext& params,
-                                     const ConvSolution& solution,
-                                     float& elapsed_time)
+static int RunAndMeasureSolution(miopen::Handle& profile_h,
+                                 B bot_ocl_buf,
+                                 TopT top_ocl_buf,
+                                 ConstData_t wei_ocl_buf,
+                                 ConstData_t bias_ocl_buf,
+                                 const ConvolutionContext& params,
+                                 const ConvSolution& solution,
+                                 float& elapsed_time)
 {
 
 #ifdef NDEBUG
@@ -290,22 +290,17 @@ size_t ConvSCGemmFGemm::GetWorkspaceSize(const ConvolutionContext& params) const
     return GetMaximumSCGemmConvFwdAuxBufferSize(params, SCGemmOpFGemm);
 }
 
-template <SCGemmOpType T>
-RUN_AND_MEASURE_HELPER_FROM_TEMPLATE_FWD(ConvSCGemmFwd<T>)
-
-template <SCGemmOpType T>
-RUN_AND_MEASURE_HELPER_FROM_TEMPLATE_BWD(ConvSCGemmFwd<T>)
-
-template <SCGemmOpType T>
-std::shared_ptr<IPerformanceConfig> ConvSCGemmFwd<T>::Search(
-    const ConvolutionContext& context) const
+std::shared_ptr<IPerformanceConfig>
+ConvSCGemmFGemm::GetPerformanceConfig(const ConvolutionContext& params) const
 {
-    return GetPerformanceConfigBase<SCGemmOpFGemm>(params);
+    return std::make_shared<PerformanceConfigSCGemmFwd<SCGemmOpFGemm>>(
+        GetPerformanceConfigBase<SCGemmOpFGemm>(params));
 }
 
-bool ConvSCGemmFGemm::IsValidPerformanceConfig(
-    const ConvolutionContext& problem, const PerformanceConfigSCGemmFwd<SCGemmOpFGemm>& c) const
+bool ConvSCGemmFGemm::IsValidPerformanceConfig(const ConvolutionContext& problem,
+                                               const IPerformanceConfig& c_) const
 {
+    const auto& c = dynamic_cast<const PerformanceConfigSCGemmFwd<SCGemmOpFGemm>&>(c_);
     return c.IsValidValue() && c.IsValid(problem);
 }
 
@@ -349,9 +344,10 @@ bool ConvSCGemmFGemm::IsApplicable(const ConvolutionContext& params) const
 }
 
 ConvSolution ConvSCGemmFGemm::GetSolution(const ConvolutionContext& params,
-                                          const PerformanceConfigSCGemmFwd<SCGemmOpFGemm>& config,
+                                          const IPerformanceConfig& config_,
                                           const bool /*disableConfigOverrideFromEnv*/) const
 {
+    const auto& config = dynamic_cast<const PerformanceConfigSCGemmFwd<SCGemmOpFGemm>&>(config_);
     ConvSolution result;
     SCGemmKernelParams scgParams;
     scgParams.type    = SCGemmOpFGemm;
@@ -392,33 +388,23 @@ ConvSolution ConvSCGemmFGemm::GetSolution(const ConvolutionContext& params,
     return result;
 }
 
-template <typename B, typename TopT>
-int ConvSCGemmFGemm::RunAndMeasureSolution(miopen::Handle& profile_h,
-                                           B bot_ocl_buf,
-                                           TopT top_ocl_buf,
-                                           ConstData_t wei_ocl_buf,
-                                           ConstData_t bias_ocl_buf,
-                                           const ConvolutionContext& params,
-                                           const ConvSolution& solution,
-                                           float& elapsed_time) const
-{
-    return RunAndMeasureSolutionBase<B, TopT>(profile_h,
-                                              bot_ocl_buf,
-                                              top_ocl_buf,
-                                              wei_ocl_buf,
-                                              bias_ocl_buf,
-                                              params,
-                                              solution,
-                                              elapsed_time);
-}
+RUN_AND_MEASURE_HELPER_FROM_TEMPLATE_FWD(ConvSCGemmFGemm)
+RUN_AND_MEASURE_HELPER_FROM_TEMPLATE_BWD(ConvSCGemmFGemm)
 
-PerformanceConfigSCGemmFwd<SCGemmOpFGemm>
-ConvSCGemmFGemm::Search(const ConvolutionContext& context) const
+std::shared_ptr<IPerformanceConfig> ConvSCGemmFGemm::Search(const ConvolutionContext& context) const
 {
     return GenericSearchFwd(*this, context);
 }
 
+// To suppress misleading warning
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wweak-template-vtables"
+#endif
 template struct PerformanceConfigSCGemmFwd<SCGemmOpFGemm>;
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 } // namespace solver
 } // namespace miopen

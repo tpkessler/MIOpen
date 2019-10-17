@@ -849,6 +849,11 @@ ConvOclBwdWrW2<N_BATCH_LOOPS>::Search(const ConvolutionContext& context) const
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wweak-template-vtables"
 #endif
+template struct ConvOclBwdWrW2Base<1>;
+template struct ConvOclBwdWrW2Base<2>;
+template struct ConvOclBwdWrW2Base<4>;
+template struct ConvOclBwdWrW2Base<8>;
+template struct ConvOclBwdWrW2Base<16>;
 template struct ConvOclBwdWrW2<1>;
 template struct ConvOclBwdWrW2<2>;
 template struct ConvOclBwdWrW2<4>;
