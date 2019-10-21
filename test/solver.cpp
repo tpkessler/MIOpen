@@ -41,30 +41,6 @@
 
 namespace miopen {
 namespace tests {
-class TrivialSlowTestSolver final : public solver::SolverBase<ConvolutionContext>
-{
-    public:
-    static const char* FileName() { return "TrivialSlowTestSolver"; }
-    const std::string& DbId() const override { return SolverDbId(*this); }
-    bool IsFast(const ConvolutionContext& context) const override { return context.in_height == 1; }
-    bool IsApplicable(const ConvolutionContext& context) const override
-    {
-        return context.in_width == 1;
-    }
-
-    solver::ConvSolution GetSolution(const ConvolutionContext&) const override
-    {
-        solver::ConvSolution ret;
-        solver::KernelInfo kernel;
-
-        kernel.kernel_file  = FileName();
-        kernel.comp_options = " ";
-        ret.construction_params.push_back(kernel);
-
-        return ret;
-    }
-};
-
 class TrivialTestSolver final : public solver::SolverBase<ConvolutionContext>
 {
     public:
@@ -174,11 +150,10 @@ static solver::ConvSolution FindSolution(const ConvolutionContext& ctx, const st
     test::db_path_override() = db_path;
 
     static const auto solvers =
-        std::vector<ConvSolver*>{&StaticContainer<TrivialSlowTestSolver>::Instance(),
-                                 &StaticContainer<TrivialTestSolver>::Instance(),
+        std::vector<ConvSolver*>{&StaticContainer<TrivialTestSolver>::Instance(),
                                  &StaticContainer<SearchableTestSolver>::Instance()};
 
-    return SearchForSolution(solvers, ctx);
+    return SearchForAllSolutions(solvers, ctx, 1).front();
 }
 
 class SolverTest
@@ -187,8 +162,6 @@ class SolverTest
     void Run() const
     {
         const TempFile db_path("miopen.tests.solver");
-
-        ConstructTest(db_path, TrivialSlowTestSolver::FileName(), {0, 0, 1, 1});
 
         ConstructTest(db_path, TrivialTestSolver::FileName(), {0, 0, 0, 1});
 
