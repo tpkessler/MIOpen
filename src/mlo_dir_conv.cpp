@@ -105,7 +105,7 @@ miopen::PerfDb miopen::GetDb(const ConvolutionContext& ctx)
 miopen::solver::ConvSolution
 mlo_construct_direct2D_fusion::FindSolution(const std::vector<miopen::ConvSolver*>& solvers)
 {
-    return miopen::solver::SearchForSolution(solvers, _search_params);
+    return miopen::solver::SearchForAllSolutions(solvers, _search_params, 1).front();
 }
 
 static const auto& GetDirectSolvers()
@@ -223,11 +223,7 @@ std::vector<miopen::solver::ConvSolution>
 FindAllImplicitGemmSolutions(const miopen::ConvolutionContext& ctx)
 {
 #if IMPLICIT_GEMM_FIND_FIRST_SOLUTION
-    auto ss = SearchForSolution(GetImplicitGemmSolvers(), ctx);
-    if(ss.Succeeded())
-        return {ss};
-    else
-        return {};
+    return SearchForAllSolutions(GetImplicitGemmSolvers(), ctx, 1);
 #else
     return SearchForAllSolutions(GetImplicitGemmSolvers(), ctx);
 #endif
@@ -237,11 +233,6 @@ std::vector<miopen::solver::ConvSolution>
 FindAllWinogradSolutions(const miopen::ConvolutionContext& ctx)
 {
     return SearchForAllSolutions(GetWindogradSolvers(), ctx);
-}
-
-miopen::solver::ConvSolution FindWinogradSolution(const miopen::ConvolutionContext& ctx)
-{
-    return SearchForSolution(GetWindogradSolvers(), ctx);
 }
 
 std::vector<miopen::solver::ConvSolution>

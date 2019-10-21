@@ -80,11 +80,6 @@ struct SolverBase
     /// says "I'm suitable" for a problem, it agrees to solve that problem correctly.
     virtual bool IsApplicable(const TContext&) const = 0;
 
-    /// Legacy euristic method which shall return false when a solution
-    /// is known to be slower than some another solution for the same problem config.
-    /// Intended to be used for performance optimization.
-    /// Warning: Non-trivial implementations introduce implicit dependencies between solutions.
-    virtual bool IsFast(const TContext&) const { return true; }
     // Returns the workspace size required by the solver for a given ConvolutionContext
     virtual size_t GetWorkspaceSize(const TContext&) const { return 0; };
 
@@ -360,7 +355,6 @@ struct ConvAsm3x3U final : GenericSearchableSolver<ConvolutionContext>
 {
     const std::string& DbId() const override { return SolverDbId(*this); }
     bool IsApplicable(const ConvolutionContext& params) const override;
-    bool IsFast(const ConvolutionContext& params) const override;
     std::shared_ptr<IPerformanceConfig> GetGenericSearchStart(bool sparce) const final
     {
         return std::make_shared<PerformanceConfigConvAsm3x3U>(sparce);
@@ -441,7 +435,6 @@ struct ConvAsm1x1UBase : virtual SearchableSolver<ConvolutionContext>
 {
     bool IsValidPerformanceConfig(const ConvolutionContext&, const IPerformanceConfig&) const final;
     bool IsApplicable(const ConvolutionContext& params) const final;
-    bool IsFast(const ConvolutionContext& params) const final;
     size_t GetWorkspaceSize(const ConvolutionContext& params) const final;
     ConvSolution GetSolution(const ConvolutionContext& params,
                              const IPerformanceConfig& config,
@@ -571,7 +564,6 @@ struct ConvAsm1x1UV2 final : GenericSearchableSolver<ConvolutionContext>
     bool IsValidPerformanceConfig(const ConvolutionContext&, const IPerformanceConfig&) const final;
     std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
     bool IsApplicable(const ConvolutionContext& params) const final;
-    bool IsFast(const ConvolutionContext& params) const final;
     ConvSolution GetSolution(const ConvolutionContext& params,
                              const IPerformanceConfig& config,
                              bool disableConfigOverrideFromEnv) const final;
@@ -1051,7 +1043,6 @@ struct ConvAsmBwdWrW3x3 final : GenericSearchableSolver<ConvolutionContext>
     std::shared_ptr<IPerformanceConfig> GetPerformanceConfig(const ConvolutionContext&) const final;
     bool IsValidPerformanceConfig(const ConvolutionContext&, const IPerformanceConfig&) const final;
     bool IsApplicable(const ConvolutionContext& params) const final;
-    bool IsFast(const ConvolutionContext& params) const final;
     ConvSolution GetSolution(const ConvolutionContext& params,
                              const IPerformanceConfig& config,
                              bool disableConfigOverrideFromEnv) const final;
@@ -1168,7 +1159,6 @@ struct ConvAsmBwdWrW1x1 final : GenericSearchableSolver<ConvolutionContext>
     bool IsValidPerformanceConfig(const ConvolutionContext&, const IPerformanceConfig&) const final;
     size_t GetWorkspaceSize(const ConvolutionContext& params) const final;
     bool IsApplicable(const ConvolutionContext& params) const final;
-    bool IsFast(const ConvolutionContext& params) const final;
     RUN_AND_MEASURE_HELPER_DECLARATION_WRW
     ConvSolution GetSolution(const ConvolutionContext& params,
                              const IPerformanceConfig& config,
