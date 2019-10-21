@@ -32,94 +32,99 @@
 #include <miopen/find_controls.hpp>
 #include <miopen/solver.hpp>
 
-#include <vector>
+#include <boost/optional.hpp>
 
-/// Allows to explicitly disable performance filtering heuristics
-/// in "Find first convolution only" mode.
-MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_AMD_ASM_KERNELS_PERF_FILTERING)
+#include <limits>
+#include <vector>
 
 namespace miopen {
 namespace solver {
 
 template <class TContext>
-ConvSolution SearchForSolution(const std::vector<SolverBase<TContext>*>& solvers,
-                               const TContext& search_params)
+boost::optional<ConvSolution> SearchForSolution(const SolverBase<TContext>& solver,
+                                                const TContext& ctx)
 {
-// Using const here causes gcc to ICE
-#if(!defined(__GNUC__) || defined(__clang__))
-    const
-#endif
-        auto no_perf_filtering = miopen::IsDisabled(MIOPEN_DEBUG_AMD_ASM_KERNELS_PERF_FILTERING{});
+    ConvSolution solution;
 
-    for(const auto solver : solvers)
+    try
     {
-        if(!solver->IsApplicable(search_params) ||
-           !(no_perf_filtering || solver->IsFast(search_params)))
+        if(!solver.IsApplicable(ctx))
         {
-            MIOPEN_LOG_I2(solver->DbId() << ": Not applicable");
-            continue;
+            MIOPEN_LOG_I2(solver.DbId() << ": Not applicable");
+            return boost::none;
         }
 
-        const auto solution = solver->GetSolution(search_params);
-        if(!solution.Succeeded())
-            continue;
-        MIOPEN_LOG_I2(solver->DbId() << ": Success.");
-        if(!solution.construction_params.empty())
-            return solution;
-        MIOPEN_THROW(std::string("Internal error in solver: ") + solver->DbId());
+        solution = solver.GetSolution(ctx);
+    }
+    catch(const std::exception& exception)
+    {
+        MIOPEN_LOG_E("Internal error in solver " << solver.DbId() << ": " << exception.what());
+        return boost::none;
     }
 
-    return ConvSolution{miopenStatusUnknownError};
-}
-
-// Search for all applicable solutions among many solvers
-template <class TContext>
-std::vector<ConvSolution> SearchForAllSolutions(const std::vector<SolverBase<TContext>*>& solvers,
-                                                const TContext& search_params)
-{
-    std::vector<ConvSolution> ss;
-    for(const auto& solver : solvers)
+    if(!solution.Succeeded())
     {
-        if(!solver->IsApplicable(search_params))
-        {
-            MIOPEN_LOG_I2(solver->DbId() << ": Not applicable");
-            continue;
-        }
-
-        const auto s = solver->GetSolution(search_params);
-        if(s.Succeeded())
-        {
-            ss.push_back(s);
-            MIOPEN_LOG_I2(solver->DbId() << ": Success.");
-            continue;
-        }
-
         /// \todo If Solver is applicable it must provide an appropriate ConvSolution.
         /// This is not the case for some 20x5 convolutions (and possibly others).
         /// Normally we should not get here and message level should be Error.
         /// For now, let's use Info (not Warning) level to avoid
         /// flooding the console.
-        MIOPEN_LOG_I(solver->DbId() << ": [Warning] Applicable Solver not succeeded.");
+        MIOPEN_LOG_I(solver.DbId() << ": [Warning] Applicable Solver not succeeded.");
+        return boost::none;
+    }
+
+    MIOPEN_LOG_I2(solver.DbId() << ": Success.");
+    if(!solution.construction_params.empty())
+        return solution;
+    MIOPEN_THROW("Internal error in solver " + solver.DbId() + ": construct params are empty");
+    return boost::none;
+}
+
+// Search for all applicable solutions among many solvers
+template <class TContext>
+std::vector<ConvSolution> SearchForAllSolutions(const std::vector<SolverBase<TContext>*>& solvers,
+                                                const TContext& ctx,
+                                                std::size_t limit = std::numeric_limits<std::size_t>::max())
+{
+    std::vector<ConvSolution> ss;
+    std::size_t id = 0;
+    for(const auto& solver : solvers)
+    {
+        const auto solution = SearchForSolution(*solver, ctx);
+        if(solution)
+        {
+            ss.push_back(*solution);
+            ++id;
+            if(id >= limit)
+                break;
+        }
     }
     return ss;
 }
 
 template <class TContext>
 std::vector<std::pair<std::string, size_t>>
-GetWorkspaceSize(const std::vector<SolverBase<TContext>*>& solvers, const TContext& search_params)
+GetWorkspaceSize(const std::vector<SolverBase<TContext>*>& solvers, const TContext& ctx)
 {
     std::vector<std::pair<std::string, size_t>> res;
 
     for(const auto solver : solvers)
     {
-        if(!solver->IsApplicable(search_params))
+        try
         {
-            MIOPEN_LOG_I2(solver->DbId() << ": Not applicable");
-            continue;
-        }
+            if(!solver->IsApplicable(ctx))
+            {
+                MIOPEN_LOG_I2(solver->DbId() << ": Not applicable");
+                continue;
+            }
 
-        const auto sz = solver->GetWorkspaceSize(search_params);
-        res.emplace_back(solver->DbId(), sz);
+            const auto sz = solver->GetWorkspaceSize(ctx);
+            res.emplace_back(solver->DbId(), sz);
+        }
+        catch(const std::exception& exception)
+        {
+            MIOPEN_LOG_E("Internal error in solver " << solver->DbId() << ": " << exception.what());
+        }
     }
 
     return res;
