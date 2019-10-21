@@ -1062,7 +1062,7 @@ struct ConvAsmBwdWrW3x3 final : GenericSearchableSolver<ConvolutionContext>
     std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
     std::unique_ptr<IPerformanceConfig> AllocateConfig() const final
     {
-        return std::make_unique<LegacyPerformanceConfig>();
+        return std::make_unique<PerformanceConfigAsmDirect3x3WrW>();
     }
 };
 
@@ -1178,7 +1178,7 @@ struct ConvAsmBwdWrW1x1 final : GenericSearchableSolver<ConvolutionContext>
     std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final;
     std::unique_ptr<IPerformanceConfig> AllocateConfig() const final
     {
-        return std::make_unique<LegacyPerformanceConfig>();
+        return std::make_unique<PerformanceConfigConvAsmBwdWrW1x1>();
     }
 };
 
