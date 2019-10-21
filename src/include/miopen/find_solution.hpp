@@ -82,9 +82,10 @@ boost::optional<ConvSolution> SearchForSolution(const SolverBase<TContext>& solv
 
 // Search for all applicable solutions among many solvers
 template <class TContext>
-std::vector<ConvSolution> SearchForAllSolutions(const std::vector<SolverBase<TContext>*>& solvers,
-                                                const TContext& ctx,
-                                                std::size_t limit = std::numeric_limits<std::size_t>::max())
+std::vector<ConvSolution>
+SearchForAllSolutions(const std::vector<SolverBase<TContext>*>& solvers,
+                      const TContext& ctx,
+                      std::size_t limit = std::numeric_limits<std::size_t>::max())
 {
     std::vector<ConvSolution> ss;
     std::size_t id = 0;
