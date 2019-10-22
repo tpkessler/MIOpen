@@ -55,6 +55,7 @@ boost::optional<ConvSolution> SearchForSolution(const SolverBase<TContext>& solv
         }
 
         solution = solver.GetSolution(ctx);
+        solution.solver_id = solver.DbId();
     }
     catch(const std::exception& exception)
     {
