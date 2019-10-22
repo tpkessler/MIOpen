@@ -83,10 +83,6 @@ struct SolverBase
     // Returns the workspace size required by the solver for a given ConvolutionContext
     virtual size_t GetWorkspaceSize(const TContext&) const { return 0; };
 
-    /// Takes problem config, optimization parameters and other info
-    /// and computes information required to build and run the kernel(s).
-    virtual ConvSolution GetSolution(const TContext& params) const = 0;
-
     /// Temporary solver-specific method until we have generic means for running solutions.
     /// int RunAndMeasureSolution(miopen::Handle& profile_h,
     ///                          Data_t bot_ocl_buf,
@@ -99,6 +95,15 @@ struct SolverBase
 
     virtual const std::string& DbId() const = 0;
 
+    /// Takes problem config, optimization parameters and other info
+    /// and computes information required to build and run the kernel(s).
+	ConvSolution FindSolution(const TContext& params) const 
+	{
+		auto solution = GetSolution(params);
+        solution.solver_id = DbId();
+		return solution;
+	}
+
     protected:
     template <class Solver>
     static const std::string& SolverDbId(const Solver& solver)
@@ -106,6 +111,10 @@ struct SolverBase
         static const auto result = ComputeSolverDbId(solver);
         return result;
     }
+
+    /// Takes problem config, optimization parameters and other info
+    /// and computes information required to build and run the kernel(s).
+    virtual ConvSolution GetSolution(const TContext& params) const = 0;
 
     private:
     template <class Solver>
