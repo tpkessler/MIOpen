@@ -59,8 +59,6 @@ struct AnyPerformanceConfig final
     template <class TPerformanceConfig>
     struct PerformanceConfigModelBase : public PerformanceConfigConcept
     {
-        PerformanceConfigModelBase(TPerformanceConfig&& config_) : config(std::move(config_)) {}
-
         void Serialize(std::ostream& stream) const final { config.Serialize(stream); }
         bool Deserialize(const std::string& s) final { return config.Deserialize(s); }
 
@@ -75,10 +73,13 @@ struct AnyPerformanceConfig final
                 TPerformanceConfig{config});
         }
 
+        TPerformanceConfig& Get() { return config; }
+        const TPerformanceConfig& Get() const { return config; }
+
         protected:
         TPerformanceConfig config;
 
-        friend struct AnyPerformanceConfig;
+        PerformanceConfigModelBase(TPerformanceConfig&& config_) : config(std::move(config_)) {}
     };
 
     template <class TPerformanceConfig, class = bool>
@@ -229,7 +230,7 @@ struct AnyPerformanceConfig final
             MIOPEN_THROW("Invalid AnyPerformanceConfig cast: config type doesn't match.");
 
         auto& casted_config = dynamic_cast<PerformanceConfigModel<TPerformanceConfig>&>(*config);
-        return casted_config.config;
+        return casted_config.Get();
     }
 
     template <class TPerformanceConfig>
@@ -242,7 +243,7 @@ struct AnyPerformanceConfig final
 
         const auto& casted_config =
             dynamic_cast<const PerformanceConfigModel<TPerformanceConfig>&>(*config);
-        return casted_config.config;
+        return casted_config.Get();
     }
 
     private:
