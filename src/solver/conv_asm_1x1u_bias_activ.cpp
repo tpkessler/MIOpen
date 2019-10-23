@@ -51,10 +51,9 @@ bool PerformanceConfigConvBiasActivAsm1x1U::IsValid(const ConvolutionContext& co
     return PerformanceConfigConvAsm1x1U::IsValid(config);
 }
 
-inline bool PerformanceConfigConvBiasActivAsm1x1U::
-operator==(const IPerformanceConfig& other_) const
+bool PerformanceConfigConvBiasActivAsm1x1U::
+operator==(const PerformanceConfigConvBiasActivAsm1x1U& other) const
 {
-    const auto& other = dynamic_cast<const PerformanceConfigConvBiasActivAsm1x1U&>(other_);
     // clang-format off
             return read_size == other.read_size
                 && k_mult == other.k_mult
@@ -67,13 +66,13 @@ operator==(const IPerformanceConfig& other_) const
                 && use_spare_set == other.use_spare_set; // clang-format on
 }
 
-std::shared_ptr<IPerformanceConfig>
+AnyPerformanceConfig
 ConvBiasActivAsm1x1U::GetPerformanceConfig(const ConvolutionContext& params) const
 {
     PerformanceConfigConvBiasActivAsm1x1U pp;
     pp.EuristicInit(params);
     MIOPEN_LOG_I(pp.ToString());
-    return std::make_shared<PerformanceConfigConvAsm1x1U>(pp);
+    return PerformanceConfigConvAsm1x1U{pp};
 }
 
 template <typename B, typename T>
@@ -145,8 +144,7 @@ int RunAndMeasureSolution(miopen::Handle& profile_h,
 RUN_AND_MEASURE_HELPER_FROM_TEMPLATE_FWD(ConvBiasActivAsm1x1U)
 RUN_AND_MEASURE_HELPER_FROM_TEMPLATE_BWD(ConvBiasActivAsm1x1U)
 
-std::shared_ptr<IPerformanceConfig>
-ConvBiasActivAsm1x1U::Search(const ConvolutionContext& context) const
+AnyPerformanceConfig ConvBiasActivAsm1x1U::Search(const ConvolutionContext& context) const
 {
     ConvolutionContext cba_context = context;
     cba_context.bias               = 1;

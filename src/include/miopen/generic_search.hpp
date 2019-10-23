@@ -52,10 +52,9 @@ template <typename Context>
 class ComputedContainer;
 
 template <typename Context>
-class ComputedIterator
-    : public std::iterator<std::input_iterator_tag, std::shared_ptr<IPerformanceConfig>>
+class ComputedIterator : public std::iterator<std::input_iterator_tag, AnyPerformanceConfig>
 {
-    std::shared_ptr<IPerformanceConfig> v;
+    AnyPerformanceConfig v;
     const Context* p; // For Next().
 
     ComputedIterator& Next()
@@ -64,33 +63,31 @@ class ComputedIterator
         {
             do
             {
-                if(!v->SetNextValue())
+                if(!v.SetNextValue())
                 { // Wraparound, end reached. Iterator is useless from now.
                     p = nullptr;
                     break;
                 }
-            } while(!v->IsValid(*p));
+            } while(!v.IsValid(*p));
         }
         return *this;
     }
 
     // Implements container's begin()
-    ComputedIterator(const Context& problem,
-                     const bool spare,
-                     const GenericSearchableSolver<Context>& solver)
-        : v(solver.GetGenericSearchStart(spare)), p(&problem)
+    ComputedIterator(const Context& problem, AnyPerformanceConfig&& value)
+        : v(std::move(value)), p(&problem)
     {
-        if(!v->IsValid(*p))
+        while(!v.IsValid(*p) && p != nullptr)
             Next();
     }
 
     public:
     // STL-like iterator shall be default contructible. Also implements container's end()
-    ComputedIterator() : p(nullptr) {}
+    ComputedIterator() : v(InializeAsEmpty{}), p(nullptr) {}
     // STL-like iterator shall be copy contructible. The default copy ctor is ok.
 
     ComputedIterator& operator++() { return Next(); }
-    const std::shared_ptr<IPerformanceConfig>& operator*() const { return v; }
+    const AnyPerformanceConfig operator*() const { return v; }
     bool operator!=(ComputedIterator const& other) const
     {
         if(p == other.p)
@@ -134,7 +131,7 @@ class ComputedContainer
         : problem(problem_), spare(spare_), solver(solver_)
     {
     }
-    const_iterator begin() const { return {problem, spare, solver}; }
+    const_iterator begin() const { return {problem, solver.GetGenericSearchStart(spare)}; }
     const_iterator end() const { return {}; }
 };
 
@@ -163,7 +160,7 @@ class HeartBeat
     float best_time; // within beat
     float elapsed_cumulative;
     Timer timer;
-    std::shared_ptr<IPerformanceConfig> best_config;
+    AnyPerformanceConfig best_config;
 
     void Continue()
     {
@@ -173,9 +170,16 @@ class HeartBeat
     }
 
     public:
-    HeartBeat() : n_within_beat(), n_best(), best_time(), elapsed_cumulative() {}
+    HeartBeat()
+        : n_within_beat(),
+          n_best(),
+          best_time(),
+          elapsed_cumulative(),
+          best_config(InializeAsEmpty{})
+    {
+    }
 
-    void Start(const std::shared_ptr<IPerformanceConfig>& config)
+    void Start(const AnyPerformanceConfig& config)
     {
         elapsed_cumulative = 0.0f;
         best_config        = config;
@@ -188,7 +192,7 @@ class HeartBeat
                  const float total_best,
                  size_t n_failed,
                  size_t n_total,
-                 const std::shared_ptr<IPerformanceConfig>& recent_config)
+                 const AnyPerformanceConfig& recent_config)
     {
         ++n_within_beat;
         if(!is_recent_failed && (recent_time < best_time))
@@ -304,16 +308,16 @@ struct RunAndMeasure<Direction::Weights>
 };
 
 template <Direction direction, class Context, typename TopT, typename BotT, typename WeiT>
-std::shared_ptr<IPerformanceConfig> GenericSearch(const GenericSearchableSolver<Context>& s,
-                                                  const Context& context,
-                                                  const SearchTweak tweak,
-                                                  TopT top_ocl_ptr,
-                                                  BotT bot_ocl_ptr,
-                                                  WeiT wei_ocl_ptr)
+AnyPerformanceConfig GenericSearch(const GenericSearchableSolver<Context>& s,
+                                   const Context& context,
+                                   const SearchTweak tweak,
+                                   TopT top_ocl_ptr,
+                                   BotT bot_ocl_ptr,
+                                   WeiT wei_ocl_ptr)
 {
-    std::shared_ptr<IPerformanceConfig> best_config;
+    auto best_config            = AnyPerformanceConfig{InializeAsEmpty{}};
     const auto default_config   = s.GetPerformanceConfig(context);
-    const auto default_solution = s.GetSolution(context, *default_config, false);
+    const auto default_solution = s.GetSolution(context, default_config, false);
 
     auto& profile_h          = context.GetStream();
     ConstData_t bias_ocl_ptr = context.GetBufs().bias;
@@ -371,11 +375,10 @@ std::shared_ptr<IPerformanceConfig> GenericSearch(const GenericSearchableSolver<
     heartbeat.Start(default_config);
 
     profile_h.EnableProfiling(true);
-    for(auto& current_config_ptr : all_configs)
+    for(const auto& current_config : all_configs)
     {
-        const auto& current_config = *current_config_ptr;
-        float elapsed_time         = 0.0f;
-        int ret                    = 0;
+        float elapsed_time = 0.0f;
+        int ret            = 0;
         MIOPEN_LOG_I2('#' << n_current << '/' << n_failed << '/' << n_runs_total << ' '
                           << current_config);
 
@@ -459,7 +462,7 @@ std::shared_ptr<IPerformanceConfig> GenericSearch(const GenericSearchableSolver<
                                          << best_time
                                          << ' '
                                          << current_config);
-                        best_config = current_config_ptr;
+                        best_config = current_config;
                         best_time   = elapsed_time;
                         n_best      = n_current;
                     }
@@ -479,13 +482,8 @@ std::shared_ptr<IPerformanceConfig> GenericSearch(const GenericSearchableSolver<
                              << ret);
             ++n_failed;
         }
-        heartbeat.Monitor(ret != 0,
-                          elapsed_time,
-                          n_current,
-                          best_time,
-                          n_failed,
-                          n_runs_total,
-                          current_config_ptr);
+        heartbeat.Monitor(
+            ret != 0, elapsed_time, n_current, best_time, n_failed, n_runs_total, current_config);
         ++n_current;
     }
 
@@ -544,27 +542,27 @@ std::shared_ptr<IPerformanceConfig> GenericSearch(const GenericSearchableSolver<
 /// ------------------------------------------------
 /// clang-format-on
 template <class Context>
-std::shared_ptr<IPerformanceConfig> GenericSearchFwd(const GenericSearchableSolver<Context>& s,
-                                                     const Context& context,
-                                                     const SearchTweak tweak = SearchTweak::None)
+AnyPerformanceConfig GenericSearchFwd(const GenericSearchableSolver<Context>& s,
+                                      const Context& context,
+                                      const SearchTweak tweak = SearchTweak::None)
 {
     const auto& bufs = context.GetBufs().io.fwd;
     return GenericSearch<Direction::Forward>(s, context, tweak, bufs.y, bufs.x, bufs.w);
 }
 
 template <class Context>
-std::shared_ptr<IPerformanceConfig> GenericSearchBwd(const GenericSearchableSolver<Context>& s,
-                                                     const Context& context,
-                                                     const SearchTweak tweak = SearchTweak::None)
+AnyPerformanceConfig GenericSearchBwd(const GenericSearchableSolver<Context>& s,
+                                      const Context& context,
+                                      const SearchTweak tweak = SearchTweak::None)
 {
     const auto& bufs = context.GetBufs().io.bwd;
     return GenericSearch<Direction::Bacward>(s, context, tweak, bufs.dx, bufs.dy, bufs.w);
 }
 
 template <class Context>
-std::shared_ptr<IPerformanceConfig> GenericSearchWrW(const GenericSearchableSolver<Context>& s,
-                                                     const Context& context,
-                                                     const SearchTweak tweak = SearchTweak::None)
+AnyPerformanceConfig GenericSearchWrW(const GenericSearchableSolver<Context>& s,
+                                      const Context& context,
+                                      const SearchTweak tweak = SearchTweak::None)
 {
     const auto& bufs = context.GetBufs().io.wrw;
     return GenericSearch<Direction::Weights>(s, context, tweak, bufs.dx, bufs.dy, bufs.dw);

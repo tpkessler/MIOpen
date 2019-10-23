@@ -65,7 +65,7 @@ inline static auto GetPerformanceConfigBase(const ConvolutionContext& ctx)
     PerformanceImplicitGemm_t pp;
     pp.EuristicInit(ctx);
     MIOPEN_LOG_I(pp.ToString());
-    return std::make_shared<PerformanceImplicitGemm_t>(pp);
+    return pp;
 }
 
 static inline int RunAndMeasureSolutionBase(miopen::Handle& profile_h,

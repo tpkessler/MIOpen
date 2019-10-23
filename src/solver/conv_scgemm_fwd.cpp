@@ -24,9 +24,6 @@
  *
  *******************************************************************************/
 
-// To suppress misleading warning
-#define CONV_SCGEMM_FWD_CPP
-
 #include <sstream>
 #include <limits>
 #include <cassert>
@@ -83,9 +80,8 @@ PerformanceConfigSCGemmFwd<T>::PerformanceConfigSCGemmFwd(bool)
 }
 
 template <SCGemmOpType T>
-bool PerformanceConfigSCGemmFwd<T>::operator==(const IPerformanceConfig& other_) const
+bool PerformanceConfigSCGemmFwd<T>::operator==(const PerformanceConfigSCGemmFwd<T>& other) const
 {
-    const auto& other = dynamic_cast<const PerformanceConfigSCGemmFwd<T>&>(other_);
     // clang-format off
     return routine == other.routine;
     // clang-format on
@@ -290,17 +286,15 @@ size_t ConvSCGemmFGemm::GetWorkspaceSize(const ConvolutionContext& params) const
     return GetMaximumSCGemmConvFwdAuxBufferSize(params, SCGemmOpFGemm);
 }
 
-std::shared_ptr<IPerformanceConfig>
-ConvSCGemmFGemm::GetPerformanceConfig(const ConvolutionContext& params) const
+AnyPerformanceConfig ConvSCGemmFGemm::GetPerformanceConfig(const ConvolutionContext& params) const
 {
-    return std::make_shared<PerformanceConfigSCGemmFwd<SCGemmOpFGemm>>(
-        GetPerformanceConfigBase<SCGemmOpFGemm>(params));
+    return GetPerformanceConfigBase<SCGemmOpFGemm>(params);
 }
 
 bool ConvSCGemmFGemm::IsValidPerformanceConfig(const ConvolutionContext& problem,
-                                               const IPerformanceConfig& c_) const
+                                               const AnyPerformanceConfig& c_) const
 {
-    const auto& c = dynamic_cast<const PerformanceConfigSCGemmFwd<SCGemmOpFGemm>&>(c_);
+    const auto& c = c_.CastTo<PerformanceConfigSCGemmFwd<SCGemmOpFGemm>>();
     return c.IsValidValue() && c.IsValid(problem);
 }
 
@@ -344,10 +338,10 @@ bool ConvSCGemmFGemm::IsApplicable(const ConvolutionContext& params) const
 }
 
 ConvSolution ConvSCGemmFGemm::GetSolution(const ConvolutionContext& params,
-                                          const IPerformanceConfig& config_,
+                                          const AnyPerformanceConfig& config_,
                                           const bool /*disableConfigOverrideFromEnv*/) const
 {
-    const auto& config = dynamic_cast<const PerformanceConfigSCGemmFwd<SCGemmOpFGemm>&>(config_);
+    const auto& config = config_.CastTo<PerformanceConfigSCGemmFwd<SCGemmOpFGemm>>();
     ConvSolution result;
     SCGemmKernelParams scgParams;
     scgParams.type    = SCGemmOpFGemm;
@@ -391,20 +385,13 @@ ConvSolution ConvSCGemmFGemm::GetSolution(const ConvolutionContext& params,
 RUN_AND_MEASURE_HELPER_FROM_TEMPLATE_FWD(ConvSCGemmFGemm)
 RUN_AND_MEASURE_HELPER_FROM_TEMPLATE_BWD(ConvSCGemmFGemm)
 
-std::shared_ptr<IPerformanceConfig> ConvSCGemmFGemm::Search(const ConvolutionContext& context) const
+AnyPerformanceConfig ConvSCGemmFGemm::Search(const ConvolutionContext& context) const
 {
     return GenericSearchFwd(*this, context);
 }
 
 // To suppress misleading warning
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wweak-template-vtables"
-#endif
 template struct PerformanceConfigSCGemmFwd<SCGemmOpFGemm>;
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
 
 } // namespace solver
 } // namespace miopen

@@ -37,7 +37,7 @@
 namespace miopen {
 namespace solver {
 
-struct LegacyPerformanceConfig : Serializable<LegacyPerformanceConfig>, IPerformanceConfig
+struct LegacyPerformanceConfig : Serializable<LegacyPerformanceConfig>
 {
     int grp_tile1       = 0;
     int grp_tile0       = 0;
@@ -76,22 +76,6 @@ struct LegacyPerformanceConfig : Serializable<LegacyPerformanceConfig>, IPerform
         f(self.n_in_data_tiles, "temp.n_in_data_tiles");
         f(self.n_stacks, "temp.n_stacks");
     }
-
-    bool SetNextValue() override
-    {
-        MIOPEN_THROW("LegacyPerformanceConfig doesn't support generic_search");
-        return false;
-    };
-    bool IsValid(const ConvolutionContext&) const override
-    {
-        MIOPEN_THROW("LegacyPerformanceConfig doesn't support generic_search");
-        return false;
-    };
-    bool operator==(const IPerformanceConfig&) const override
-    {
-        MIOPEN_THROW("LegacyPerformanceConfig doesn't support generic_search");
-        return false;
-    };
 };
 } // namespace solver
 } // namespace miopen

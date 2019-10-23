@@ -108,9 +108,9 @@ PerformanceConfigAsmDirect3x3WrW::PerformanceConfigAsmDirect3x3WrW(
 {
 }
 
-inline bool PerformanceConfigAsmDirect3x3WrW::operator==(const IPerformanceConfig& other_) const
+bool PerformanceConfigAsmDirect3x3WrW::
+operator==(const PerformanceConfigAsmDirect3x3WrW& other) const
 {
-    const auto& other = dynamic_cast<const PerformanceConfigAsmDirect3x3WrW&>(other_);
     // clang-format off
     return limit_wave_cnt == other.limit_wave_cnt
         && reverse_inout == other.reverse_inout
@@ -319,19 +319,18 @@ std::string PerformanceConfigAsmDirect3x3WrW::ToString() const
     return ss.str();
 }
 
-std::shared_ptr<IPerformanceConfig>
-ConvAsmBwdWrW3x3::GetPerformanceConfig(const ConvolutionContext& params) const
+AnyPerformanceConfig ConvAsmBwdWrW3x3::GetPerformanceConfig(const ConvolutionContext& params) const
 {
     PerformanceConfigAsmDirect3x3WrW pp;
     pp.EuristicInit(params);
     MIOPEN_LOG_I(pp.ToString());
-    return std::make_shared<PerformanceConfigAsmDirect3x3WrW>(pp);
+    return pp;
 }
 
 bool ConvAsmBwdWrW3x3::IsValidPerformanceConfig(const ConvolutionContext& problem,
-                                                const IPerformanceConfig& c_) const
+                                                const AnyPerformanceConfig& c_) const
 {
-    const auto& c = dynamic_cast<const PerformanceConfigAsmDirect3x3WrW&>(c_);
+    const auto& c = c_.CastTo<PerformanceConfigAsmDirect3x3WrW>();
     return c.IsValidValue() && c.IsValid(problem);
 }
 
@@ -407,10 +406,10 @@ bool ConvAsmBwdWrW3x3::IsApplicable(const ConvolutionContext& params) const
 }
 
 ConvSolution ConvAsmBwdWrW3x3::GetSolution(const ConvolutionContext& params,
-                                           const IPerformanceConfig& config_,
+                                           const AnyPerformanceConfig& config_,
                                            const bool disableConfigOverrideFromEnv) const
 {
-    const auto& config = dynamic_cast<const PerformanceConfigAsmDirect3x3WrW&>(config_);
+    const auto& config = config_.CastTo<PerformanceConfigAsmDirect3x3WrW>();
     ConvSolution result;
     std::ostringstream options;
     GenerateClangDefsym(options, "elements_in_dword", (params.IsFp16()) ? 2 : 1);
@@ -557,8 +556,7 @@ int ConvAsmBwdWrW3x3::RunAndMeasureSolutionWrW(miopen::Handle& profile_h,
     return 0;
 }
 
-std::shared_ptr<IPerformanceConfig>
-ConvAsmBwdWrW3x3::Search(const ConvolutionContext& context) const
+AnyPerformanceConfig ConvAsmBwdWrW3x3::Search(const ConvolutionContext& context) const
 {
     return GenericSearchWrW(*this, context);
 }

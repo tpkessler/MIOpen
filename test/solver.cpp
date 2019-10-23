@@ -27,6 +27,7 @@
 #include <miopen/convolution.hpp>
 #include <miopen/db.hpp>
 #include <miopen/find_solution.hpp>
+#include <miopen/performance_config.hpp>
 #include <miopen/solver.hpp>
 #include <miopen/mlo_internal.hpp>
 #include <miopen/temp_file.hpp>
@@ -64,7 +65,7 @@ class TrivialTestSolver final : public solver::SolverBase<ConvolutionContext>
     }
 };
 
-struct TestConfig final : solver::Serializable<TestConfig>, IPerformanceConfig
+struct TestConfig final : solver::Serializable<TestConfig>
 {
     std::string str;
 
@@ -73,22 +74,6 @@ struct TestConfig final : solver::Serializable<TestConfig>, IPerformanceConfig
     {
         f(self.str, "str");
     }
-
-    bool SetNextValue() override
-    {
-        MIOPEN_THROW("TestConfig doesn't support generic_search");
-        return false;
-    };
-    bool IsValid(const ConvolutionContext&) const override
-    {
-        MIOPEN_THROW("TestConfig doesn't support generic_search");
-        return false;
-    };
-    bool operator==(const IPerformanceConfig&) const override
-    {
-        MIOPEN_THROW("TestConfig doesn't support generic_search");
-        return false;
-    };
 };
 
 class SearchableTestSolver final : public solver::SearchableSolver<ConvolutionContext>
@@ -100,30 +85,32 @@ class SearchableTestSolver final : public solver::SearchableSolver<ConvolutionCo
     const std::string& DbId() const final { return SolverDbId(*this); }
     bool IsApplicable(const ConvolutionContext& /* context */) const final { return true; }
 
-    std::shared_ptr<IPerformanceConfig> GetPerformanceConfig(const ConvolutionContext&) const final
+    solver::AnyPerformanceConfig GetPerformanceConfig(const ConvolutionContext&) const final
     {
         TestConfig config{};
         config.str = NoSearchFileName();
-        return std::make_shared<TestConfig>(config);
+        return config;
     }
 
-    bool IsValidPerformanceConfig(const ConvolutionContext&, const IPerformanceConfig&) const final
+    bool IsValidPerformanceConfig(const ConvolutionContext&,
+                                  const solver::AnyPerformanceConfig&) const final
     {
         return true;
     }
 
-    std::shared_ptr<IPerformanceConfig> Search(const ConvolutionContext&) const final
+    solver::AnyPerformanceConfig Search(const ConvolutionContext&) const final
     {
         TestConfig config;
         config.str = FileName();
         _serches_done++;
-        return std::make_shared<TestConfig>(config);
+        return config;
     }
 
-    solver::ConvSolution
-    GetSolution(const ConvolutionContext&, const IPerformanceConfig& config_, bool) const final
+    solver::ConvSolution GetSolution(const ConvolutionContext&,
+                                     const solver::AnyPerformanceConfig& config_,
+                                     bool) const final
     {
-        auto config = dynamic_cast<const TestConfig&>(config_);
+        auto config = config_.CastTo<TestConfig>();
         solver::ConvSolution ret;
         solver::KernelInfo kernel;
 
@@ -137,10 +124,7 @@ class SearchableTestSolver final : public solver::SearchableSolver<ConvolutionCo
     private:
     static int _serches_done;
 
-    std::unique_ptr<IPerformanceConfig> AllocateConfig() const final
-    {
-        return std::make_unique<TestConfig>();
-    }
+    solver::AnyPerformanceConfig AllocateConfig() const final { return TestConfig{}; }
 };
 
 int SearchableTestSolver::_serches_done = 0;

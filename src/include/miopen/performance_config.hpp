@@ -26,14 +26,230 @@
 
 #pragma once
 
-#include <miopen/mlo_internal.hpp>
-#include <miopen/serializable.hpp>
+#include <miopen/errors.hpp>
+#include <miopen/type_name.hpp>
+
+#include <memory>
+#include <typeinfo>
 
 namespace miopen {
-struct IPerformanceConfig : virtual solver::ISerializable
+struct ConvolutionContext;
+
+// Marker for explicit empty initialization.
+struct InializeAsEmpty final
 {
-    virtual bool SetNextValue()                                    = 0;
-    virtual bool IsValid(const ConvolutionContext& config) const   = 0;
-    virtual bool operator==(const IPerformanceConfig& other) const = 0;
 };
+
+namespace solver {
+struct AnyPerformanceConfig final
+{
+    private:
+    struct PerformanceConfigConcept
+    {
+        virtual ~PerformanceConfigConcept()                                  = default;
+        virtual bool SetNextValue()                                          = 0;
+        virtual bool IsValid(const ConvolutionContext& ctx) const            = 0;
+        virtual bool operator==(const PerformanceConfigConcept& other) const = 0;
+        virtual bool IsOfType(const std::type_info& type) const              = 0;
+        virtual void Serialize(std::ostream& stream) const                   = 0;
+        virtual bool Deserialize(const std::string& s)                       = 0;
+        virtual std::unique_ptr<PerformanceConfigConcept> Clone() const      = 0;
+    };
+
+    template <class TPerformanceConfig>
+    struct PerformanceConfigModelBase : public PerformanceConfigConcept
+    {
+        PerformanceConfigModelBase(TPerformanceConfig&& config_) : config(std::move(config_)) {}
+
+        void Serialize(std::ostream& stream) const final { config.Serialize(stream); }
+        bool Deserialize(const std::string& s) final { return config.Deserialize(s); }
+
+        bool IsOfType(const std::type_info& type) const final
+        {
+            return type == typeid(TPerformanceConfig);
+        }
+
+        std::unique_ptr<PerformanceConfigConcept> Clone() const final
+        {
+            return std::make_unique<PerformanceConfigModel<TPerformanceConfig>>(
+                TPerformanceConfig{config});
+        }
+
+        protected:
+        TPerformanceConfig config;
+
+        friend struct AnyPerformanceConfig;
+    };
+
+    template <class TPerformanceConfig, class = bool>
+    struct PerformanceConfigModel final : public PerformanceConfigModelBase<TPerformanceConfig>
+    {
+        PerformanceConfigModel(TPerformanceConfig&& config_)
+            : PerformanceConfigModelBase<TPerformanceConfig>(std::move(config_))
+        {
+        }
+
+        bool SetNextValue() final
+        {
+            MIOPEN_THROW("Using unimplemented generic search related methods on " +
+                         get_type_name<TPerformanceConfig>());
+        }
+
+        bool IsValid(const ConvolutionContext&) const final
+        {
+            MIOPEN_THROW("Using unimplemented generic search related methods on " +
+                         get_type_name<TPerformanceConfig>());
+        }
+
+        bool operator==(const PerformanceConfigConcept&) const final
+        {
+            MIOPEN_THROW("Using unimplemented generic search related methods on " +
+                         get_type_name<TPerformanceConfig>());
+        }
+    };
+
+    template <class TPerformanceConfig>
+    struct PerformanceConfigModel<TPerformanceConfig,
+                                  decltype(std::declval<TPerformanceConfig>().SetNextValue())>
+        final : public PerformanceConfigModelBase<TPerformanceConfig>
+    {
+        PerformanceConfigModel(TPerformanceConfig&& config_)
+            : PerformanceConfigModelBase<TPerformanceConfig>(std::move(config_))
+        {
+        }
+
+        bool SetNextValue() final { return this->config.SetNextValue(); }
+        bool IsValid(const ConvolutionContext& ctx) const final
+        {
+            return this->config.IsValid(ctx);
+        }
+
+        bool operator==(const PerformanceConfigConcept& other) const final
+        {
+            const auto& casted_other =
+                dynamic_cast<const PerformanceConfigModel<TPerformanceConfig>&>(other);
+            return this->config == casted_other.config;
+        }
+    };
+
+    public:
+    AnyPerformanceConfig(InializeAsEmpty&&) : config(nullptr) {}
+
+    AnyPerformanceConfig(const AnyPerformanceConfig& other)
+        : config(other.IsEmpty() ? nullptr : other.config->Clone())
+    {
+    }
+
+    AnyPerformanceConfig(AnyPerformanceConfig&& other) : config(std::move(other.config)) {}
+
+    template <class TPerformanceConfig>
+    AnyPerformanceConfig(TPerformanceConfig other)
+        : config(std::make_unique<PerformanceConfigModel<TPerformanceConfig>>(std::move(other)))
+    {
+    }
+
+    bool IsEmpty() const { return config.get() != nullptr; }
+
+    bool SetNextValue()
+    {
+        if(IsEmpty())
+            MIOPEN_THROW("Using config methods on an empty AnyPerformanceConfig.");
+        return config->SetNextValue();
+    }
+
+    bool IsValid(const ConvolutionContext& ctx) const
+    {
+        if(IsEmpty())
+            MIOPEN_THROW("Using config methods on an empty AnyPerformanceConfig.");
+        return config->IsValid(ctx);
+    }
+
+    bool operator==(const AnyPerformanceConfig& other) const
+    {
+        if(IsEmpty())
+            MIOPEN_THROW("Using config methods on an empty AnyPerformanceConfig.");
+        return *config == *other.config;
+    }
+
+    bool IsOfType(const std::type_info& type) const
+    {
+        if(IsEmpty())
+            MIOPEN_THROW("Using config methods on an empty AnyPerformanceConfig.");
+        return config->IsOfType(type);
+    }
+
+    void Serialize(std::ostream& stream) const
+    {
+        if(IsEmpty())
+            MIOPEN_THROW("Using config methods on an empty AnyPerformanceConfig.");
+        config->Serialize(stream);
+    }
+
+    bool Deserialize(const std::string& s)
+    {
+        if(IsEmpty())
+            MIOPEN_THROW("Using config methods on an empty AnyPerformanceConfig.");
+        return config->Deserialize(s);
+    }
+
+    template <class TPerformanceConfig>
+    bool IsOfType() const
+    {
+        return IsOfType(typeid(TPerformanceConfig));
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, const AnyPerformanceConfig& c)
+    {
+        c.config->Serialize(os);
+        return os;
+    }
+
+    void Swap(AnyPerformanceConfig& other) { std::swap(config, other.config); }
+
+    AnyPerformanceConfig& operator=(AnyPerformanceConfig&& other)
+    {
+        AnyPerformanceConfig temp(std::move(*this));
+        Swap(other);
+        other.Swap(temp);
+        return *this;
+    }
+
+    AnyPerformanceConfig& operator=(const AnyPerformanceConfig& other)
+    {
+        config = other.IsEmpty() ? nullptr : other.config->Clone();
+        return *this;
+    }
+
+    template <class TPerformanceConfig>
+    TPerformanceConfig& CastTo()
+    {
+        if(IsEmpty())
+            MIOPEN_THROW("Using config methods on an empty AnyPerformanceConfig.");
+        if(!IsOfType<TPerformanceConfig>())
+            MIOPEN_THROW("Invalid AnyPerformanceConfig cast: config type doesn't match.");
+
+        auto& casted_config = dynamic_cast<PerformanceConfigModel<TPerformanceConfig>&>(*config);
+        return casted_config.config;
+    }
+
+    template <class TPerformanceConfig>
+    const TPerformanceConfig& CastTo() const
+    {
+        if(IsEmpty())
+            MIOPEN_THROW("Using config methods on an empty AnyPerformanceConfig.");
+        if(!IsOfType<TPerformanceConfig>())
+            MIOPEN_THROW("Invalid AnyPerformanceConfig cast: config type doesn't match.");
+
+        const auto& casted_config =
+            dynamic_cast<const PerformanceConfigModel<TPerformanceConfig>&>(*config);
+        return casted_config.config;
+    }
+
+    private:
+    std::unique_ptr<PerformanceConfigConcept> config;
+};
+
+inline void swap(AnyPerformanceConfig& left, AnyPerformanceConfig& right) { left.Swap(right); }
+
+} // namespace solver
 } // namespace miopen

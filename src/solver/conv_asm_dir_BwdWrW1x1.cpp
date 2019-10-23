@@ -272,9 +272,9 @@ PerformanceConfigConvAsmBwdWrW1x1::PerformanceConfigConvAsmBwdWrW1x1(int chunk_s
 {
 }
 
-inline bool PerformanceConfigConvAsmBwdWrW1x1::operator==(const IPerformanceConfig& other_) const
+bool PerformanceConfigConvAsmBwdWrW1x1::
+operator==(const PerformanceConfigConvAsmBwdWrW1x1& other) const
 {
-    const auto& other = dynamic_cast<const PerformanceConfigConvAsmBwdWrW1x1&>(other_);
     // clang-format off
     return chunk_size == other.chunk_size
         && c_per_gpr == other.c_per_gpr
@@ -447,19 +447,18 @@ std::string PerformanceConfigConvAsmBwdWrW1x1::ToString() const
     return ss.str();
 }
 
-std::shared_ptr<IPerformanceConfig>
-ConvAsmBwdWrW1x1::GetPerformanceConfig(const ConvolutionContext& params) const
+AnyPerformanceConfig ConvAsmBwdWrW1x1::GetPerformanceConfig(const ConvolutionContext& params) const
 {
     PerformanceConfigConvAsmBwdWrW1x1 pp;
     pp.EuristicInit(params);
     MIOPEN_LOG_I(pp.ToString());
-    return std::make_shared<PerformanceConfigConvAsmBwdWrW1x1>(pp);
+    return pp;
 }
 
 bool ConvAsmBwdWrW1x1::IsValidPerformanceConfig(const ConvolutionContext& problem,
-                                                const IPerformanceConfig& c_) const
+                                                const AnyPerformanceConfig& c_) const
 {
-    const auto& c = dynamic_cast<const PerformanceConfigConvAsmBwdWrW1x1&>(c_);
+    const auto& c = c_.CastTo<PerformanceConfigConvAsmBwdWrW1x1>();
     return c.IsValidValue() && c.IsValid(problem);
 }
 
@@ -538,10 +537,10 @@ size_t ConvAsmBwdWrW1x1::GetWorkspaceSize(const ConvolutionContext& params) cons
 }
 
 ConvSolution ConvAsmBwdWrW1x1::GetSolution(const ConvolutionContext& params,
-                                           const IPerformanceConfig& config_,
+                                           const AnyPerformanceConfig& config_,
                                            const bool disableConfigOverrideFromEnv) const
 {
-    const auto& config = dynamic_cast<const PerformanceConfigConvAsmBwdWrW1x1&>(config_);
+    const auto& config = config_.CastTo<PerformanceConfigConvAsmBwdWrW1x1>();
     ConvSolution result;
     std::ostringstream options;
 
@@ -825,8 +824,7 @@ int ConvAsmBwdWrW1x1::RunAndMeasureSolutionWrW(miopen::Handle& profile_h,
     return 0;
 }
 
-std::shared_ptr<IPerformanceConfig>
-ConvAsmBwdWrW1x1::Search(const ConvolutionContext& context) const
+AnyPerformanceConfig ConvAsmBwdWrW1x1::Search(const ConvolutionContext& context) const
 {
     if(UseSubsample(context))
         return GenericSearchWrW(*this, context, SearchTweak::WorkspaceInsteadOfXBuffer);

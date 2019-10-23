@@ -157,9 +157,8 @@ ConvSolution ConvOclBwdWrW2NonTunable::GetSolution(const ConvolutionContext& par
 
 template <int N_BATCH_LOOPS>
 inline bool PerformanceConfigConvOclBwdWrw2<N_BATCH_LOOPS>::
-operator==(const IPerformanceConfig& other_) const
+operator==(const PerformanceConfigConvOclBwdWrw2<N_BATCH_LOOPS>& other) const
 {
-    const auto& other = dynamic_cast<const PerformanceConfigConvOclBwdWrw2<N_BATCH_LOOPS>&>(other_);
     // clang-format off
     return n_waves == other.n_waves
         && read_size == other.read_size
@@ -831,8 +830,7 @@ int ConvOclBwdWrW2<N_BATCH_LOOPS>::RunAndMeasureSolutionWrW(miopen::Handle& prof
 }
 
 template <int N_BATCH_LOOPS>
-std::shared_ptr<IPerformanceConfig>
-ConvOclBwdWrW2<N_BATCH_LOOPS>::Search(const ConvolutionContext& context) const
+AnyPerformanceConfig ConvOclBwdWrW2<N_BATCH_LOOPS>::Search(const ConvolutionContext& context) const
 {
     if(GetNBatchBlks<N_BATCH_LOOPS>(context) > 1)
         return GenericSearchWrW(*this, context, SearchTweak::WorkspaceInsteadOfWeightsBuffer);

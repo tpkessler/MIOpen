@@ -285,9 +285,8 @@ PerformanceConfigConvAsm1x1UV2::PerformanceConfigConvAsm1x1UV2(int chunk_size_,
 {
 }
 
-inline bool PerformanceConfigConvAsm1x1UV2::operator==(const IPerformanceConfig& other_) const
+bool PerformanceConfigConvAsm1x1UV2::operator==(const PerformanceConfigConvAsm1x1UV2& other) const
 {
-    const auto& other = dynamic_cast<const PerformanceConfigConvAsm1x1UV2&>(other_);
     // clang-format off
     return chunk_size == other.chunk_size
         && dwords_per_ld == other.dwords_per_ld
@@ -452,19 +451,18 @@ std::string PerformanceConfigConvAsm1x1UV2::ToString() const
     return ss.str();
 }
 
-std::shared_ptr<IPerformanceConfig>
-ConvAsm1x1UV2::GetPerformanceConfig(const ConvolutionContext& params) const
+AnyPerformanceConfig ConvAsm1x1UV2::GetPerformanceConfig(const ConvolutionContext& params) const
 {
     PerformanceConfigConvAsm1x1UV2 pp;
     pp.EuristicInit(params);
     MIOPEN_LOG_I(pp.ToString());
-    return std::make_shared<PerformanceConfigConvAsm1x1UV2>(pp);
+    return pp;
 }
 
 bool ConvAsm1x1UV2::IsValidPerformanceConfig(const ConvolutionContext& problem,
-                                             const IPerformanceConfig& c_) const
+                                             const AnyPerformanceConfig& c_) const
 {
-    const auto& c = dynamic_cast<const PerformanceConfigConvAsm1x1UV2&>(c_);
+    const auto& c = c_.CastTo<PerformanceConfigConvAsm1x1UV2>();
     return c.IsValidValue() && c.IsValid(problem);
 }
 
@@ -563,10 +561,10 @@ bool ConvAsm1x1UV2::IsApplicable(const ConvolutionContext& params) const
 }
 
 ConvSolution ConvAsm1x1UV2::GetSolution(const ConvolutionContext& params,
-                                        const IPerformanceConfig& config_,
+                                        const AnyPerformanceConfig& config_,
                                         const bool disableConfigOverrideFromEnv) const
 {
-    const auto& config = dynamic_cast<const PerformanceConfigConvAsm1x1UV2&>(config_);
+    const auto& config = config_.CastTo<PerformanceConfigConvAsm1x1UV2>();
     ConvSolution result;
     std::ostringstream options;
 
@@ -776,7 +774,7 @@ int RunAndMeasureSolution(miopen::Handle& profile_h,
 RUN_AND_MEASURE_HELPER_FROM_TEMPLATE_FWD(ConvAsm1x1UV2)
 RUN_AND_MEASURE_HELPER_FROM_TEMPLATE_BWD(ConvAsm1x1UV2)
 
-std::shared_ptr<IPerformanceConfig> ConvAsm1x1UV2::Search(const ConvolutionContext& context) const
+AnyPerformanceConfig ConvAsm1x1UV2::Search(const ConvolutionContext& context) const
 {
     if(context.direction.IsForward())
         return GenericSearchFwd(*this, context);

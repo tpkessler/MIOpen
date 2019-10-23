@@ -28,8 +28,9 @@
 #define GUARD_MLOPEN_SERIALIZABLE_HPP
 
 #include <ciso646>
-#include <miopen/config.h>
+#include <functional>
 #include <iostream>
+#include <miopen/config.h>
 #include <sstream>
 #include <string>
 
@@ -49,24 +50,8 @@ struct Parse
     }
 };
 
-struct ISerializable
-{
-    ISerializable() = default;
-    ISerializable(const ISerializable&) {}
-    ISerializable& operator                            =(const ISerializable&) { return *this; }
-    virtual ~ISerializable()                           = default;
-    virtual void Serialize(std::ostream& stream) const = 0;
-    virtual bool Deserialize(const std::string& s)     = 0;
-
-    friend std::ostream& operator<<(std::ostream& os, const ISerializable& c)
-    {
-        c.Serialize(os);
-        return os;
-    }
-};
-
 template <class Derived, char Seperator = ','>
-struct Serializable : virtual ISerializable
+struct Serializable
 {
     struct SerializeField
     {
@@ -98,7 +83,7 @@ struct Serializable : virtual ISerializable
             ok = Parse<T>::apply(part, x);
         }
     };
-    void Serialize(std::ostream& stream) const override
+    void Serialize(std::ostream& stream) const
     {
         char sep = 0;
         Derived::Visit(
@@ -106,7 +91,7 @@ struct Serializable : virtual ISerializable
             std::bind(SerializeField{}, std::ref(stream), std::ref(sep), std::placeholders::_1));
     }
 
-    bool Deserialize(const std::string& s) override
+    bool Deserialize(const std::string& s)
     {
         auto out = static_cast<const Derived&>(*this);
         bool ok  = true;
@@ -121,6 +106,12 @@ struct Serializable : virtual ISerializable
 
         static_cast<Derived&>(*this) = out;
         return true;
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, const Serializable& c)
+    {
+        c.Serialize(os);
+        return os;
     }
 };
 

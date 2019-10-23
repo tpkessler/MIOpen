@@ -24,19 +24,18 @@
  *
  *******************************************************************************/
 
-#include "miopen/solver.hpp"
-#include "miopen/handle.hpp"
+#include <miopen/solver.hpp>
+#include <miopen/handle.hpp>
 #include <miopen/generic_search.hpp>
-#include "miopen/stringutils.hpp"
+#include <miopen/stringutils.hpp>
 #include "implicitgemm_util.hpp"
-#include "miopen/implicitgemm_params.hpp"
+#include <miopen/implicitgemm_params.hpp>
 
 namespace miopen {
 namespace solver {
 
-bool PerformanceImplicitGemm::operator==(const IPerformanceConfig& other_) const
+bool PerformanceImplicitGemm::operator==(const PerformanceImplicitGemm& other) const
 {
-    const auto& other = dynamic_cast<const PerformanceImplicitGemm&>(other_);
     // clang-format off
     return BPerBlock == other.BPerBlock
         && KPerBlock == other.KPerBlock
@@ -460,16 +459,16 @@ bool ConvHipImplicitGemmV4WrW::IsApplicable(const ConvolutionContext& ctx) const
            ctx.n_inputs % 16 == 0;
 }
 
-std::shared_ptr<IPerformanceConfig>
+AnyPerformanceConfig
 ConvHipImplicitGemmV4Base::GetPerformanceConfig(const ConvolutionContext& ctx) const
 {
     return GetPerformanceConfigBase<PerformanceImplicitGemm>(ctx);
 }
 
 bool ConvHipImplicitGemmV4Base::IsValidPerformanceConfig(const ConvolutionContext& ctx,
-                                                         const IPerformanceConfig& c_) const
+                                                         const AnyPerformanceConfig& c_) const
 {
-    const auto& c = dynamic_cast<const PerformanceImplicitGemm&>(c_);
+    const auto& c = c_.CastTo<PerformanceImplicitGemm>();
     MIOPEN_LOG_I("");
     return c.IsValidValue() && c.IsValid(ctx);
 }
@@ -646,18 +645,18 @@ static inline ConvSolution GetSolutionBase(const ConvolutionContext& ctx,
 }
 
 ConvSolution ConvHipImplicitGemmV4Fwd::GetSolution(const ConvolutionContext& ctx,
-                                                   const IPerformanceConfig& config_,
+                                                   const AnyPerformanceConfig& config_,
                                                    const bool) const
 {
-    const auto& config = dynamic_cast<const PerformanceImplicitGemm&>(config_);
+    const auto& config = config_.CastTo<PerformanceImplicitGemm>();
     return GetSolutionBase(
         ctx, config, ImplicitGemmV4, ctx.batch_sz, ctx.n_outputs, ctx.out_height, ctx.out_width);
 }
 ConvSolution ConvHipImplicitGemmV4WrW::GetSolution(const ConvolutionContext& ctx,
-                                                   const IPerformanceConfig& config_,
+                                                   const AnyPerformanceConfig& config_,
                                                    const bool) const
 {
-    const auto& config = dynamic_cast<const PerformanceImplicitGemm&>(config_);
+    const auto& config = config_.CastTo<PerformanceImplicitGemm>();
     return GetSolutionBase(ctx,
                            config,
                            ImplicitGemmV4,
@@ -668,10 +667,10 @@ ConvSolution ConvHipImplicitGemmV4WrW::GetSolution(const ConvolutionContext& ctx
 }
 
 ConvSolution ConvHipImplicitGemmV4_1x1::GetSolution(const ConvolutionContext& ctx,
-                                                    const IPerformanceConfig& config_,
+                                                    const AnyPerformanceConfig& config_,
                                                     const bool) const
 {
-    const auto& config = dynamic_cast<const PerformanceImplicitGemm&>(config_);
+    const auto& config = config_.CastTo<PerformanceImplicitGemm>();
     return GetSolutionBase(ctx,
                            config,
                            ImplicitGemmV4_1x1,
@@ -697,8 +696,7 @@ int ConvHipImplicitGemmV4Base::RunAndMeasureSolutionFwd(miopen::Handle& profile_
         profile_h, bot_buf, top_buf, wei_buf, ctx, solution, elapsed_time);
 }
 
-std::shared_ptr<IPerformanceConfig>
-ConvHipImplicitGemmV4Base::Search(const ConvolutionContext& context) const
+AnyPerformanceConfig ConvHipImplicitGemmV4Base::Search(const ConvolutionContext& context) const
 {
     return GenericSearchFwd(*this, context);
 }

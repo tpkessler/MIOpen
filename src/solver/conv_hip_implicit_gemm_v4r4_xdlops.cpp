@@ -54,9 +54,8 @@ static inline bool IsXdlopsSupport(const ConvolutionContext& c)
            miopen::IsEnabled(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_XDLOPS{});
 }
 
-inline bool PerformanceImplicitGemmXdlops::operator==(const IPerformanceConfig& other_) const
+bool PerformanceImplicitGemmXdlops::operator==(const PerformanceImplicitGemmXdlops& other) const
 {
-    const auto& other = dynamic_cast<const PerformanceImplicitGemmXdlops&>(other_);
     // clang-format off
     return BPerBlock == other.BPerBlock
         && KPerBlock == other.KPerBlock
@@ -433,10 +432,10 @@ static inline ConvSolution GetSolutionBase(const ConvolutionContext& ctx,
 }
 
 ConvSolution ConvHipImplicitGemmV4R4FwdXdlops::GetSolution(const ConvolutionContext& ctx,
-                                                           const IPerformanceConfig& config_,
+                                                           const AnyPerformanceConfig& config_,
                                                            bool) const
 {
-    const auto& config = dynamic_cast<const PerformanceImplicitGemmXdlops&>(config_);
+    const auto& config = config_.CastTo<PerformanceImplicitGemmXdlops>();
     return GetSolutionBase(ctx,
                            config,
                            ImplicitGemmXdlopsKernel::KernelFwd,
@@ -447,10 +446,10 @@ ConvSolution ConvHipImplicitGemmV4R4FwdXdlops::GetSolution(const ConvolutionCont
 }
 
 ConvSolution ConvHipImplicitGemmV4R4Xdlops_1x1::GetSolution(const ConvolutionContext& ctx,
-                                                            const IPerformanceConfig& config_,
+                                                            const AnyPerformanceConfig& config_,
                                                             bool) const
 {
-    const auto& config = dynamic_cast<const PerformanceImplicitGemmXdlops&>(config_);
+    const auto& config = config_.CastTo<PerformanceImplicitGemmXdlops>();
     return GetSolutionBase(ctx,
                            config,
                            ImplicitGemmXdlopsKernel::Kernel1x1,
@@ -512,22 +511,21 @@ bool ConvHipImplicitGemmV4R4Xdlops_1x1::IsApplicable(const ConvolutionContext& c
            ctx.kernel_size_h == 1 && ctx.kernel_size_w == 1;
 }
 
-std::shared_ptr<IPerformanceConfig>
+AnyPerformanceConfig
 ConvHipImplicitGemmV4R4XdlopsBase::GetPerformanceConfig(const ConvolutionContext& ctx) const
 {
     return GetPerformanceConfigBase<PerformanceImplicitGemmXdlops>(ctx);
 }
 
-bool ConvHipImplicitGemmV4R4XdlopsBase::IsValidPerformanceConfig(const ConvolutionContext& ctx,
-                                                                 const IPerformanceConfig& c_) const
+bool ConvHipImplicitGemmV4R4XdlopsBase::IsValidPerformanceConfig(
+    const ConvolutionContext& ctx, const AnyPerformanceConfig& c_) const
 {
-    const auto& c = dynamic_cast<const PerformanceImplicitGemmXdlops&>(c_);
+    const auto& c = c_.CastTo<PerformanceImplicitGemmXdlops>();
     MIOPEN_LOG_I("");
     return c.IsValidValue() && c.IsValid(ctx);
 }
 
-std::shared_ptr<IPerformanceConfig>
-ConvHipImplicitGemmV4R4XdlopsBase::Search(const ConvolutionContext& ctx) const
+AnyPerformanceConfig ConvHipImplicitGemmV4R4XdlopsBase::Search(const ConvolutionContext& ctx) const
 {
     return GenericSearchFwd(*this, ctx);
 }
