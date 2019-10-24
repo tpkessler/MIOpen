@@ -31,6 +31,8 @@
 #include "implicitgemm_util.hpp"
 #include <miopen/implicitgemm_params.hpp>
 
+#define WORKAROUND_ISSUE_2174 1
+
 namespace miopen {
 namespace solver {
 
@@ -449,6 +451,11 @@ bool ConvHipImplicitGemmV4WrW::IsApplicable(const ConvolutionContext& ctx) const
 
     if(!(ctx.IsFp32() || ctx.IsFp16() || ctx.IsBfp16()))
         return false;
+
+#if WORKAROUND_ISSUE_2174
+    if(!(ctx.kernel_stride_w == 1 && ctx.kernel_stride_h == 1))
+        return false;
+#endif
 
     bool isEInMultiple = (ctx.IsFp16() || ctx.IsBfp16())
                              ? ((ctx.batch_sz * ctx.in_height * ctx.in_width) % 16 == 0)
