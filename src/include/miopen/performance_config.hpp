@@ -209,12 +209,16 @@ struct AnyPerformanceConfig final
 
     AnyPerformanceConfig& operator=(AnyPerformanceConfig&& other) noexcept
     {
+        if(this == &other)
+            return *this;
         config = std::move(other.config);
         return *this;
     }
 
     AnyPerformanceConfig& operator=(const AnyPerformanceConfig& other)
     {
+        if(this == &other)
+            return *this;
         config = other.IsEmpty() ? nullptr : other.config->Clone();
         return *this;
     }
