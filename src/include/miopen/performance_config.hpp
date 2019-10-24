@@ -141,7 +141,7 @@ struct AnyPerformanceConfig final
     {
     }
 
-    AnyPerformanceConfig(AnyPerformanceConfig&& other) : config(std::move(other.config)) {}
+    AnyPerformanceConfig(AnyPerformanceConfig&& other) noexcept : config(std::move(other.config)) {}
 
     template <class TPerformanceConfig>
     AnyPerformanceConfig(TPerformanceConfig other)
@@ -149,7 +149,7 @@ struct AnyPerformanceConfig final
     {
     }
 
-    bool IsEmpty() const { return config.get() != nullptr; }
+    bool IsEmpty() const { return config != nullptr; }
 
     bool SetNextValue()
     {
@@ -207,7 +207,7 @@ struct AnyPerformanceConfig final
 
     void Swap(AnyPerformanceConfig& other) { std::swap(config, other.config); }
 
-    AnyPerformanceConfig& operator=(AnyPerformanceConfig&& other)
+    AnyPerformanceConfig& operator=(AnyPerformanceConfig&& other) noexcept
     {
         AnyPerformanceConfig temp(std::move(*this));
         Swap(other);
