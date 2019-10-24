@@ -77,7 +77,7 @@ class ComputedIterator : public std::iterator<std::input_iterator_tag, AnyPerfor
     ComputedIterator(const Context& problem, AnyPerformanceConfig&& value)
         : v(std::move(value)), p(&problem)
     {
-        while(!v.IsValid(*p) && p != nullptr)
+        while(p != nullptr && !v.IsValid(*p))
             Next();
     }
 
@@ -87,7 +87,7 @@ class ComputedIterator : public std::iterator<std::input_iterator_tag, AnyPerfor
     // STL-like iterator shall be copy contructible. The default copy ctor is ok.
 
     ComputedIterator& operator++() { return Next(); }
-    const AnyPerformanceConfig operator*() const { return v; }
+    const AnyPerformanceConfig& operator*() const { return v; }
     bool operator!=(ComputedIterator const& other) const
     {
         if(p == other.p)
