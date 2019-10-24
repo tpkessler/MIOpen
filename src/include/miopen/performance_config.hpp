@@ -153,43 +153,37 @@ struct AnyPerformanceConfig final
 
     bool SetNextValue()
     {
-        if(IsEmpty())
-            MIOPEN_THROW("Using config methods on an empty AnyPerformanceConfig.");
+        CheckIfEmpty();
         return config->SetNextValue();
     }
 
     bool IsValid(const ConvolutionContext& ctx) const
     {
-        if(IsEmpty())
-            MIOPEN_THROW("Using config methods on an empty AnyPerformanceConfig.");
+        CheckIfEmpty();
         return config->IsValid(ctx);
     }
 
     bool operator==(const AnyPerformanceConfig& other) const
     {
-        if(IsEmpty())
-            MIOPEN_THROW("Using config methods on an empty AnyPerformanceConfig.");
+        CheckIfEmpty();
         return *config == *other.config;
     }
 
     bool IsOfType(const std::type_info& type) const
     {
-        if(IsEmpty())
-            MIOPEN_THROW("Using config methods on an empty AnyPerformanceConfig.");
+        CheckIfEmpty();
         return config->IsOfType(type);
     }
 
     void Serialize(std::ostream& stream) const
     {
-        if(IsEmpty())
-            MIOPEN_THROW("Using config methods on an empty AnyPerformanceConfig.");
+        CheckIfEmpty();
         config->Serialize(stream);
     }
 
     bool Deserialize(const std::string& s)
     {
-        if(IsEmpty())
-            MIOPEN_THROW("Using config methods on an empty AnyPerformanceConfig.");
+        CheckIfEmpty();
         return config->Deserialize(s);
     }
 
@@ -226,8 +220,7 @@ struct AnyPerformanceConfig final
     template <class TPerformanceConfig>
     TPerformanceConfig& CastTo()
     {
-        if(IsEmpty())
-            MIOPEN_THROW("Using config methods on an empty AnyPerformanceConfig.");
+        CheckIfEmpty();
         if(!IsOfType<TPerformanceConfig>())
             MIOPEN_THROW("Invalid AnyPerformanceConfig cast: config type doesn't match.");
 
@@ -238,8 +231,7 @@ struct AnyPerformanceConfig final
     template <class TPerformanceConfig>
     const TPerformanceConfig& CastTo() const
     {
-        if(IsEmpty())
-            MIOPEN_THROW("Using config methods on an empty AnyPerformanceConfig.");
+        CheckIfEmpty();
         if(!IsOfType<TPerformanceConfig>())
             MIOPEN_THROW("Invalid AnyPerformanceConfig cast: config type doesn't match.");
 
@@ -250,6 +242,12 @@ struct AnyPerformanceConfig final
 
     private:
     std::unique_ptr<PerformanceConfigConcept> config;
+
+    void CheckIfEmpty() const
+    {
+        if(IsEmpty())
+            MIOPEN_THROW("Using config methods on an empty AnyPerformanceConfig.");
+    }
 };
 
 inline void swap(AnyPerformanceConfig& left, AnyPerformanceConfig& right) { left.Swap(right); }
