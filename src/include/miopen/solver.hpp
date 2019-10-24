@@ -66,7 +66,7 @@ template <class TContext>
 struct SolverBase
 {
     SolverBase(const SolverBase&) {}
-    SolverBase& operator  =(const SolverBase&) { return *this; }
+    SolverBase& operator=(const SolverBase&) = delete;
     SolverBase()          = default;
     virtual ~SolverBase() = default;
 
