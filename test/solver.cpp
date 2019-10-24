@@ -110,7 +110,7 @@ class SearchableTestSolver final : public solver::SearchableSolver<ConvolutionCo
                                      const solver::AnyPerformanceConfig& config_,
                                      bool) const final
     {
-        auto config = config_.CastTo<TestConfig>();
+        const auto& config = config_.CastTo<TestConfig>();
         solver::ConvSolution ret;
         solver::KernelInfo kernel;
 
