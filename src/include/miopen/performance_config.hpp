@@ -209,9 +209,7 @@ struct AnyPerformanceConfig final
 
     AnyPerformanceConfig& operator=(AnyPerformanceConfig&& other) noexcept
     {
-        AnyPerformanceConfig temp(std::move(*this));
-        Swap(other);
-        other.Swap(temp);
+        config = std::move(other.config);
         return *this;
     }
 
