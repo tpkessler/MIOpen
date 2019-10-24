@@ -149,7 +149,7 @@ struct AnyPerformanceConfig final
     {
     }
 
-    bool IsEmpty() const { return config != nullptr; }
+    bool IsEmpty() const { return config == nullptr; }
 
     bool SetNextValue()
     {
