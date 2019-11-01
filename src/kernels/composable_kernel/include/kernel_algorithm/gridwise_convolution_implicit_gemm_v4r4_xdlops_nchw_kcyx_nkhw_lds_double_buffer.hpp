@@ -8,8 +8,35 @@
 #include "blockwise_generic_tensor_slice_copy_deprecated.hpp"
 #include "blockwise_gemm_xdlops.hpp"
 #include "threadwise_generic_tensor_slice_copy_deprecated.hpp"
+#include "implicitgemm_params.hpp"
 
 namespace ck {
+
+template <ImplicitGemmDirection conv_dir, typename WeiDesc>
+struct make_WeiDesc_Xdlops
+{
+};
+template <typename WeiDesc>
+struct make_WeiDesc_Xdlops<ImplicitGemmDirection::ForwardData, WeiDesc>
+{
+    __device__ constexpr auto get(WeiDesc&)
+    {
+        constexpr auto I1 = Number<1>{};
+        constexpr auto I3 = Number<3>{};
+        return WeiDesc{}.Unfold(I1, I3).ReorderGivenNew2Old(Sequence<1, 0>{});
+    }
+};
+template <typename WeiDesc>
+struct make_WeiDesc_Xdlops<ImplicitGemmDirection::BackwardWeight, WeiDesc>
+{
+    __device__ constexpr auto get(WeiDesc& desc)
+    {
+        constexpr auto I2 = Number<2>{};
+        constexpr auto I3 = Number<3>{};
+        return make_ConstantMergedTensorDescriptor(
+            desc.Unfold(I2, I3), Sequence<1, 2>{}, Sequence<0>{});
+    }
+};
 
 // B = merge(N, Ho, Wo)
 template <index_t GridSize,
@@ -31,7 +58,6 @@ template <index_t GridSize,
           index_t GemmNWaves,
           index_t GemmDataPerReadA,
           index_t GemmDataPerReadB,
-          bool EnableXdlops,
           class InBlockCopySubLengths_E_B,
           class InBlockCopyClusterLengths_E_B,
           class InBlockCopyThreadClusterArrangeOrder,
@@ -45,7 +71,8 @@ template <index_t GridSize,
           class WeiBlockCopyDstAccessOrder,
           index_t WeiBlockCopySrcDataPerRead_E,
           index_t WeiBlockCopyDstDataPerWrite_K,
-          index_t OutThreadCopyDataPerAccess_B>
+          index_t OutThreadCopyDataPerAccess_B,
+          ImplicitGemmDirection conv_dir>
 struct GridwiseConvolutionImplicitGemm_v4r4_xdlops_nchw_kcyx_nkhw_lds_double_buffer
 {
     __device__ void Run(const Float* const __restrict__ p_in_global,
@@ -150,7 +177,8 @@ struct GridwiseConvolutionImplicitGemm_v4r4_xdlops_nchw_kcyx_nkhw_lds_double_buf
         // weight tensor
         //     tensor descriptor in device memory, src of blockwise copy
         constexpr auto wei_e_k_global_desc =
-            wei_k_c_y_x_global_desc.Unfold(I1, I3).ReorderGivenNew2Old(Sequence<1, 0>{});
+            make_WeiDesc_Xdlops<conv_dir, decltype(wei_k_c_y_x_global_desc)>{}.get(
+                wei_k_c_y_x_global_desc);
 
         //     tensor descriptor in LDS, dst of blockwise copy
         //     be careful of LDS alignment
@@ -186,8 +214,7 @@ struct GridwiseConvolutionImplicitGemm_v4r4_xdlops_nchw_kcyx_nkhw_lds_double_buf
             BlockSize,
             decltype(a_e_k_block_mtx_desc),
             decltype(b_e_b_block_mtx_desc),
-            decltype(mfma_info<float>{}),
-            EnableXdlops,
+            Float,
             GemmMPerWave,
             GemmNPerWave,
             GemmMWaves,
@@ -216,8 +243,7 @@ struct GridwiseConvolutionImplicitGemm_v4r4_xdlops_nchw_kcyx_nkhw_lds_double_buf
 
         // zero out threadwise output
         threadwise_matrix_set_zero(c_k_thread_mtx_desc, p_out_thread);
-        static_if<EnableXdlops>{}(
-            [&](auto) { gcnasm_accvgpr_zero<c_k_thread_mtx_desc.GetElementSpace()>(); });
+        blockwise_gemm.XdlopsMatrixCSetZero();
 
         const Float* p_wei_block_on_global = p_wei_global;
 
@@ -250,7 +276,7 @@ struct GridwiseConvolutionImplicitGemm_v4r4_xdlops_nchw_kcyx_nkhw_lds_double_buf
                 Float p_wei_thread_buffer[blockwise_wei_copy.GetThreadBufferSize()];
 
                 blockwise_in_copy.MoveSrcSliceWindow(Sequence<EPerBlock, 0>{}, True);
-                p_wei_block_on_global += EPerBlock * wei_e_k_global_desc.GetStrides()[0];
+                blockwise_wei_copy.MoveSrcSliceWindow(Sequence<EPerBlock, 0>{}, True);
 
                 __syncthreads();
 
@@ -274,7 +300,7 @@ struct GridwiseConvolutionImplicitGemm_v4r4_xdlops_nchw_kcyx_nkhw_lds_double_buf
 
             // even iteration
             blockwise_in_copy.MoveSrcSliceWindow(Sequence<EPerBlock, 0>{}, True);
-            p_wei_block_on_global += EPerBlock * wei_e_k_global_desc.GetStrides()[0];
+            blockwise_wei_copy.MoveSrcSliceWindow(Sequence<EPerBlock, 0>{}, True);
 
             __syncthreads();
 
@@ -301,15 +327,14 @@ struct GridwiseConvolutionImplicitGemm_v4r4_xdlops_nchw_kcyx_nkhw_lds_double_buf
         }
 
         // load data from xldop_acc_regs
-        static_if<EnableXdlops>{}([&](auto) {
-            gcnasm_accvgpr_read<c_k_thread_mtx_desc.GetElementSpace()>(p_out_thread);
-        });
+        blockwise_gemm.XdlopsMatrixCRead(p_out_thread);
 
         // copy output: register to global memory
         {
-            constexpr index_t K2 = blockwise_gemm.OutputLayout.M2;
-            constexpr index_t K1 = blockwise_gemm.OutputLayout.M1;
-            constexpr index_t K0 = blockwise_gemm.OutputLayout.M0;
+            constexpr auto OutputLayout = blockwise_gemm.GetOutputLayout();
+            constexpr index_t K2        = OutputLayout.M1();
+            constexpr index_t K1        = OutputLayout.N1();
+            constexpr index_t K0        = OutputLayout.M0();
 
             // This is a hack, because slicing a merged dimension is not supported yet.
             //     dst descriptor
@@ -326,8 +351,9 @@ struct GridwiseConvolutionImplicitGemm_v4r4_xdlops_nchw_kcyx_nkhw_lds_double_buf
 
             using OutThreadCopySliceLengths = Sequence<K2, 1, K0, 1>;
 
-            constexpr index_t NumKPerBlk = out_k0_k1_k2_b_thread_desc.GetElementSpace();
-            constexpr index_t NumBlks    = GemmMPerWave / NumKPerBlk;
+            constexpr index_t NumKPerBlk = OutputLayout.GetSizeM();
+            static_assert(OutputLayout.GetSizeM() == 16, "MSize != 16");
+            constexpr index_t NumBlks = c_k_thread_mtx_desc.GetElementSpace() / NumKPerBlk;
 
             for(index_t i = 0; i < NumBlks; ++i)
             {

@@ -51,6 +51,8 @@ MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F3X5)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F3X6)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F7X2)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F7X3)
+MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F5X3)
+MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F5X4)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_WORKSPACE_MAX)
 
 // Introduces a number of shader-specific aliases (names) in the current scope at zero cost.
@@ -396,6 +398,12 @@ bool ConvWinograd3x3MultipassWrW<WinoDataH, WinoFilterH, WinoDataW, WinoFilterW>
     if(wino_data_tile == 7 && wino_filter_tile == 3)
         if(miopen::IsDisabled(MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F7X3{}))
             return false;
+    if(wino_data_tile == 5 && wino_filter_tile == 3)
+        if(miopen::IsDisabled(MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F5X3{}))
+            return false;
+    if(wino_data_tile == 5 && wino_filter_tile == 4)
+        if(miopen::IsDisabled(MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F5X4{}))
+            return false;
     if(!params.use_asm_kernels)
         return false;
     if(!params.rmv.IsV2())
@@ -527,6 +535,8 @@ template struct ConvWinograd3x3MultipassWrW<1, 1, 7, 2>;
 template struct ConvWinograd3x3MultipassWrW<1, 1, 7, 3>;
 template struct ConvWinograd3x3MultipassWrW<7, 2, 1, 1>;
 template struct ConvWinograd3x3MultipassWrW<7, 3, 1, 1>;
+template struct ConvWinograd3x3MultipassWrW<5, 3>;
+template struct ConvWinograd3x3MultipassWrW<5, 4>;
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif

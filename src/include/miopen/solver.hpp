@@ -819,6 +819,15 @@ struct ConvHipImplicitGemmV4R4Xdlops_1x1 final : ConvHipImplicitGemmV4R4XdlopsBa
                              bool disableConfigOverrideFromEnv) const final;
 };
 
+struct ConvHipImplicitGemmV4R4WrWXdlops final : ConvHipImplicitGemmV4R4XdlopsBase
+{
+    const std::string& DbId() const final { return SolverDbId(*this); }
+    bool IsApplicable(const ConvolutionContext& ctx) const final;
+    ConvSolution GetSolution(const ConvolutionContext& ctx,
+                             const AnyPerformanceConfig& config,
+                             bool disableConfigOverrideFromEnv) const final;
+};
+
 struct ConvHipImplicitGemmV4_1x1 final : ConvHipImplicitGemmV4Base
 {
     const std::string& DbId() const final { return SolverDbId(*this); }
@@ -945,9 +954,9 @@ struct ConvWinograd3x3MultipassWrW final : SolverBase<ConvolutionContext>
         static const std::string name_suffix =
             '_' + std::to_string(WinoDataH) + '_' + std::to_string(WinoDataW) + '_' +
             std::to_string(WinoFilterH) + '_' + std::to_string(WinoFilterW);
-        static const std::string names[3] = {"gcnAsmWinogradXformData" + name_suffix,
-                                             "gcnAsmWinogradXformFilter" + name_suffix,
-                                             "gcnAsmWinogradXformOut" + name_suffix};
+        static const std::string names[3] = {"miopenGcnAsmWinogradXformData" + name_suffix,
+                                             "miopenGcnAsmWinogradXformFilter" + name_suffix,
+                                             "miopenGcnAsmWinogradXformOut" + name_suffix};
 
         return names[id];
     }
@@ -975,6 +984,8 @@ extern template struct ConvWinograd3x3MultipassWrW<1, 1, 7, 2>;
 extern template struct ConvWinograd3x3MultipassWrW<1, 1, 7, 3>;
 extern template struct ConvWinograd3x3MultipassWrW<7, 2, 1, 1>;
 extern template struct ConvWinograd3x3MultipassWrW<7, 3, 1, 1>;
+extern template struct ConvWinograd3x3MultipassWrW<5, 3>;
+extern template struct ConvWinograd3x3MultipassWrW<5, 4>;
 #endif
 
 struct PerformanceConfigAsmDirect3x3WrW final : Serializable<PerformanceConfigAsmDirect3x3WrW>

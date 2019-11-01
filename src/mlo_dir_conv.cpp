@@ -153,6 +153,7 @@ static auto GetImplicitGemmWrWSolvers()
     static const auto inst = std::vector<miopen::ConvSolver*>{{
         &miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4R1WrW>::Instance(),
         &miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4WrW>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvHipImplicitGemmV4R4WrWXdlops>::Instance(),
     }};
     return inst;
 }
@@ -176,6 +177,8 @@ static auto GetWindogradWrWSolvers()
             miopen::solver::ConvWinograd3x3MultipassWrW<1, 1, 7, 2>>::Instance(),
         &miopen::StaticContainer<
             miopen::solver::ConvWinograd3x3MultipassWrW<1, 1, 7, 3>>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvWinograd3x3MultipassWrW<5, 3>>::Instance(),
+        &miopen::StaticContainer<miopen::solver::ConvWinograd3x3MultipassWrW<5, 4>>::Instance(),
     }};
     return inst;
 }
