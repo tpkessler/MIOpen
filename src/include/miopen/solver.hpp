@@ -67,8 +67,8 @@ struct SolverBase
 {
     SolverBase(const SolverBase&) {}
     SolverBase& operator=(const SolverBase&) = delete;
-    SolverBase()          = default;
-    virtual ~SolverBase() = default;
+    SolverBase()                             = default;
+    virtual ~SolverBase()                    = default;
 
     /// Returns true if solution can work on given SW/HW platform (runtime/device)
     /// and provides correct result for the problem config.
