@@ -38,6 +38,8 @@
 #include <miopen/datatype.hpp>
 #include <miopen/version.h>
 #include <miopen/stringutils.hpp>
+#include <miopen/hip_build_utils.hpp>
+#include <miopen/any_solver.hpp>
 
 #include <cmath>
 #include <cstring>
@@ -55,10 +57,12 @@
 #include <miopen/gcn_asm_utils.hpp>
 #include <miopen/mlo_internal.hpp>
 #include <miopen/mlo_utils.hpp>
+
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_GCN_ASM_KERNELS)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_AMD_ROCM_PRECOMPILED_BINARIES)
+MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_OPENCL_CONVOLUTIONS)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_AMD_ROCM_METADATA_ENFORCE)
-MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_AMD_ROCM_METADATA_PREFER_NEWER)
+MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_AMD_ROCM_METADATA_PREFER_OLDER)
 
 // Only select first applicable implicitgemm kernel due to slow compilation time
 // (issue SWDEV-201055) and tuning
@@ -97,8 +101,7 @@ mlo_construct_direct2D_fusion::FindSolution(const std::vector<miopen::solver::An
     for(auto& solver : solvers)
     {
         solution = solver.FindSolution(_search_params, db);
-        if(solution.Succeeded() && solver.IsApplicable(_search_params) &&
-           solver.IsFast(_search_params))
+        if(solution.Succeeded() && solver.IsApplicable(_search_params))
         {
             solver_id = miopen::solver::SolverDbId(solver);
             break;
@@ -130,9 +133,10 @@ static auto GetImplicitGemmSolvers()
 {
     return miopen::solver::SolverContainer<miopen::solver::ConvHipImplicitGemmV4R4Xdlops_1x1,
                                            miopen::solver::ConvHipImplicitGemmV4R4FwdXdlops,
+                                           miopen::solver::ConvHipImplicitGemmV4R4GenFwdXdlops,
                                            miopen::solver::ConvHipImplicitGemmV4_1x1,
-                                           miopen::solver::ConvHipImplicitGemmV4R1Fwd,
-                                           miopen::solver::ConvHipImplicitGemmV4Fwd>{};
+                                           miopen::solver::ConvHipImplicitGemmV4Fwd,
+                                           miopen::solver::ConvHipImplicitGemmV4R1Fwd>{};
 }
 
 static auto GetWindogradSolvers()
@@ -144,25 +148,29 @@ static auto GetWindogradSolvers()
 
 static auto GetImplicitGemmWrWSolvers()
 {
-    return miopen::solver::SolverContainer<miopen::solver::ConvHipImplicitGemmV4R1WrW,
-                                           miopen::solver::ConvHipImplicitGemmV4WrW>{};
+
+    return miopen::solver::SolverContainer<miopen::solver::ConvHipImplicitGemmV4R4WrWXdlops,
+                                           miopen::solver::ConvHipImplicitGemmV4R4GenWrWXdlops,
+                                           miopen::solver::ConvHipImplicitGemmV4WrW,
+                                           miopen::solver::ConvHipImplicitGemmV4R1WrW>{};
 }
 
 static auto GetWindogradWrWSolvers()
 {
-    return miopen::solver::SolverContainer<
-        miopen::solver::ConvBinWinogradRxS,
-        miopen::solver::ConvWinograd3x3MultipassWrW<3, 2>,
-        miopen::solver::ConvWinograd3x3MultipassWrW<3, 3>,
-        miopen::solver::ConvWinograd3x3MultipassWrW<3, 4>,
-        miopen::solver::ConvWinograd3x3MultipassWrW<3, 5>,
-        miopen::solver::ConvWinograd3x3MultipassWrW<3, 6>,
-        miopen::solver::ConvWinograd3x3MultipassWrW<7, 2>,
-        miopen::solver::ConvWinograd3x3MultipassWrW<7, 3>,
-        miopen::solver::ConvWinograd3x3MultipassWrW<7, 3, 1, 1>,
-        miopen::solver::ConvWinograd3x3MultipassWrW<7, 2, 1, 1>,
-        miopen::solver::ConvWinograd3x3MultipassWrW<1, 1, 7, 2>,
-        miopen::solver::ConvWinograd3x3MultipassWrW<1, 1, 7, 3>>{};
+    return miopen::solver::SolverContainer<miopen::solver::ConvBinWinogradRxS,
+                                           miopen::solver::ConvWinograd3x3MultipassWrW<3, 2>,
+                                           miopen::solver::ConvWinograd3x3MultipassWrW<3, 3>,
+                                           miopen::solver::ConvWinograd3x3MultipassWrW<3, 4>,
+                                           miopen::solver::ConvWinograd3x3MultipassWrW<3, 5>,
+                                           miopen::solver::ConvWinograd3x3MultipassWrW<3, 6>,
+                                           miopen::solver::ConvWinograd3x3MultipassWrW<7, 2>,
+                                           miopen::solver::ConvWinograd3x3MultipassWrW<7, 3>,
+                                           miopen::solver::ConvWinograd3x3MultipassWrW<7, 3, 1, 1>,
+                                           miopen::solver::ConvWinograd3x3MultipassWrW<7, 2, 1, 1>,
+                                           miopen::solver::ConvWinograd3x3MultipassWrW<1, 1, 7, 2>,
+                                           miopen::solver::ConvWinograd3x3MultipassWrW<1, 1, 7, 3>,
+                                           miopen::solver::ConvWinograd3x3MultipassWrW<5, 3>,
+                                           miopen::solver::ConvWinograd3x3MultipassWrW<5, 4>>{};
 }
 
 static auto GetBwdWrW2DSolvers()
@@ -202,11 +210,7 @@ std::vector<miopen::solver::ConvSolution>
 FindAllImplicitGemmSolutions(const miopen::ConvolutionContext& ctx)
 {
 #if IMPLICIT_GEMM_FIND_FIRST_SOLUTION
-    auto ss = GetImplicitGemmSolvers().SearchForSolution(ctx, GetDb(ctx));
-    if(ss.Succeeded())
-        return {ss};
-    else
-        return {};
+    return GetImplicitGemmSolvers().SearchForAllSolutions(ctx, GetDb(ctx), 1);
 #else
     return GetImplicitGemmSolvers().SearchForAllSolutions(ctx, GetDb(ctx));
 #endif
@@ -216,11 +220,6 @@ std::vector<miopen::solver::ConvSolution>
 FindAllWinogradSolutions(const miopen::ConvolutionContext& ctx)
 {
     return GetWindogradSolvers().SearchForAllSolutions(ctx, GetDb(ctx));
-}
-
-miopen::solver::ConvSolution FindWinogradSolution(const miopen::ConvolutionContext& ctx)
-{
-    return GetWindogradSolvers().SearchForSolution(ctx, GetDb(ctx));
 }
 
 std::vector<miopen::solver::ConvSolution>
@@ -237,7 +236,11 @@ AllDirectBwdWrW2DWorkspaceSize(const miopen::ConvolutionContext& ctx)
 std::vector<miopen::solver::ConvSolution>
 FindImplicitGemmWrWAllSolutions(const miopen::ConvolutionContext& ctx)
 {
+#if IMPLICIT_GEMM_FIND_FIRST_SOLUTION
+    return GetImplicitGemmWrWSolvers().SearchForAllSolutions(ctx, GetDb(ctx), 1);
+#else
     return GetImplicitGemmWrWSolvers().SearchForAllSolutions(ctx, GetDb(ctx));
+#endif
 }
 
 std::vector<miopen::solver::ConvSolution>
@@ -309,17 +312,20 @@ static bool IsAmdRocmOpencl(const miopen::ConvolutionContext& context)
 /// However, when both ROCm and Solver are able to support both code object formats,
 /// these is no objective criterion for making a decision. The following behavior
 /// is implemented:
-/// * By default, the older format is used (CO v2).
-/// * If MIOPEN_DEBUG_AMD_ROCM_METADATA_PREFER_NEWER is set to 1, then
-///   the behavior is reversed and CO v3 is selected.
+/// * By default, the newer format is used (CO v3).
+/// * If MIOPEN_DEBUG_AMD_ROCM_METADATA_PREFER_OLDER is set to 1, then
+///   the behavior is reversed and CO v2 is selected.
 ///
-/// FIXME move this out of the rocm_meta_version class.
+/// \todo Dismiss MIOPEN_DEBUG_AMD_ROCM_METADATA_PREFER_OLDER (and, possibly,
+/// rocm_meta_version::AMDHSA_COv2_COv3) as soon as MIOpen drops support for the
+/// ROCm runtimes that can load and run both v2 and v3 Code Objects.
+///
+/// \todo Move this out of the rocm_meta_version class.
 bool rocm_meta_version::UseV3() const
 {
-    if(miopen::IsEnabled(MIOPEN_DEBUG_AMD_ROCM_METADATA_PREFER_NEWER{}))
-        return val == AMDHSA_COv3 || val == AMDHSA_COv2_COv3;
-    else
-        return val == AMDHSA_COv3;
+    if(val == AMDHSA_COv2_COv3)
+        return !miopen::IsEnabled(MIOPEN_DEBUG_AMD_ROCM_METADATA_PREFER_OLDER{});
+    return (val == AMDHSA_COv3);
 }
 
 static std::ostream& operator<<(std::ostream& os, const rocm_meta_version& rmv)
@@ -361,17 +367,23 @@ static rocm_meta_version AmdRocmMetadataVersionDetect(const miopen::ConvolutionC
         size_t num_begin = platform_version.find('(');
         if(num_begin != std::string::npos)
         {
-            // int num = std::stoi(platform_version.substr(num_begin + 1));
-            rmv = rocm_meta_version::AMDHSA_COv2;
+            const int num = std::stoi(platform_version.substr(num_begin + 1));
+            if(num >= 3029) // ROCm 2.10 RC 1341
+                rmv = rocm_meta_version::AMDHSA_COv2_COv3;
+            else
+                rmv = rocm_meta_version::AMDHSA_COv2;
         }
         else
         {
             rmv = rocm_meta_version::Default;
         }
 #else
-        /// \todo Rework this using clang-ocl.
         (void)context;
-        rmv = rocm_meta_version::Default;
+        if(miopen::HipGetHccVersion() >=
+           miopen::external_tool_version_t{2, 10, 19392}) // ROCm 2.10 RC 1341
+            rmv = rocm_meta_version::AMDHSA_COv2_COv3;
+        else
+            rmv = rocm_meta_version::Default;
 #endif // MIOPEN_BACKEND_OPENCL
     }
     MIOPEN_LOG_NQI(
@@ -436,9 +448,10 @@ void mlo_construct_activ_lrn_pooling_common::setupFloats()
 void miopen::ConvolutionContext::DetectRocm()
 {
     // Detect assembly kernels
-    use_binaries    = false;
-    use_asm_kernels = false;
-    rmv             = rocm_meta_version::Default;
+    use_binaries            = false;
+    use_asm_kernels         = false;
+    use_opencl_convolutions = !miopen::IsDisabled(MIOPEN_DEBUG_OPENCL_CONVOLUTIONS{});
+    rmv                     = rocm_meta_version::Default;
     if(mloIsAmdRocmOpencl(*this))
     {
         use_asm_kernels =

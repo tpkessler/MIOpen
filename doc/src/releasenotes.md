@@ -3,26 +3,32 @@
 
 
 
-### 10/31/2019 [ 2.2.0 ]
+### 12/19/2019 [ 2.2.0 ]
 
-- This release contains bug fixes, performance improvements, and expanded applicability for specific convolutional algorithms
+- This release contains bug fixes, performance improvements, and expanded applicability for specific convolutional algorithms.
+- MIOpen has posted a citable paper on ArXiv [here](https://arxiv.org/abs/1910.00078).
+- An SQLite database has been added to replace the text-based performance database. While the text file still exists, by default SQLite is used over the text-based performance database; see [documentation](https://rocmsoftwareplatform.github.io/MIOpen/doc/html/perfdatabase.html) from more details. 
+
 
 Changes:
 
 - Added per solution algorithm filtering environmental variable for debugging
-- Added SQLite database and build dependency, replacing text-based performance database
-- Added citation page to documentation pointing to MIOpen's paper
-- Added to documentation
+- Added SQLite3 database and build dependency. The text-based performance database support is deprecated and will be removed in the next release.
+- Added citation page to documentation pointing to [MIOpen's paper](https://arxiv.org/abs/1910.00078)
+- Added to the overall documentation
 - Fixed fusion compilation check issue
+- Fixed fusion group convolution warning
 - Improved performance of forward pooling
 - Improved performance of convolutions
 - Improved performance of spatial training batch normalization for some large batch size input configurations
 - Improved applicability of implicit GEMM convolution algorithm
 - Improved performance of calls to miopenConvolutionXXXGetWorkSpaceSize() functions
+- Improved conformance to code object version 3
+- Removed SCGEMM convolution algorithm by default; this algorithm is deprecated and will be removed in future releases
+- Changed "hip_hcc" to "hip-hcc" for the MIOpen package requirements in CMakeLists.txt
 
 
-
-### 09/01/2019 [ 2.1.0 ]
+### 09/25/2019 [ 2.1.0 ]
 
 - This release contains new layers, bug fixes, and a new convolution algorithm.
 

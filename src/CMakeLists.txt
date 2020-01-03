@@ -156,6 +156,8 @@ set( MIOpen_Source
     include/miopen/kernel_build_params.hpp
     include/miopen/algorithm.hpp
     include/miopen/finddb_kernel_cache_key.hpp
+    include/miopen/exec_utils.hpp
+    include/miopen/gcn_asm_utils.hpp
     include/miopen/hip_build_utils.hpp
     include/miopen/solver_id.hpp
     include/miopen/any_solver.hpp
@@ -194,6 +196,9 @@ set( MIOpen_Source
     solver/conv_hip_implicit_gemm_v4.cpp
     solver/conv_hip_implicit_gemm_v4r1.cpp
     solver/conv_hip_implicit_gemm_v4r4_xdlops.cpp
+    solver/conv_hip_implicit_gemm_v4r4_gen_xdlops.cpp
+    solver/conv_hip_implicit_gemm_xdlops_common.cpp
+    solver/conv_hip_implicit_gemm_nonxdlops_common.cpp
     )
 
 list(APPEND MIOpen_Source tmp_dir.cpp binary_cache.cpp md5.cpp)
@@ -234,9 +239,13 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         kernels/conv_3x3_wheel_alpha_v9_0_15_stride_2_dil.inc
         kernels/conv_3x3_wheel_alpha_v9_0_15_stride_2_dec.inc
         kernels/conv_3x3_wheel_alpha_v9_0_15.inc
+        kernels/rocm_version.inc
         kernels/inst_wrappers.inc
-        kernels/common.inc
+        kernels/conv_common.inc
+        kernels/utilities.inc
         kernels/xform_data_filter.inc
+        kernels/xform_kd_cov2.inc
+        kernels/xform_metadata.inc
         kernels/neuron.inc
         kernels/conv_sizes.inc
         kernels/gpr_alloc.inc
@@ -265,6 +274,8 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         kernels/MIOpenNeuron.cl
         kernels/MIOpenPooling.cl
         kernels/MIOpenPoolingBwd.cl
+        kernels/MIOpenPoolingND.cl
+        kernels/MIOpenPoolingBwdND.cl
         kernels/MIOpenConv1x1S.cl
         kernels/MIOpenConv1x1J1.cl
         kernels/MIOpenConv1x1J1_stride.cl
@@ -297,7 +308,6 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         kernels/conv5x10u2v2f1.s
         kernels/conv5x10u2v2b1.s
         kernels/conv7x7c3h224w224k64u2v2p3q3f1.s
-        kernels/gcnAsmBNFwdTrainSpatial.s
         kernels/xform_out.s
         kernels/gcnAsmBNBwdTrainSpatial.s
         kernels/MIOpenTensorKernels.cl
@@ -341,6 +351,7 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         kernel_cache.cpp
         lrn.cpp
         mlo_dir_conv.cpp
+        exec_utils.cpp
         ocl/activ_ocl.cpp
         ocl/batchnormocl.cpp
         ocl/convolutionocl.cpp
@@ -577,7 +588,7 @@ rocm_export_targets(
 
 # Install db files
 install(FILES
-    kernels/gfx803_36.cd.pdb.txt 
+    kernels/gfx803_36.cd.pdb.txt
     kernels/gfx803_64.cd.pdb.txt
     kernels/gfx900_64.cd.pdb.txt
     kernels/gfx900_56.cd.pdb.txt

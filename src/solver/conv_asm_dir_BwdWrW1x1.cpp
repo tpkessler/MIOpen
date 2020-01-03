@@ -470,7 +470,7 @@ bool ConvAsmBwdWrW1x1::IsApplicable(const ConvolutionContext& params) const
         return false;
     if(!params.Is2d())
         return false;
-    if(!params.rmv.IsV2())
+    if(!params.rmv.IsV2orV3())
         return false;
 
     const std::string name = params.GetStream().GetDeviceName();
@@ -515,8 +515,6 @@ bool ConvAsmBwdWrW1x1::IsApplicable(const ConvolutionContext& params) const
          && c_k_r_s < std::pow(2, 29); // clang-format on
     return ok;
 }
-
-bool ConvAsmBwdWrW1x1::IsFast(const ConvolutionContext&) const { return true; }
 
 static int divide_round_plus_inf(const int x, const int y)
 {
@@ -611,7 +609,7 @@ ConvSolution ConvAsmBwdWrW1x1::GetSolution(const ConvolutionContext& params,
     GenerateClangDefsym(options, "pad_w", params.pad_w);
     GenerateClangDefsym(options, "weights_layout", 0);
     GenerateClangDefsym(options, "reverse_weights", 0);
-    GenerateClangDefsym(options, "ROCM_METADATA_VERSION", 4);
+    GenerateClangDefsym(options, "ROCM_METADATA_VERSION", params.rmv.UseV3() ? 5 : 4);
     // Perf tune:
     GenerateClangDefsym(options, "do_not_use_default_perf_params", 1);
 
@@ -759,7 +757,7 @@ ConvSolution ConvAsmBwdWrW1x1::GetSolution(const ConvolutionContext& params,
         divide_round_plus_inf(params.n_inputs, pcfg->GetKPerGpr() * pcfg->GetKMult()));
 
     kernel.kernel_file = "conv1x1wrw.s";
-    kernel.kernel_name = "gcnAsmConv1x1WrW";
+    kernel.kernel_name = "miopenGcnAsmConv1x1WrW";
 
     result.construction_params.push_back(kernel);
 
@@ -818,8 +816,9 @@ int ConvAsmBwdWrW1x1::RunAndMeasureSolution(miopen::Handle& profile_h,
         elapsed_time = profile_h.GetKernelTime();
     }
 #ifdef NDEBUG
-    catch(miopen::Exception&)
+    catch(miopen::Exception& ex)
     {
+        MIOPEN_LOG_WE(ex.what());
         return -1;
     }
 #endif

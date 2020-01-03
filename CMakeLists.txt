@@ -59,13 +59,15 @@ if(MIOPEN_ENABLE_SQLITE)
 endif()
 option( BUILD_DEV "Build for development only" OFF)
 
+# Control Code Object V3 for HIP kernels
+set(MIOPEN_ENABLE_HCC_COV3 Off CACHE BOOL "Enable Code Object V3 for Hip kernels")
 # Strip symbols for release
 if(NOT WIN32 AND NOT APPLE)
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -s")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -s")
 endif()
 
-rocm_setup_version(VERSION 2.2.0)
+rocm_setup_version(VERSION 2.3.0)
 
 list( APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake )
 include(TargetFlags)
@@ -182,7 +184,7 @@ if( MIOPEN_BACKEND STREQUAL "HIP" OR MIOPEN_BACKEND STREQUAL "HIPOC")
     endif()
 
     # scgemm
-    set(MIOPEN_USE_SCGEMM ON CACHE BOOL "")
+    set(MIOPEN_USE_SCGEMM OFF CACHE BOOL "")
     if(MIOPEN_USE_SCGEMM)
         message(STATUS "Build with scgemm")
     else()
@@ -256,7 +258,7 @@ set(MIOPEN_USER_DB_SUFFIX "${MIOPEN_BACKEND}.${MIOpen_VERSION_MAJOR}_${MIOpen_VE
 set(MIOPEN_SYSTEM_FIND_DB_SUFFIX "${MIOPEN_BACKEND}" CACHE PATH "Filename suffix for the system find-db files")
 
 
-set(MIOPEN_PACKAGE_REQS "rocm-utils, hip_hcc")
+set(MIOPEN_PACKAGE_REQS "rocm-utils, hip-hcc")
 if(MIOPEN_USE_MIOPENGEMM)
     set(MIOPEN_PACKAGE_REQS "${MIOPEN_PACKAGE_REQS}, miopengemm")
 endif()
@@ -268,7 +270,7 @@ rocm_create_package(
     DESCRIPTION "AMD's DNN Library"
     MAINTAINER "Paul Fultz II <paul.fultz@amd.com>"
     LDCONFIG
-    # DEPENDS rocm-opencl rocm-utils hip_hcc tinygemm
+    # DEPENDS rocm-opencl rocm-utils hip-hcc tinygemm
 )
 
 include(EnableCompilerWarnings)
@@ -276,8 +278,9 @@ set(MIOPEN_TIDY_ERRORS ERRORS * -readability-inconsistent-declaration-parameter-
 if(CMAKE_CXX_COMPILER MATCHES ".*hcc")
     set(MIOPEN_TIDY_CHECKS -modernize-use-override -readability-non-const-parameter)
 # Enable tidy on hip
-# elseif(MIOPEN_BACKEND STREQUAL "HIP")
-#     set(MIOPEN_TIDY_ERRORS ALL)
+elseif(MIOPEN_BACKEND STREQUAL "HIP")
+    set(MIOPEN_TIDY_ERRORS ALL)
+
 endif()
 
 include(ClangTidy)
@@ -346,6 +349,7 @@ enable_clang_tidy(
         -readability-magic-numbers
         -readability-named-parameter
         -readability-uppercase-literal-suffix
+        -readability-convert-member-functions-to-static
 
         ${MIOPEN_TIDY_CHECKS}
     ${MIOPEN_TIDY_ERRORS}

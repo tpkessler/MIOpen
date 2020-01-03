@@ -377,7 +377,7 @@ bool ConvAsm1x1U::IsApplicable(const ConvolutionContext& params) const
         return false;
     if(!params.Is2d())
         return false;
-    if(!params.rmv.IsV2())
+    if(!params.rmv.IsV2orV3())
         return false;
     if(!(params.IsFp32() || params.IsFp16()))
         return false;
@@ -457,8 +457,6 @@ size_t ConvAsm1x1U::GetWorkspaceSize(const ConvolutionContext& params) const
     }
     return 0;
 }
-bool ConvAsm1x1U::IsFast(const ConvolutionContext&) const { return true; }
-
 static int divide_round_plus_inf(const int x, const int y)
 {
     assert(x >= 0 && y > 0);
@@ -641,7 +639,7 @@ ConvSolution ConvAsm1x1U::GetSolution(const ConvolutionContext& params,
     GenerateClangDefsym(options, "filter_buffer_size", fbuf.total_byte_size);
     GenerateClangDefsym(options, "output_buffer_size", obuf.total_byte_size);
 
-    GenerateClangDefsym(options, "ROCM_METADATA_VERSION", 4);
+    GenerateClangDefsym(options, "ROCM_METADATA_VERSION", params.rmv.UseV3() ? 5 : 4);
 
     const PerformanceConfigConvAsm1x1U* pcfg = &config;
     PerformanceConfigConvAsm1x1U fromEnv;
@@ -700,7 +698,7 @@ ConvSolution ConvAsm1x1U::GetSolution(const ConvolutionContext& params,
     kinfo.g_wk.push_back(divide_round_plus_inf(params.batch_sz, n_images_per_wave));
 
     kinfo.kernel_file = "conv1x1u.s";
-    kinfo.kernel_name = "gcnAsmConv1x1U";
+    kinfo.kernel_name = "miopenGcnAsmConv1x1U";
 
     if(UseSubsample(params))
         result.construction_params.push_back(kernel);
@@ -767,8 +765,9 @@ int ConvAsm1x1U::RunAndMeasureSolution(miopen::Handle& profile_h,
         elapsed_time = profile_h.GetKernelTime();
     }
 #ifdef NDEBUG
-    catch(miopen::Exception&)
+    catch(miopen::Exception& ex)
     {
+        MIOPEN_LOG_WE(ex.what());
         return -1;
     }
 #endif

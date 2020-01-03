@@ -209,9 +209,9 @@ void xorwow_lite_init_emu(prngStates* cur_state,
     cur_state->v += t0;
     cur_state->d += t1 + t0;
 
-    xorwow_skipahead_emu(subsequence, cur_state, precalc_xorwow_skipahead_matrices);
+    xorwow_skipahead_emu(subsequence, cur_state, precalc_xorwow_skipahead_sequence_matrices);
 
-    xorwow_skipahead_emu(offset, cur_state, precalc_xorwow_skipahead_sequence_matrices);
+    xorwow_skipahead_emu(offset, cur_state, precalc_xorwow_skipahead_matrices);
     cur_state->d += static_cast<unsigned int>(offset) * 362437;
 }
 
@@ -549,6 +549,13 @@ struct dropout_driver : test_driver
 
     void run()
     {
+// Workaround for issue #2335.
+// OpenCL error creating buffer: 0 Invalid Buffer Size
+#if MIOPEN_BACKEND_OPENCL
+        std::cout << "Skip test for Issue #2335: " << std::endl;
+        return;
+#endif
+
         miopen::DropoutDescriptor DropoutDesc;
         unsigned long max_value  = miopen_type<T>{} == miopenHalf ? 5 : 17;
         auto&& handle            = get_handle();

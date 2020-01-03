@@ -342,7 +342,7 @@ bool ConvAsmBwdWrW3x3::IsApplicable(const ConvolutionContext& params) const
         return false;
     if(!params.Is2d())
         return false;
-    if(!params.rmv.IsV2())
+    if(!params.rmv.IsV2orV3())
         return false;
 
     const std::string name = params.GetStream().GetDeviceName();
@@ -405,8 +405,6 @@ bool ConvAsmBwdWrW3x3::IsApplicable(const ConvolutionContext& params) const
     return ok;
 }
 
-bool ConvAsmBwdWrW3x3::IsFast(const ConvolutionContext&) const { return true; }
-
 ConvSolution ConvAsmBwdWrW3x3::GetSolution(const ConvolutionContext& params,
                                            const PerformanceConfigAsmDirect3x3WrW& config,
                                            const bool disableConfigOverrideFromEnv) const
@@ -428,7 +426,7 @@ ConvSolution ConvAsmBwdWrW3x3::GetSolution(const ConvolutionContext& params,
     GenerateClangDefsym(options, "stride_w", params.kernel_stride_w);
     GenerateClangDefsym(options, "weights_layout", 0);
     GenerateClangDefsym(options, "reverse_weights", 0);
-    GenerateClangDefsym(options, "ROCM_METADATA_VERSION", 4);
+    GenerateClangDefsym(options, "ROCM_METADATA_VERSION", params.rmv.UseV3() ? 5 : 4);
     // Perf tune:
     const PerformanceConfigAsmDirect3x3WrW* pcfg = &config;
     PerformanceConfigAsmDirect3x3WrW fromEnv;
@@ -496,7 +494,7 @@ ConvSolution ConvAsmBwdWrW3x3::GetSolution(const ConvolutionContext& params,
     }
 
     kernel.kernel_file = "conv3x3wrw.s";
-    kernel.kernel_name = "gcnAsmConv3x3WrW";
+    kernel.kernel_name = "miopenGcnAsmConv3x3WrW";
 
     result.construction_params.push_back(kernel);
     result.workspce_sz = 0;
@@ -550,8 +548,9 @@ int ConvAsmBwdWrW3x3::RunAndMeasureSolution(miopen::Handle& profile_h,
         elapsed_time = profile_h.GetKernelTime();
     }
 #ifdef NDEBUG
-    catch(miopen::Exception&)
+    catch(miopen::Exception& ex)
     {
+        MIOPEN_LOG_WE(ex.what());
         return -1;
     }
 #endif

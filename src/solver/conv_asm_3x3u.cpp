@@ -212,8 +212,6 @@ bool ConvAsm3x3U::IsApplicable(const ConvolutionContext& params) const
     // clang-format on
 }
 
-bool ConvAsm3x3U::IsFast(const ConvolutionContext& params) const { return params.in_width >= 50; }
-
 ConvSolution ConvAsm3x3U::GetSolution(const ConvolutionContext& params,
                                       const PerformanceConfigConvAsm3x3U& config,
                                       const bool disableConfigOverrideFromEnv) const
@@ -286,7 +284,7 @@ ConvSolution ConvAsm3x3U::GetSolution(const ConvolutionContext& params,
     construction_params.g_wk.push_back(params.batch_sz);
 
     construction_params.kernel_file = "conv3x3.s";
-    construction_params.kernel_name = "gcnAsmConv3x3U";
+    construction_params.kernel_name = "miopenGcnAsmConv3x3U";
 
     result.construction_params.push_back(construction_params);
     return result;
@@ -324,8 +322,9 @@ int ConvAsm3x3U::RunAndMeasureSolution(miopen::Handle& profile_h,
         elapsed_time = profile_h.GetKernelTime();
     }
 #ifdef NDEBUG
-    catch(miopen::Exception&)
+    catch(miopen::Exception& ex)
     {
+        MIOPEN_LOG_WE(ex.what());
         return -1;
     }
 #endif

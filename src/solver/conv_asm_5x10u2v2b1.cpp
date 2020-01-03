@@ -41,7 +41,7 @@ bool ConvAsm5x10u2v2b1::IsApplicable(const ConvolutionContext& params) const
         return false;
     if(!params.Is2d())
         return false;
-    if(!params.rmv.IsV2())
+    if(!params.rmv.IsV2orV3())
         return false;
 
     const std::string name = params.GetStream().GetDeviceName();
@@ -95,7 +95,7 @@ ConvSolution ConvAsm5x10u2v2b1::GetSolution(const ConvolutionContext& params) co
     GenerateClangDefsym(options, "inp_w", params.out_width);
     GenerateClangDefsym(options, "wei_c", params.n_outputs);
     GenerateClangDefsym(options, "wei_k", params.n_inputs);
-    GenerateClangDefsym(options, "ROCM_METADATA_VERSION", 4);
+    GenerateClangDefsym(options, "ROCM_METADATA_VERSION", params.rmv.UseV3() ? 5 : 4);
 
     KernelInfo constr_params;
     constr_params.comp_options = options.str();
@@ -111,7 +111,7 @@ ConvSolution ConvAsm5x10u2v2b1::GetSolution(const ConvolutionContext& params) co
     constr_params.g_wk.push_back(params.batch_sz);
 
     constr_params.kernel_file = "conv5x10u2v2b1.s";
-    constr_params.kernel_name = "conv5x10u2v2b1";
+    constr_params.kernel_name = "miopenConv5x10u2v2b1";
 
     result.construction_params.push_back(constr_params);
     return result;
