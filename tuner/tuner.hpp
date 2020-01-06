@@ -228,7 +228,7 @@ std::string ParseBaseArg(int argc, char* argv[])
 
     std::string arg = argv[1];
 
-    if(arg != "conv")
+    if(arg != "conv" && arg != "convfp16" )
     {
         printf("Invalid Base Input Argument\n");
         Usage();
