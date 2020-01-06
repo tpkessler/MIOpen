@@ -42,6 +42,7 @@
 #include <miopen/tensor.hpp>
 #include <miopen/convolution.hpp>
 #include <miopen/algorithm.hpp>
+#include <miopen/env.hpp>
 
 #include <numeric>
 #include <sstream>
@@ -277,6 +278,7 @@ int ConvTuner<Tgpu, Tref>::AddCmdLineArgs()
         "trans_output_pad_h", 'Y', "0", "Zero Padding Output for Height (Default=0)", "int");
     inflags.AddInputFlag(
         "trans_output_pad_w", 'X', "0", "Zero Padding Output for Width (Default=0)", "int");
+    inflags.AddInputFlag("iter", 'i', "10", "Number of Iterations (Default=10)", "int");
     inflags.AddInputFlag("search", 's', "0", "Search Kernel Config (Default=0)", "int");
     inflags.AddInputFlag("printconv", 'P', "1", "Print Convolution Dimensions (Default=1)", "int");
     inflags.AddInputFlag("bias", 'b', "", "Use Bias (Default=0)", "int");
@@ -616,7 +618,7 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
         miopen::TensorDescriptor& wDesc = is_transform ? weightTensor_vect4 : weightTensor;
         miopen::TensorDescriptor& xDesc = is_transform ? inputTensor_vect4 : inputTensor;
 
-        workSpaceSize_fwd = 
+        workSpaceSize_fwd =
             convDesc.mode == miopenTranspose
                 ? convDesc.BackwardDataGetWorkSpaceSize(GetHandle(), wDesc, xDesc, outputTensor)
                 : convDesc.ForwardGetWorkSpaceSize(GetHandle(), wDesc, xDesc, outputTensor);
@@ -879,7 +881,10 @@ int ConvTuner<Tgpu, Tref>::RunForwardGPU()
                         DataCast(wei_vect4_dev->GetMem()));
     }
 
-    FindForward(ret_algo_count, request_algo_count, perf_results);
+
+    int iter = inflags.GetValueInt("iter");
+    for(int i = 0; i < iter; i++)
+        FindForward(ret_algo_count, request_algo_count, perf_results);
     return miopenStatusSuccess;
 }
 
