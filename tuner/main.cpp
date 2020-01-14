@@ -62,14 +62,23 @@ int main(int argc, char* argv[])
 
     int fargval = tuna->GetInputFlags().GetValueInt("forw");
 
+    int iter = tuna->GetInputFlags().GetValueInt("iter");
+    float kern_time;
+
     if(fargval & 1 || fargval == 0)
     {
-        tuna->RunForwardGPU();
+        for(int i = 0; i < iter; i++)
+        {
+            tuna->RunForwardGPU();
+        }
     }
 
     if(fargval != 1)
     {
-        tuna->RunBackwardGPU();
+        for(int i = 0; i < iter; i++)
+        {
+            tuna->RunBackwardGPU();
+        }
     }
 
     return 0;

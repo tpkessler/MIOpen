@@ -882,9 +882,7 @@ int ConvTuner<Tgpu, Tref>::RunForwardGPU()
     }
 
 
-    int iter = inflags.GetValueInt("iter");
-    for(int i = 0; i < iter; i++)
-        FindForward(ret_algo_count, request_algo_count, perf_results);
+    FindForward(ret_algo_count, request_algo_count, perf_results);
     return miopenStatusSuccess;
 }
 
@@ -977,9 +975,7 @@ int ConvTuner<Tgpu, Tref>::RunBackwardGPU()
 
     if(bwd_allowed)
     {
-        int iter = inflags.GetValueInt("iter");
-        for(int i = 0; i < iter; i++)
-            FindBackwardData(ret_algo_count, request_algo_count, perf_results_data);
+        FindBackwardData(ret_algo_count, request_algo_count, perf_results_data);
 
         if(ret_algo_count == 0)
             throw std::runtime_error("Find Backward Data Conv. ret_algo_count == 0");
@@ -1025,9 +1021,7 @@ int ConvTuner<Tgpu, Tref>::RunBackwardGPU()
     {
         std::vector<miopenConvAlgoPerf_t> perf_results_weights(request_algo_count);
 
-        int iter = inflags.GetValueInt("iter");
-        for(int i = 0; i < iter; i++)
-            FindBackwardWeights(ret_algo_count, request_algo_count, perf_results_weights);
+        FindBackwardWeights(ret_algo_count, request_algo_count, perf_results_weights);
 
         if(ret_algo_count == 0)
             throw std::runtime_error("Find Backward Weights Conv. ret_algo_count == 0");
