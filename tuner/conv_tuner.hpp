@@ -278,7 +278,7 @@ int ConvTuner<Tgpu, Tref>::AddCmdLineArgs()
         "trans_output_pad_h", 'Y', "0", "Zero Padding Output for Height (Default=0)", "int");
     inflags.AddInputFlag(
         "trans_output_pad_w", 'X', "0", "Zero Padding Output for Width (Default=0)", "int");
-    inflags.AddInputFlag("iter", 'i', "10", "Number of Iterations (Default=10)", "int");
+    inflags.AddInputFlag("iter", 'i', "10", "Number of Find Iterations (Default=10)", "int");
     inflags.AddInputFlag("search", 's', "0", "Search Kernel Config (Default=0)", "int");
     inflags.AddInputFlag("printconv", 'P', "1", "Print Convolution Dimensions (Default=1)", "int");
     inflags.AddInputFlag("bias", 'b', "", "Use Bias (Default=0)", "int");
@@ -882,7 +882,14 @@ int ConvTuner<Tgpu, Tref>::RunForwardGPU()
     }
 
 
-    FindForward(ret_algo_count, request_algo_count, perf_results);
+    int iter = inflags.GetValueInt("iter");
+    int status;
+    for(int i = 0; i < iter; i++)
+    {
+        status = FindForward(ret_algo_count, request_algo_count, perf_results);
+        if(status != miopenStatusSuccess)
+            break;
+    }
     return miopenStatusSuccess;
 }
 
@@ -975,7 +982,14 @@ int ConvTuner<Tgpu, Tref>::RunBackwardGPU()
 
     if(bwd_allowed)
     {
-        FindBackwardData(ret_algo_count, request_algo_count, perf_results_data);
+        int iter = inflags.GetValueInt("iter");
+        int status;
+        for(int i = 0; i < iter; i++)
+        {
+            status = FindBackwardData(ret_algo_count, request_algo_count, perf_results_data);
+            if(status != miopenStatusSuccess)
+                break;
+        }
 
         if(ret_algo_count == 0)
             throw std::runtime_error("Find Backward Data Conv. ret_algo_count == 0");
@@ -1021,7 +1035,14 @@ int ConvTuner<Tgpu, Tref>::RunBackwardGPU()
     {
         std::vector<miopenConvAlgoPerf_t> perf_results_weights(request_algo_count);
 
-        FindBackwardWeights(ret_algo_count, request_algo_count, perf_results_weights);
+        int iter = inflags.GetValueInt("iter");
+        int status;
+        for(int i = 0; i < iter; i++)
+        {
+            status = FindBackwardWeights(ret_algo_count, request_algo_count, perf_results_weights);
+            if(status != miopenStatusSuccess)
+                break;
+        }
 
         if(ret_algo_count == 0)
             throw std::runtime_error("Find Backward Weights Conv. ret_algo_count == 0");
