@@ -366,7 +366,7 @@ Program Handle::LoadProgram(const std::string& program_name,
                             const std::string& kernel_src) const
 {
     this->impl->set_ctx();
-    params += " -mcpu=" + this->GetDeviceName();
+    //params += " -mcpu=" + this->GetDeviceName();
     auto hsaco = miopen::LoadBinary(
         this->GetDeviceName(), this->GetMaxComputeUnits(), program_name, params, is_kernel_str);
     if(hsaco.empty())
