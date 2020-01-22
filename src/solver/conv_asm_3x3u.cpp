@@ -35,6 +35,7 @@
 #include <miopen/solver.hpp>
 #include <miopen/generic_search.hpp>
 #include <miopen/kernel_build_params.hpp>
+#include <miopen/conv/invokers/gen_x_w_y_pad_fwd.hpp>
 
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_DIRECT_ASM_3X3U_PERF_VALS)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_DIRECT_ASM_3X3U)
@@ -186,12 +187,9 @@ bool ConvAsm3x3U::IsApplicable(const ConvolutionContext& params) const
         return false;
     if(!params.rmv.IsV2orV3())
         return false;
-
     const std::string name = params.GetStream().GetDeviceName();
-    if(name.find("gfx9") == std::string::npos)
-    {
+    if(!(StartsWith(name, "gfx8") || StartsWith(name, "gfx9")))
         return false;
-    }
     assert(params.weights_layout.length() == 0); // FIXME _weights_layout is not supported yet.
     // clang-format off
     return params.pad_w == 1
@@ -287,6 +285,10 @@ ConvSolution ConvAsm3x3U::GetSolution(const ConvolutionContext& params,
     construction_params.kernel_name = "miopenGcnAsmConv3x3U";
 
     result.construction_params.push_back(construction_params);
+
+    if(params.direction.IsForward())
+        result.invoker_factory = &conv::MakeGenericXWYPadFwdInvoker;
+
     return result;
 }
 

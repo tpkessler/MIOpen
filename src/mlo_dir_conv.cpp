@@ -66,8 +66,9 @@ MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_AMD_ROCM_METADATA_PREFER_OLDER)
 
 // Only select first applicable implicitgemm kernel due to slow compilation time
 // (issue SWDEV-201055) and tuning
-/// \todo enable multiple or all applicable solver search after fixing slow compilation
-#define IMPLICIT_GEMM_FIND_FIRST_SOLUTION 1
+/// \todo enable all applicable solver search by default after fixing slow compilation
+MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_IMPLICIT_GEMM_FIND_FIRST_SOLUTION)
+
 #if MIOPEN_ENABLE_SQLITE
 miopen::PerfDb mlo_construct_base::GetDb() const
 {
@@ -143,6 +144,7 @@ static auto GetWindogradSolvers()
 {
     return miopen::solver::SolverContainer<miopen::solver::ConvBinWinograd3x3U,
                                            miopen::solver::ConvBinWinogradRxSf3x2,
+                                           miopen::solver::ConvBinWinogradRxSf2x3,
                                            miopen::solver::ConvBinWinogradRxS>{};
 }
 
@@ -158,6 +160,7 @@ static auto GetImplicitGemmWrWSolvers()
 static auto GetWindogradWrWSolvers()
 {
     return miopen::solver::SolverContainer<miopen::solver::ConvBinWinogradRxS,
+                                           miopen::solver::ConvBinWinogradRxSf2x3,
                                            miopen::solver::ConvWinograd3x3MultipassWrW<3, 2>,
                                            miopen::solver::ConvWinograd3x3MultipassWrW<3, 3>,
                                            miopen::solver::ConvWinograd3x3MultipassWrW<3, 4>,
@@ -209,11 +212,10 @@ AllDirectForwardBackwardDataWorkspaceSize(const miopen::ConvolutionContext& ctx)
 std::vector<miopen::solver::ConvSolution>
 FindAllImplicitGemmSolutions(const miopen::ConvolutionContext& ctx)
 {
-#if IMPLICIT_GEMM_FIND_FIRST_SOLUTION
-    return GetImplicitGemmSolvers().SearchForAllSolutions(ctx, GetDb(ctx), 1);
-#else
-    return GetImplicitGemmSolvers().SearchForAllSolutions(ctx, GetDb(ctx));
-#endif
+    if(!miopen::IsDisabled(MIOPEN_DEBUG_IMPLICIT_GEMM_FIND_FIRST_SOLUTION{}))
+        return GetImplicitGemmSolvers().SearchForAllSolutions(ctx, GetDb(ctx), 1);
+    else
+        return GetImplicitGemmSolvers().SearchForAllSolutions(ctx, GetDb(ctx));
 }
 
 std::vector<miopen::solver::ConvSolution>
@@ -236,11 +238,10 @@ AllDirectBwdWrW2DWorkspaceSize(const miopen::ConvolutionContext& ctx)
 std::vector<miopen::solver::ConvSolution>
 FindImplicitGemmWrWAllSolutions(const miopen::ConvolutionContext& ctx)
 {
-#if IMPLICIT_GEMM_FIND_FIRST_SOLUTION
-    return GetImplicitGemmWrWSolvers().SearchForAllSolutions(ctx, GetDb(ctx), 1);
-#else
-    return GetImplicitGemmWrWSolvers().SearchForAllSolutions(ctx, GetDb(ctx));
-#endif
+    if(!miopen::IsDisabled(MIOPEN_DEBUG_IMPLICIT_GEMM_FIND_FIRST_SOLUTION{}))
+        return GetImplicitGemmWrWSolvers().SearchForAllSolutions(ctx, GetDb(ctx), 1);
+    else
+        return GetImplicitGemmWrWSolvers().SearchForAllSolutions(ctx, GetDb(ctx));
 }
 
 std::vector<miopen::solver::ConvSolution>
@@ -459,11 +460,5 @@ void miopen::ConvolutionContext::DetectRocm()
 #ifndef HIP_OC_FINALIZER
         use_binaries = !miopen::IsDisabled(MIOPEN_DEBUG_AMD_ROCM_PRECOMPILED_BINARIES{});
 #endif
-    }
-
-    if(StartsWith(GetStream().GetDeviceName(), "gfx8"))
-    {
-        use_asm_kernels = false;
-        use_binaries    = false;
     }
 }
