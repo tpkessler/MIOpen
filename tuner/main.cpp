@@ -62,7 +62,7 @@ int main(int argc, char* argv[])
 
     int fargval = tuna->GetInputFlags().GetValueInt("forw");
 
-    //int iter = tuna->GetInputFlags().GetValueInt("iter");
+    // int iter = tuna->GetInputFlags().GetValueInt("iter");
     int status;
 
     if(fargval & 1 || fargval == 0)

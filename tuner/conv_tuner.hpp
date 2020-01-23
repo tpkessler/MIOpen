@@ -28,9 +28,6 @@
 
 #include "InputFlags.hpp"
 
-
-//#include "timer.hpp"
-//#include "util_driver.hpp"
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -56,9 +53,7 @@
 
 #include "tuner.hpp"
 
-
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DRIVER_PAD_BUFFERS_2M)
-
 
 // Tgpu and Tref are the data-type in GPU memory and CPU memory respectively.
 // They are not necessarily the same as the computation type on GPU or CPU
@@ -68,11 +63,11 @@ class ConvTuner : public Tuner
     public:
     ConvTuner() : Tuner()
     {
-        inputTensor = miopen::TensorDescriptor();
-        weightTensor = miopen::TensorDescriptor();
-        outputTensor = miopen::TensorDescriptor();
-        biasTensor = miopen::TensorDescriptor();
-        inputTensor_vect4 = miopen::TensorDescriptor();
+        inputTensor        = miopen::TensorDescriptor();
+        weightTensor       = miopen::TensorDescriptor();
+        outputTensor       = miopen::TensorDescriptor();
+        biasTensor         = miopen::TensorDescriptor();
+        inputTensor_vect4  = miopen::TensorDescriptor();
         weightTensor_vect4 = miopen::TensorDescriptor();
 
         convDesc = miopen::ConvolutionDescriptor();
@@ -114,12 +109,7 @@ class ConvTuner : public Tuner
                             std::vector<miopenConvAlgoPerf_t>& perf_results);
     int RunBackwardGPU();
 
-    //int VerifyBackward();
-    //int VerifyForward();
-    ~ConvTuner()
-    {
-
-    }
+    ~ConvTuner() {}
 
     private:
     InputFlags inflags;
@@ -201,9 +191,8 @@ int ConvTuner<Tgpu, Tref>::GetandSetData()
     std::vector<int> in_len  = GetInputTensorLengthsFromCmdLine();
     std::vector<int> wei_len = GetWeightTensorLengthsFromCmdLine();
 
-    inputTensor = miopen::TensorDescriptor(data_type, in_len.data(), in_len.size());
+    inputTensor  = miopen::TensorDescriptor(data_type, in_len.data(), in_len.size());
     weightTensor = miopen::TensorDescriptor(data_type, wei_len.data(), wei_len.size());
-
 
     if(inflags.GetValueInt("tensor_vect") == 1 && data_type == miopenInt8)
     {
@@ -215,9 +204,11 @@ int ConvTuner<Tgpu, Tref>::GetandSetData()
         std::vector<int> in_len_vect4(in_len.begin(), in_len.end()),
             wei_len_vect4(wei_len.begin(), wei_len.end());
         in_len_vect4[1] = ((in_len[1] + 3) / 4) * 4;
-        inputTensor_vect4 = miopen::TensorDescriptor(data_type, in_len_vect4.data(), in_len_vect4.size());
+        inputTensor_vect4 =
+            miopen::TensorDescriptor(data_type, in_len_vect4.data(), in_len_vect4.size());
         wei_len_vect4[1] = ((wei_len[1] + 3) / 4) * 4;
-        weightTensor_vect4 = miopen::TensorDescriptor(data_type, wei_len_vect4.data(), wei_len_vect4.size());
+        weightTensor_vect4 =
+            miopen::TensorDescriptor(data_type, wei_len_vect4.data(), wei_len_vect4.size());
     }
     SetConvDescriptorFromCmdLineArgs();
 
@@ -412,7 +403,6 @@ std::vector<int> ConvTuner<Tgpu, Tref>::GetBiasTensorLengthsFromCmdLine()
     return bias_lens;
 }
 
-
 template <typename Tgpu, typename Tref>
 int ConvTuner<Tgpu, Tref>::SetConvDescriptorFromCmdLineArgs()
 {
@@ -521,7 +511,8 @@ int ConvTuner<Tgpu, Tref>::SetConvDescriptorFromCmdLineArgs()
         }
     }
 
-    convDesc = miopen::ConvolutionDescriptor(spatial_dim,
+    convDesc = miopen::ConvolutionDescriptor(
+        spatial_dim,
         mode,
         miopenPaddingDefault,
         std::vector<int>(pads.data(), pads.data() + spatial_dim),
@@ -554,8 +545,7 @@ std::vector<int> ConvTuner<Tgpu, Tref>::GetOutputTensorLengths()
     std::vector<int> out_lens(ndim);
 
     {
-        auto out_desc = convDesc.GetForwardOutputTensor(
-            inputTensor, weightTensor);
+        auto out_desc = convDesc.GetForwardOutputTensor(inputTensor, weightTensor);
 
         ndim = out_desc.GetSize();
 
@@ -573,7 +563,7 @@ namespace detail {
 template <typename T>
 T RanGenWeights()
 {
-    return static_cast<T>(1.0);//RAN_GEN<T>(static_cast<T>(-0.5), static_cast<T>(0.5));
+    return static_cast<T>(1.0);
 }
 
 // Shift FP16 distribution towards positive numbers,
@@ -581,7 +571,7 @@ T RanGenWeights()
 template <>
 float16 RanGenWeights()
 {
-    return static_cast<float16>(1.0);//RAN_GEN<float16>(static_cast<float16>(-1.0 / 3.0), static_cast<float16>(0.5));
+    return static_cast<float16>(1.0);
 }
 
 } // namespace detail
@@ -608,10 +598,11 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
     }
     if(bwd_allowed)
     {
-        workSpaceSize_bwd_dt =
-            convDesc.mode == miopenTranspose
-                ? convDesc.ForwardGetWorkSpaceSize(GetHandle(), weightTensor, outputTensor, inputTensor)
-                : convDesc.BackwardDataGetWorkSpaceSize(GetHandle(), weightTensor, outputTensor, inputTensor);
+        workSpaceSize_bwd_dt = convDesc.mode == miopenTranspose
+                                   ? convDesc.ForwardGetWorkSpaceSize(
+                                         GetHandle(), weightTensor, outputTensor, inputTensor)
+                                   : convDesc.BackwardDataGetWorkSpaceSize(
+                                         GetHandle(), weightTensor, outputTensor, inputTensor);
     }
     if(forward_allowed)
     {
@@ -692,7 +683,6 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
     din_host  = tensor<Tref>(inputTensor.GetLengths());
     dwei_host = tensor<Tref>(weightTensor.GetLengths());
 
-
     /* Unless seed is persistent between runs validation using cache stored in file is impossible.
      */
     srand(0);
@@ -703,11 +693,9 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
 
         for(int i = 0; i < in_sz; i++)
         {
-            in.data[i] = static_cast<Tgpu>(
-                Data_scale * static_cast<float>(1.0)/*RAN_GEN<float>(static_cast<float>(0.0), static_cast<float>(1.0))*/);
+            in.data[i] = static_cast<Tgpu>(Data_scale * static_cast<float>(1.0));
             // printf("in  %d  %d \n",i,in.data[i]);
         }
-
 
         if(inflags.GetValueInt("bias") != 0)
         {
@@ -716,8 +704,7 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
             b_int8      = std::vector<float>(b_sz, static_cast<float>(0));
             for(int i = 0; i < b_sz; i++)
             {
-                b_int8[i] = static_cast<float>(i % 8) +
-                            static_cast<float>(1.0);//RAN_GEN<float>(static_cast<float>(0.0), static_cast<float>(1.0));
+                b_int8[i] = static_cast<float>(i % 8) + static_cast<float>(1.0);
             }
 
             b_dev->ToGPU(q, b_int8.data());
@@ -728,23 +715,19 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
             wei.data[i] = static_cast<Tgpu>(Data_scale * 2 * detail::RanGenWeights<float>());
             // printf("wei  %d  %d \n",i,wei.data[i]);
         }
-
     }
     else
     {
         Tgpu Data_scale = static_cast<Tgpu>(0.01);
 
-
         for(int i = 0; i < in_sz; i++)
         {
-            in.data[i] =
-                Data_scale * static_cast<Tgpu>(1.0);//RAN_GEN<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
+            in.data[i] = Data_scale * static_cast<Tgpu>(1.0);
         }
 
         for(int i = 0; i < out_sz; i++)
         {
-            dout.data[i] =
-                Data_scale * static_cast<Tgpu>(1.0);//RAN_GEN<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
+            dout.data[i] = Data_scale * static_cast<Tgpu>(1.0);
         }
 
         if(inflags.GetValueInt("bias") != 0)
@@ -757,10 +740,8 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
             db_host     = tensor<Tref>(biasTensor.GetLengths());
             for(int i = 0; i < b_sz; i++)
             {
-                b.data[i] = static_cast<Tgpu>(i % 8) +
-                            static_cast<Tgpu>(1.0);//RAN_GEN<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
-                db[i] = static_cast<Tgpu>(i % 8) +
-                        static_cast<Tgpu>(1.0);//RAN_GEN<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
+                b.data[i] = static_cast<Tgpu>(i % 8) + static_cast<Tgpu>(1.0);
+                db[i]     = static_cast<Tgpu>(i % 8) + static_cast<Tgpu>(1.0);
             }
 
             b_dev->ToGPU(q, b.data.data());
@@ -772,7 +753,6 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
             wei.data[i] = Data_scale * detail::RanGenWeights<Tgpu>();
         }
     }
-
 
 #if MIOPEN_BACKEND_OPENCL
     cl_int status;
@@ -801,27 +781,28 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
 
 template <typename Tgpu, typename Tref>
 int ConvTuner<Tgpu, Tref>::FindForward(int& ret_algo_count,
-                                        int request_algo_count,
-                                        std::vector<miopenConvAlgoPerf_t>& perf_results)
+                                       int request_algo_count,
+                                       std::vector<miopenConvAlgoPerf_t>& perf_results)
 {
     bool is_transform = IsInputTensorTransform();
 
     if(convDesc.mode == miopenTranspose)
     {
         return miopen::try_([&] {
-            convDesc.FindConvBwdDataAlgorithm(GetHandle(),
-                                    (is_transform ? inputTensor_vect4 : inputTensor),
-                                    DataCast(is_transform ? in_vect4_dev->GetMem() : in_dev->GetMem()),
-                                    (is_transform ? weightTensor_vect4 : weightTensor),
-                                    DataCast(is_transform ? wei_vect4_dev->GetMem() : wei_dev->GetMem()),
-                                    outputTensor,
-                                    DataCast(out_dev->GetMem()),
-                                    request_algo_count,
-                                    &ret_algo_count,
-                                    perf_results.data(),
-                                    DataCast((workspace_fwd_dev != nullptr) ? workspace_fwd_dev->GetMem() : nullptr),
-                                    (workspace_fwd_dev != nullptr) ? workspace_fwd_dev->GetSize() : 0,
-                                    (inflags.GetValueInt("search") == 1) ? true : false);
+            convDesc.FindConvBwdDataAlgorithm(
+                GetHandle(),
+                (is_transform ? inputTensor_vect4 : inputTensor),
+                DataCast(is_transform ? in_vect4_dev->GetMem() : in_dev->GetMem()),
+                (is_transform ? weightTensor_vect4 : weightTensor),
+                DataCast(is_transform ? wei_vect4_dev->GetMem() : wei_dev->GetMem()),
+                outputTensor,
+                DataCast(out_dev->GetMem()),
+                request_algo_count,
+                &ret_algo_count,
+                perf_results.data(),
+                DataCast((workspace_fwd_dev != nullptr) ? workspace_fwd_dev->GetMem() : nullptr),
+                (workspace_fwd_dev != nullptr) ? workspace_fwd_dev->GetSize() : 0,
+                (inflags.GetValueInt("search") == 1) ? true : false);
 
             for(int i = 0; i < ret_algo_count; ++i)
             {
@@ -832,21 +813,21 @@ int ConvTuner<Tgpu, Tref>::FindForward(int& ret_algo_count,
         });
     }
     return miopen::try_([&] {
-        convDesc.FindConvFwdAlgorithm(GetHandle(),
-                                (is_transform ? inputTensor_vect4 : inputTensor),
-                                DataCast(is_transform ? in_vect4_dev->GetMem() : in_dev->GetMem()),
-                                (is_transform ? weightTensor_vect4 : weightTensor),
-                                DataCast(is_transform ? wei_vect4_dev->GetMem() : wei_dev->GetMem()),
-                                outputTensor,
-                                DataCast(out_dev->GetMem()),
-                                request_algo_count,
-                                &ret_algo_count,
-                                perf_results.data(),
-                                DataCast((workspace_fwd_dev != nullptr) ? workspace_fwd_dev->GetMem() : nullptr),
-                                (workspace_fwd_dev != nullptr) ? workspace_fwd_dev->GetSize() : 0,
-                                (inflags.GetValueInt("search") == 1) ? true : false);
+        convDesc.FindConvFwdAlgorithm(
+            GetHandle(),
+            (is_transform ? inputTensor_vect4 : inputTensor),
+            DataCast(is_transform ? in_vect4_dev->GetMem() : in_dev->GetMem()),
+            (is_transform ? weightTensor_vect4 : weightTensor),
+            DataCast(is_transform ? wei_vect4_dev->GetMem() : wei_dev->GetMem()),
+            outputTensor,
+            DataCast(out_dev->GetMem()),
+            request_algo_count,
+            &ret_algo_count,
+            perf_results.data(),
+            DataCast((workspace_fwd_dev != nullptr) ? workspace_fwd_dev->GetMem() : nullptr),
+            (workspace_fwd_dev != nullptr) ? workspace_fwd_dev->GetSize() : 0,
+            (inflags.GetValueInt("search") == 1) ? true : false);
     });
-
 }
 
 template <typename Tgpu, typename Tref>
@@ -881,7 +862,6 @@ int ConvTuner<Tgpu, Tref>::RunForwardGPU()
                         DataCast(wei_vect4_dev->GetMem()));
     }
 
-
     int iter = inflags.GetValueInt("iter");
     int status;
     for(int i = 0; i < iter; i++)
@@ -893,29 +873,30 @@ int ConvTuner<Tgpu, Tref>::RunForwardGPU()
     return miopenStatusSuccess;
 }
 
-
 template <typename Tgpu, typename Tref>
 int ConvTuner<Tgpu, Tref>::FindBackwardData(int& ret_algo_count,
-                                             int request_algo_count,
-                                             std::vector<miopenConvAlgoPerf_t>& perf_results)
+                                            int request_algo_count,
+                                            std::vector<miopenConvAlgoPerf_t>& perf_results)
 {
 
     /// workaround for previous trans conv logic
     if(convDesc.mode == miopenTranspose)
         return miopen::try_([&] {
-            convDesc.FindConvFwdAlgorithm(GetHandle(),
-                                    outputTensor,
-                                    DataCast(dout_dev->GetMem()),
-                                    weightTensor,
-                                    DataCast(wei_dev->GetMem()),
-                                    inputTensor,
-                                    DataCast(din_dev->GetMem()),
-                                    request_algo_count,
-                                    &ret_algo_count,
-                                    perf_results.data(),
-                                    DataCast((workspace_bwd_data_dev != nullptr) ? workspace_bwd_data_dev->GetMem() : nullptr),
-                                    (workspace_bwd_data_dev != nullptr) ? workspace_bwd_data_dev->GetSize() : 0,
-                                    (inflags.GetValueInt("search") == 1) ? true : false);
+            convDesc.FindConvFwdAlgorithm(
+                GetHandle(),
+                outputTensor,
+                DataCast(dout_dev->GetMem()),
+                weightTensor,
+                DataCast(wei_dev->GetMem()),
+                inputTensor,
+                DataCast(din_dev->GetMem()),
+                request_algo_count,
+                &ret_algo_count,
+                perf_results.data(),
+                DataCast((workspace_bwd_data_dev != nullptr) ? workspace_bwd_data_dev->GetMem()
+                                                             : nullptr),
+                (workspace_bwd_data_dev != nullptr) ? workspace_bwd_data_dev->GetSize() : 0,
+                (inflags.GetValueInt("search") == 1) ? true : false);
 
             for(int i = 0; i < ret_algo_count; ++i)
             {
@@ -926,26 +907,28 @@ int ConvTuner<Tgpu, Tref>::FindBackwardData(int& ret_algo_count,
         });
 
     return miopen::try_([&] {
-        convDesc.FindConvBwdDataAlgorithm(GetHandle(),
-                                    outputTensor,
-                                    DataCast(dout_dev->GetMem()),
-                                    weightTensor,
-                                    DataCast(wei_dev->GetMem()),
-                                    inputTensor,
-                                    DataCast(din_dev->GetMem()),
-                                    request_algo_count,
-                                    &ret_algo_count,
-                                    perf_results.data(),
-                                    DataCast((workspace_bwd_data_dev != nullptr) ? workspace_bwd_data_dev->GetMem() : nullptr),
-                                    (workspace_bwd_data_dev != nullptr) ? workspace_bwd_data_dev->GetSize() : 0,
-                                    (inflags.GetValueInt("search") == 1) ? true : false);
+        convDesc.FindConvBwdDataAlgorithm(
+            GetHandle(),
+            outputTensor,
+            DataCast(dout_dev->GetMem()),
+            weightTensor,
+            DataCast(wei_dev->GetMem()),
+            inputTensor,
+            DataCast(din_dev->GetMem()),
+            request_algo_count,
+            &ret_algo_count,
+            perf_results.data(),
+            DataCast((workspace_bwd_data_dev != nullptr) ? workspace_bwd_data_dev->GetMem()
+                                                         : nullptr),
+            (workspace_bwd_data_dev != nullptr) ? workspace_bwd_data_dev->GetSize() : 0,
+            (inflags.GetValueInt("search") == 1) ? true : false);
     });
 }
 
 template <typename Tgpu, typename Tref>
 int ConvTuner<Tgpu, Tref>::FindBackwardWeights(int& ret_algo_count,
-                                                int request_algo_count,
-                                                std::vector<miopenConvAlgoPerf_t>& perf_results)
+                                               int request_algo_count,
+                                               std::vector<miopenConvAlgoPerf_t>& perf_results)
 {
 
     return miopen::try_([&] {
@@ -953,15 +936,18 @@ int ConvTuner<Tgpu, Tref>::FindBackwardWeights(int& ret_algo_count,
             GetHandle(),
             /// workaround for previous trans conv logic
             convDesc.mode == miopenTranspose ? inputTensor : outputTensor,
-            convDesc.mode == miopenTranspose ? DataCast(in_dev->GetMem()) : DataCast(dout_dev->GetMem()),
+            convDesc.mode == miopenTranspose ? DataCast(in_dev->GetMem())
+                                             : DataCast(dout_dev->GetMem()),
             convDesc.mode == miopenTranspose ? outputTensor : inputTensor,
-            convDesc.mode == miopenTranspose ? DataCast(dout_dev->GetMem()) : DataCast(in_dev->GetMem()),
+            convDesc.mode == miopenTranspose ? DataCast(dout_dev->GetMem())
+                                             : DataCast(in_dev->GetMem()),
             weightTensor,
             DataCast(wei_dev->GetMem()),
             request_algo_count,
             &ret_algo_count,
             perf_results.data(),
-            DataCast((workspace_bwd_weights_dev != nullptr) ? workspace_bwd_weights_dev->GetMem() : nullptr),
+            DataCast((workspace_bwd_weights_dev != nullptr) ? workspace_bwd_weights_dev->GetMem()
+                                                            : nullptr),
             (workspace_bwd_weights_dev != nullptr) ? workspace_bwd_weights_dev->GetSize() : 0,
             (inflags.GetValueInt("search") == 1) ? true : false);
     });
@@ -998,35 +984,40 @@ int ConvTuner<Tgpu, Tref>::RunBackwardGPU()
         if(convDesc.mode == miopenTranspose)
             ret = miopen::try_([&] {
                 // It is guaranteed that enum values are equal, see conv_algo_name.cpp
-                const auto algo_trans = static_cast<miopenConvFwdAlgorithm_t>(perf_results_data[0].bwd_data_algo);
+                const auto algo_trans =
+                    static_cast<miopenConvFwdAlgorithm_t>(perf_results_data[0].bwd_data_algo);
                 convDesc.ConvolutionForward(GetHandle(),
-                                &alpha,
-                                outputTensor,
-                                DataCast(dout_dev->GetMem()),
-                                weightTensor,
-                                DataCast(wei_dev->GetMem()),
-                                algo_trans,
-                                &beta,
-                                inputTensor,
-                                DataCast(din_dev->GetMem()),
-                                DataCast((workspace_bwd_data_dev != nullptr) ? workspace_bwd_data_dev->GetMem() : nullptr),
-                                perf_results_data[0].memory);
+                                            &alpha,
+                                            outputTensor,
+                                            DataCast(dout_dev->GetMem()),
+                                            weightTensor,
+                                            DataCast(wei_dev->GetMem()),
+                                            algo_trans,
+                                            &beta,
+                                            inputTensor,
+                                            DataCast(din_dev->GetMem()),
+                                            DataCast((workspace_bwd_data_dev != nullptr)
+                                                         ? workspace_bwd_data_dev->GetMem()
+                                                         : nullptr),
+                                            perf_results_data[0].memory);
             });
         else
         {
             ret = miopen::try_([&] {
                 convDesc.ConvolutionBackwardData(GetHandle(),
-                                    &alpha,
-                                    outputTensor,
-                                    DataCast(dout_dev->GetMem()),
-                                    weightTensor,
-                                    DataCast(wei_dev->GetMem()),
-                                    perf_results_data[0].bwd_data_algo,
-                                    &beta,
-                                    inputTensor,
-                                    DataCast(din_dev->GetMem()),
-                                    DataCast((workspace_bwd_data_dev != nullptr) ? workspace_bwd_data_dev->GetMem() : nullptr),
-                                    perf_results_data[0].memory);
+                                                 &alpha,
+                                                 outputTensor,
+                                                 DataCast(dout_dev->GetMem()),
+                                                 weightTensor,
+                                                 DataCast(wei_dev->GetMem()),
+                                                 perf_results_data[0].bwd_data_algo,
+                                                 &beta,
+                                                 inputTensor,
+                                                 DataCast(din_dev->GetMem()),
+                                                 DataCast((workspace_bwd_data_dev != nullptr)
+                                                              ? workspace_bwd_data_dev->GetMem()
+                                                              : nullptr),
+                                                 perf_results_data[0].memory);
             });
         }
     }
@@ -1057,16 +1048,18 @@ int ConvTuner<Tgpu, Tref>::RunBackwardGPU()
                 &alpha,
                 /// workaround for previous trans conv logic
                 convDesc.mode == miopenTranspose ? inputTensor : outputTensor,
-                convDesc.mode == miopenTranspose ? DataCast(in_dev->GetMem()) : DataCast(dout_dev->GetMem()),
+                convDesc.mode == miopenTranspose ? DataCast(in_dev->GetMem())
+                                                 : DataCast(dout_dev->GetMem()),
                 convDesc.mode == miopenTranspose ? outputTensor : inputTensor,
-                convDesc.mode == miopenTranspose ? DataCast(dout_dev->GetMem()) : DataCast(in_dev->GetMem()),
+                convDesc.mode == miopenTranspose ? DataCast(dout_dev->GetMem())
+                                                 : DataCast(in_dev->GetMem()),
                 wrw_algo,
                 &beta,
                 weightTensor,
                 DataCast(dwei_dev->GetMem()),
                 DataCast((workspace_bwd_weights_dev != nullptr)
-                   ? workspace_bwd_weights_dev->GetMem()
-                   : nullptr),
+                             ? workspace_bwd_weights_dev->GetMem()
+                             : nullptr),
                 wrw_workspace);
         });
     }
@@ -1074,15 +1067,14 @@ int ConvTuner<Tgpu, Tref>::RunBackwardGPU()
     if(inflags.GetValueInt("bias") != 0)
     {
         // bfloat16 not supported for bias operation
-        if(outputTensor.GetType() == miopenBFloat16 ||
-           biasTensor.GetType() == miopenBFloat16)
+        if(outputTensor.GetType() == miopenBFloat16 || biasTensor.GetType() == miopenBFloat16)
         {
             ret = miopenStatusNotImplemented;
         }
         else
         {
 
-            ret =  miopen::try_([&] {
+            ret = miopen::try_([&] {
                 ConvolutionBackwardBias(GetHandle(),
                                         &alpha,
                                         outputTensor,
@@ -1095,6 +1087,5 @@ int ConvTuner<Tgpu, Tref>::RunBackwardGPU()
     }
     return ret;
 }
-
 
 #endif // GUARD_MIOPEN_CONV_TUNER_HPP

@@ -27,7 +27,6 @@
 #define GUARD_MIOPEN_TUNER_HPP
 
 #include "half.hpp"
-//#include "random.hpp"
 #include "miopen/bfloat16.hpp"
 
 using half_float::half;
@@ -60,7 +59,6 @@ typedef half float16;
 #endif
 
 #define UNPACK_VEC4(v) (v[0]), (v[1]), (v[2]), (v[3])
-
 
 struct GPUMem
 {
@@ -129,7 +127,7 @@ class Driver
     {
         data_type = miopenFloat;
 #if MIOPEN_BACKEND_OPENCL
-        //handle = miopen::Handle();
+        handle = new miopen::Handle();
 #elif MIOPEN_BACKEND_HIP
         hipStream_t s;
         hipStreamCreate(&s);
@@ -156,14 +154,12 @@ class Driver
     virtual int GetandSetData()          = 0;
     virtual int AllocateBuffersAndCopy() = 0;
     virtual int RunForwardGPU()          = 0;
-    //virtual int VerifyForward()          = 0;
     virtual int RunBackwardGPU()         = 0;
-    //virtual int VerifyBackward()         = 0;
 
     protected:
     template <typename Tgpu>
     void InitDataType();
-    miopen::Handle *handle;
+    miopen::Handle* handle;
     miopenDataType_t data_type;
 
 #if MIOPEN_BACKEND_OPENCL
@@ -213,8 +209,7 @@ void PadBufferSize(size_t& sz, int datatype_sz)
 [[gnu::noreturn]] void Usage()
 {
     printf("Usage: ./MIOpenTuner *base_arg* *other_args*\n");
-    printf(
-        "Supported Base Arguments: conv[fp16]\n");
+    printf("Supported Base Arguments: conv[fp16]\n");
     exit(0);
 }
 
@@ -228,7 +223,7 @@ std::string ParseBaseArg(int argc, char* argv[])
 
     std::string arg = argv[1];
 
-    if(arg != "conv" && arg != "convfp16" )
+    if(arg != "conv" && arg != "convfp16")
     {
         printf("Invalid Base Input Argument\n");
         Usage();
@@ -246,7 +241,7 @@ class Tuner : public Driver
     {
         data_type = miopenFloat;
 #if MIOPEN_BACKEND_OPENCL
-        //handle = miopen::Handle();
+        handle = new miopen::Handle();
 #elif MIOPEN_BACKEND_HIP
         hipStream_t s;
         hipStreamCreate(&s);
@@ -276,7 +271,7 @@ class Tuner : public Driver
     virtual int RunBackwardGPU()         = 0;
 
     protected:
-    miopen::Handle *handle;
+    miopen::Handle* handle;
     miopenDataType_t data_type;
 
 #if MIOPEN_BACKEND_OPENCL
@@ -296,15 +291,12 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T>& vs)
     return os;
 }
 
-
 std::vector<int> GetTensorLengths(miopen::TensorDescriptor& tensor)
 {
 
     std::vector<int> tensor_len;
     tensor_len.resize(tensor.GetSize());
-    std::copy(tensor.GetLengths().begin(),
-              tensor.GetLengths().end(),
-                  tensor_len.data());
+    std::copy(tensor.GetLengths().begin(), tensor.GetLengths().end(), tensor_len.data());
 
     return tensor_len;
 }
@@ -318,4 +310,3 @@ size_t GetTensorSize(miopen::TensorDescriptor& tensor)
 }
 
 #endif // GUARD_MIOPEN_TUNER_HPP
-
