@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright (c) 2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -465,7 +465,7 @@ int ConvTuner<Tgpu, Tref>::SetConvDescriptorFromCmdLineArgs()
         if(in_c % group_count != 0 || out_c % group_count != 0 || group_count > in_c ||
            group_count > out_c)
         {
-            printf("Invalid group number\n");
+            std::cout << "Invalid group number\n";
             exit(0);
         }
     }
@@ -481,7 +481,7 @@ int ConvTuner<Tgpu, Tref>::SetConvDescriptorFromCmdLineArgs()
     }
     else
     {
-        printf("Incorrect Convolution Mode\n");
+        std::cout << "Incorrect Convolution Mode\n";
         exit(0);
     }
 
@@ -694,7 +694,6 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
         for(int i = 0; i < in_sz; i++)
         {
             in.data[i] = static_cast<Tgpu>(Data_scale * static_cast<float>(1.0));
-            // printf("in  %d  %d \n",i,in.data[i]);
         }
 
         if(inflags.GetValueInt("bias") != 0)
@@ -713,7 +712,6 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
         for(int i = 0; i < wei_sz; i++)
         {
             wei.data[i] = static_cast<Tgpu>(Data_scale * 2 * detail::RanGenWeights<float>());
-            // printf("wei  %d  %d \n",i,wei.data[i]);
         }
     }
     else
@@ -774,7 +772,7 @@ int ConvTuner<Tgpu, Tref>::AllocateBuffersAndCopy()
         status |= workspace_fwd_dev->ToGPU(q, workspace_fwd.data());
 
     if(status != CL_SUCCESS)
-        printf("Error copying data to GPU\n");
+        std::cout << "Error copying data to GPU\n";
 
     return miopenStatusSuccess;
 }

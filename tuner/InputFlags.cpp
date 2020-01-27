@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright (c) 2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -44,14 +44,14 @@ void InputFlags::AddInputFlag(const std::string& _long_name,
     in.type       = _type;
 
     if(MapInputs.count(_short_name) > 0)
-        printf("Input flag: %s (%c) already exists !", _long_name.c_str(), _short_name);
+        std::cout << "Input flag: " << _long_name.c_str() << " (" << _short_name << ") already exists !";
     else
         MapInputs[_short_name] = in;
 }
 
 [[gnu::noreturn]] void InputFlags::Print() const
 {
-    printf("MIOpen Tuner Input Flags: \n\n");
+    std::cout << "MIOpen Tuner Input Flags: \n\n";
 
     for(auto& content : MapInputs)
     {
@@ -111,7 +111,7 @@ void InputFlags::Parse(int argc, char* argv[])
         std::string temp = args[i];
         if(temp[0] != '-')
         {
-            printf("Illegal input flag\n");
+            std::cout << "Illegal input flag\n";
             Print();
         }
         else if(temp[0] == '-' && temp[1] == '-') // Long Name Input

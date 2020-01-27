@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright (c) 2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -53,8 +53,6 @@ typedef half float16;
 
 #elif MIOPEN_BACKEND_HIP
 #include <hip/hip_runtime_api.h>
-
-#define printf(...) fprintf(stdout, __VA_ARGS__)
 
 #endif
 
@@ -208,8 +206,8 @@ void PadBufferSize(size_t& sz, int datatype_sz)
 
 [[gnu::noreturn]] void Usage()
 {
-    printf("Usage: ./MIOpenTuner *base_arg* *other_args*\n");
-    printf("Supported Base Arguments: conv[fp16]\n");
+    std::cout << "Usage: ./MIOpenTuner *base_arg* *other_args*\n";
+    std::cout << "Supported Base Arguments: conv[fp16]\n";
     exit(0);
 }
 
@@ -217,7 +215,7 @@ std::string ParseBaseArg(int argc, char* argv[])
 {
     if(argc < 2)
     {
-        printf("Invalid Number of Input Arguments\n");
+        std::cout << "Invalid Number of Input Arguments\n";
         Usage();
     }
 
@@ -225,7 +223,7 @@ std::string ParseBaseArg(int argc, char* argv[])
 
     if(arg != "conv" && arg != "convfp16")
     {
-        printf("Invalid Base Input Argument\n");
+        std::cout << "Invalid Base Input Argument\n";
         Usage();
     }
     else if(arg == "-h" || arg == "--help" || arg == "-?")
