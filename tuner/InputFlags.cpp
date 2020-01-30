@@ -44,7 +44,8 @@ void InputFlags::AddInputFlag(const std::string& _long_name,
     in.type       = _type;
 
     if(MapInputs.count(_short_name) > 0)
-        std::cout << "Input flag: " << _long_name.c_str() << " (" << _short_name << ") already exists !";
+        std::cout << "Input flag: " << _long_name.c_str() << " (" << _short_name
+                  << ") already exists !";
     else
         MapInputs[_short_name] = in;
 }
