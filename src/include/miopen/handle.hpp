@@ -128,6 +128,10 @@ struct Handle : miopenHandle
                         bool is_kernel_str,
                         const std::string& kernel_src);
 
+    bool HasProgram(const std::string& program_name, const std::string& params);
+
+    void AddProgram(Program prog, const std::string& program_name, const std::string& params);
+
     void Finish() const;
     void Flush() const;
 
@@ -177,19 +181,20 @@ struct Handle : miopenHandle
         return result;
     }
 
-    std::string GetDbBasename()
+    static std::string GetDbBasename(const std::string& device, size_t num_cu)
     {
-        const auto ret = GetDeviceName() + [&]() {
+        const auto ret = device + [&]() {
             std::ostringstream ss;
-            const auto ncu = GetMaxComputeUnits();
-            if(ncu <= 64)
-                ss << '_' << ncu;
+            if(num_cu <= 64)
+                ss << '_' << num_cu;
             else
-                ss << std::hex << ncu;
+                ss << std::hex << num_cu;
             return std::string(ss.str());
         }();
         return ret;
     }
+
+    std::string GetDbBasename() { return GetDbBasename(GetDeviceName(), GetMaxComputeUnits()); }
 
     std::unique_ptr<HandleImpl> impl;
     std::unordered_map<std::string, std::vector<miopenConvSolution_t>> find_map;

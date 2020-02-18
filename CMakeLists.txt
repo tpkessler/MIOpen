@@ -52,6 +52,8 @@ include(ROCMCreatePackage)
 include(CheckCXXCompilerFlag)
 
 set(MIOPEN_ENABLE_SQLITE On CACHE BOOL "")
+# Use SQLITE for compiled kernels, when turned off this will use raw files
+set(MIOPEN_ENABLE_SQLITE_KERN_CACHE On CACHE BOOL "")
 if(MIOPEN_ENABLE_SQLITE)
     # MIOpen now depends on SQLite as well
     find_package(PkgConfig)
@@ -59,8 +61,6 @@ if(MIOPEN_ENABLE_SQLITE)
 endif()
 option( BUILD_DEV "Build for development only" OFF)
 
-# Control Code Object V3 for HIP kernels
-set(MIOPEN_ENABLE_HCC_COV3 Off CACHE BOOL "Enable Code Object V3 for Hip kernels")
 # Strip symbols for release
 if(NOT WIN32 AND NOT APPLE)
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -s")
@@ -207,8 +207,15 @@ endif()
 # Online assembler
 find_program(MIOPEN_AMDGCN_ASSEMBLER
     NAMES clang
-    PATHS ${MIOPEN_AMDGCN_ASSEMBLER_PATH} ${CMAKE_INSTALL_PREFIX}
-    PATH_SUFFIXES /opencl/bin/x86_64
+    PATHS 
+        ${MIOPEN_AMDGCN_ASSEMBLER_PATH}
+        /opt/rocm
+        /opt/rocm/hcc
+        ${CMAKE_INSTALL_PREFIX}
+        ${CMAKE_INSTALL_PREFIX}/hcc
+    PATH_SUFFIXES 
+        /opencl/bin/x86_64
+        /bin
     NO_DEFAULT_PATH
 )
 message(STATUS "AMDGCN assembler: ${MIOPEN_AMDGCN_ASSEMBLER}")
@@ -415,3 +422,4 @@ add_subdirectory(src)
 add_subdirectory(driver)
 add_subdirectory(tuner)
 add_subdirectory(test)
+add_subdirectory(speedtests)
