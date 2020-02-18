@@ -42,6 +42,9 @@
 #include <miopen/each_args.hpp>
 #include <miopen/errors.hpp>
 #include <miopen/op_kernel_args.hpp>
+#include <miopen/env.hpp>
+
+MIOPEN_DECLARE_ENV_VAR(MIOPEN_SKIP_KERNEL_INVOKE)
 
 namespace miopen {
 
@@ -95,6 +98,11 @@ struct OCLKernelInvoke
 
     void operator()(std::vector<OpKernelArg> args) const
     {
+        if(miopen::IsEnabled(MIOPEN_SKIP_KERNEL_INVOKE{}))
+        {
+            return;
+        }
+
         for(size_t idx = 0; idx < args.size(); idx++)
         {
             auto arg      = args[idx];
@@ -113,6 +121,11 @@ struct OCLKernelInvoke
     template <class... Ts>
     void operator()(const Ts&... xs) const
     {
+        if(miopen::IsEnabled(MIOPEN_SKIP_KERNEL_INVOKE{}))
+        {
+            return;
+        }
+
         each_args_i(
             std::bind(
                 OCLSetKernelArg{}, kernel.get(), std::placeholders::_1, std::placeholders::_2),

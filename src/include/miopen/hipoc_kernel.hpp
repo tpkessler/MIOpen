@@ -34,6 +34,9 @@
 #include <miopen/op_kernel_args.hpp>
 #include <vector>
 #include <memory.h>
+#include <miopen/env.hpp>
+
+MIOPEN_DECLARE_ENV_VAR(MIOPEN_SKIP_KERNEL_INVOKE)
 
 namespace miopen {
 
@@ -138,6 +141,11 @@ struct HIPOCKernelInvoke
     }
     void operator()(std::vector<OpKernelArg>& any_args) const
     {
+        if(miopen::IsEnabled(MIOPEN_SKIP_KERNEL_INVOKE{}))
+        {
+            return;
+        }
+
         char hip_args[256] = {0};
         auto sz_left       = any_args[0].size();
 
@@ -160,6 +168,11 @@ struct HIPOCKernelInvoke
     template <class... Ts>
     void operator()(Ts... xs) const
     {
+        if(miopen::IsEnabled(MIOPEN_SKIP_KERNEL_INVOKE{}))
+        {
+            return;
+        }
+
         KernelArgs<Ts...> args{xs...};
         run(&args, sizeof(args));
     }

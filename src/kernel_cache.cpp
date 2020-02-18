@@ -46,6 +46,9 @@
 
 #include <iostream>
 #include <iterator>
+#include <miopen/env.hpp>
+
+MIOPEN_DECLARE_ENV_VAR(MIOPEN_SKIP_ADD_KERNEL)
 
 namespace miopen {
 
@@ -186,6 +189,12 @@ Kernel KernelCache::AddKernel(Handle& h,
                               bool is_kernel_miopengemm_str,
                               const std::string& kernel_src)
 {
+    if(miopen::IsEnabled(MIOPEN_SKIP_ADD_KERNEL{}))
+    {
+        // return empty KernelInvoke
+        return Kernel();
+    }
+
     ProcessParams(params);
 
     const std::pair<std::string, std::string> key = std::make_pair(algorithm, network_config);
