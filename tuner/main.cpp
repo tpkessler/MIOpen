@@ -49,6 +49,10 @@ int main(int argc, char* argv[])
     {
         tuna = std::make_unique<ConvTuner<float16, float>>();
     }
+    else if(base_arg == "convbfp16")
+    {
+        tuna = std::make_unique<ConvTuner<bfloat16, float>>();
+    }
     else
     {
         std::cout << "Incorrect BaseArg\n";
