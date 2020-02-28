@@ -459,12 +459,16 @@ std::size_t ConvolutionDescriptor::ForwardGetWorkSpaceSize(Handle& handle,
             /// \todo WORKAROUND for issue 1430
             if(gemm_trans > MAX_MEM_ALLOC_SZ /* handle.GetMaxMemoryAllocSize() */)
                 gemm_trans = 0;
-            return std::max({gemm_trans, direct_workspace, workspace_size_scgemm});
+            return std::max(
+                {gemm_trans, direct_workspace, workspace_size_scgemm, implicit_gemm_workspace});
         }
 
         if(miopen::any_of(GetConvDilations(), [](auto v) { return v > 1; }))
         {
-            return std::max({workspace_size_gemm, direct_workspace, workspace_size_scgemm});
+            return std::max({workspace_size_gemm,
+                             direct_workspace,
+                             workspace_size_scgemm,
+                             implicit_gemm_workspace});
         }
     }
 #endif
@@ -509,7 +513,11 @@ ConvolutionDescriptor::BackwardDataGetWorkSpaceSize(Handle& handle,
 
     const size_t direct_workspace = ForwardBackwardDataGetWorkSpaceSizeDirect(ctx);
 
+    const size_t implicit_gemm_workspace = ForwardBackwardGetWorkSpaceSizeImplicitGemm(ctx);
+
+    size_t tmp_max_workspace   = std::max({direct_workspace, implicit_gemm_workspace});
     size_t workspace_size_gemm = 0;
+
 #if MIOPEN_USE_GEMM
     if(!miopen::IsDisabled(MIOPEN_DEBUG_CONV_GEMM{}))
     {
@@ -528,11 +536,17 @@ ConvolutionDescriptor::BackwardDataGetWorkSpaceSize(Handle& handle,
             size_t gemm_trans = BackwardDataGetWorkSpaceSizeGEMMTranspose(dyDesc, dxDesc);
             /// \todo WORKAROUND for issue 1430
             if(gemm_trans > MAX_MEM_ALLOC_SZ /*  handle.GetMaxMemoryAllocSize() */)
-                gemm_trans = 0;
-            return std::max(gemm_trans, direct_workspace);
+                gemm_trans    = 0;
+            tmp_max_workspace = std::max(gemm_trans, tmp_max_workspace);
+            MIOPEN_LOG_I2(tmp_max_workspace);
+            return tmp_max_workspace;
         }
         if(miopen::any_of(GetConvDilations(), [](auto v) { return v > 1; }))
-            return std::max(workspace_size_gemm, direct_workspace);
+        {
+            tmp_max_workspace = std::max(workspace_size_gemm, tmp_max_workspace);
+            MIOPEN_LOG_I2(tmp_max_workspace);
+            return tmp_max_workspace;
+        }
     }
 #endif
 
@@ -543,13 +557,9 @@ ConvolutionDescriptor::BackwardDataGetWorkSpaceSize(Handle& handle,
             ? BackwardGetWorkSpaceSizeFFT(wDesc, dyDesc, dxDesc)
             : 0;
 
-    const size_t implicit_gemm_workspace = ForwardBackwardGetWorkSpaceSizeImplicitGemm(ctx);
-
     const size_t workspace_size = std::max(
         {workspace_size_fft, workspace_size_gemm, direct_workspace, implicit_gemm_workspace});
-
     MIOPEN_LOG_I2(workspace_size);
-
     return workspace_size;
 }
 

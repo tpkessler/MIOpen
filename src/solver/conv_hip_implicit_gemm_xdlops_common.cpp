@@ -67,10 +67,10 @@ bool PerformanceImplicitGemmXdlops::IsValid(const ConvolutionContext& ctx) const
     {
         if(n % GetEPackLength(ctx, true) != 0)
             return false;
-        const auto nonVectorizedC = c / GetEPackLength(ctx, true);
+        const auto nonVectorizedN = n / GetEPackLength(ctx, true);
         GemmM                     = k;
-        GemmN                     = static_cast<std::size_t>(n) * ho * wo;
-        GemmK                     = static_cast<std::size_t>(nonVectorizedC) * y * x;
+        GemmN                     = static_cast<std::size_t>(c) * y * x;
+        GemmK                     = static_cast<std::size_t>(nonVectorizedN) * ho * wo;
     }
 
     const auto& GemmMPerBlock = KPerBlock;
@@ -89,7 +89,7 @@ bool PerformanceImplicitGemmXdlops::IsValid(const ConvolutionContext& ctx) const
          GemmMPerBlock % GemmABlockCopyClusterLengths_GemmM == 0))
         return false;
 
-    if(!(ctx.direction.IsBackwardWrW() && ctx.IsFp32()) && GemmKBlocks > 1)
+    if(!(ctx.direction.IsBackwardWrW()) && GemmKBlocks > 1)
         return false;
 
     if(!(GemmM % GemmMPerBlock == 0 && GemmN % GemmNPerBlock == 0 &&
