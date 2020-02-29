@@ -207,7 +207,7 @@ void PadBufferSize(size_t& sz, int datatype_sz)
 [[gnu::noreturn]] void Usage()
 {
     std::cout << "Usage: ./MIOpenTuner *base_arg* *other_args*\n";
-    std::cout << "Supported Base Arguments: conv[fp16]\n";
+    std::cout << "Supported Base Arguments: conv[fp16][bfp16]\n";
     exit(0);
 }
 
@@ -221,7 +221,7 @@ std::string ParseBaseArg(int argc, char* argv[])
 
     std::string arg = argv[1];
 
-    if(arg != "conv" && arg != "convfp16")
+    if(arg != "conv" && arg != "convfp16" && arg != "convbfp16")
     {
         std::cout << "Invalid Base Input Argument\n";
         Usage();
