@@ -118,10 +118,10 @@ struct GPUMem
 #endif
 };
 
-class Driver
+class Tuner
 {
     public:
-    Driver()
+    Tuner()
     {
         data_type = miopenFloat;
 #if MIOPEN_BACKEND_OPENCL
@@ -143,7 +143,7 @@ class Driver
 #elif MIOPEN_BACKEND_HIP
     hipStream_t& GetStream() { return q; }
 #endif
-    virtual ~Driver() { delete handle; }
+    virtual ~Tuner() { delete handle; }
 
     // TODO: add timing APIs
     virtual int AddCmdLineArgs() = 0;
@@ -168,29 +168,29 @@ class Driver
 };
 
 template <>
-void Driver::InitDataType<int8_t>()
+void Tuner::InitDataType<int8_t>()
 {
     data_type = miopenInt8;
 }
 template <>
-void Driver::InitDataType<float>()
+void Tuner::InitDataType<float>()
 {
     data_type = miopenFloat;
 }
 template <>
-void Driver::InitDataType<float16>()
+void Tuner::InitDataType<float16>()
 {
     data_type = miopenHalf;
 }
 template <>
-void Driver::InitDataType<bfloat16>()
+void Tuner::InitDataType<bfloat16>()
 {
     data_type = miopenBFloat16;
 }
 // "std::is_same<Tgpu, float>{}" used to avoid "static_assert" compilation error,
 // which occurs when the condition does not depend in any way on the template parameters.
 template <typename Tgpu>
-void Driver::InitDataType()
+void Tuner::InitDataType()
 {
     static_assert(std::is_same<Tgpu, float>{}, "unsupported Tgpu");
 }
@@ -231,53 +231,6 @@ std::string ParseBaseArg(int argc, char* argv[])
     else
         return arg;
 }
-
-class Tuner : public Driver
-{
-    public:
-    Tuner() : Driver()
-    {
-        data_type = miopenFloat;
-#if MIOPEN_BACKEND_OPENCL
-        handle = new miopen::Handle();
-#elif MIOPEN_BACKEND_HIP
-        hipStream_t s;
-        hipStreamCreate(&s);
-        handle = new miopen::Handle(s);
-#endif
-
-        q = handle->GetStream();
-    }
-
-    miopen::Handle& GetHandle() { return *handle; }
-    miopenDataType_t GetDataType() { return data_type; }
-
-#if MIOPEN_BACKEND_OPENCL
-    cl_command_queue& GetStream() { return q; }
-#elif MIOPEN_BACKEND_HIP
-    hipStream_t& GetStream() { return q; }
-#endif
-    virtual ~Tuner() { delete handle; }
-
-    // TODO: add timing APIs
-    virtual int AddCmdLineArgs() = 0;
-    virtual int ParseCmdLineArgs(int argc, char* argv[]) = 0;
-    virtual InputFlags& GetInputFlags()  = 0;
-    virtual int GetandSetData()          = 0;
-    virtual int AllocateBuffersAndCopy() = 0;
-    virtual int RunForwardGPU()          = 0;
-    virtual int RunBackwardGPU()         = 0;
-
-    protected:
-    miopen::Handle* handle;
-    miopenDataType_t data_type;
-
-#if MIOPEN_BACKEND_OPENCL
-    cl_command_queue q;
-#elif MIOPEN_BACKEND_HIP
-    hipStream_t q;
-#endif
-};
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const std::vector<T>& vs)

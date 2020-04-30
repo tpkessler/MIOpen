@@ -75,10 +75,7 @@ class ConvTuner : public Tuner
         workspace_bwd_data_dev    = nullptr;
         workspace_bwd_weights_dev = nullptr;
         workspace_fwd_dev         = nullptr;
-        // the variable name is implementation dependent, checking size instead
-        data_type = std::is_same<Tgpu, int8_t>::value
-                        ? miopenInt8
-                        : std::is_same<Tgpu, float16>::value ? miopenHalf : miopenFloat;
+        InitDataType<Tgpu>();
     }
 
     int AddCmdLineArgs();
@@ -957,7 +954,7 @@ int ConvTuner<Tgpu, Tref>::RunBackwardGPU()
     if(!(bwd_allowed || wrw_allowed))
         return 0;
 
-    int ret_algo_count;
+    int ret_algo_count     = 0;
     int request_algo_count = 2;
     std::vector<miopenConvAlgoPerf_t> perf_results_data(request_algo_count);
 
