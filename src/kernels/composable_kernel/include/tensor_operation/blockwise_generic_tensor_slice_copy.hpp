@@ -31,7 +31,8 @@ template <index_t BlockSize,
           AddressSpace SrcAddressSpace          = AddressSpace::Generic,
           AddressSpace ThreadBufferAddressSpace = AddressSpace::Generic,
           AddressSpace DstAddressSpace          = AddressSpace::Generic,
-          InMemoryDataOperation DstInMemOp      = InMemoryDataOperation::Set>
+          InMemoryDataOperation DstInMemOp      = InMemoryDataOperation::Set,
+          index_t NumSegments                   = 1>
 struct BlockwiseGenericTensorSliceCopy_v4
 {
     static constexpr index_t nDim = BlockSrcDesc::GetNumOfDimension();
@@ -71,9 +72,57 @@ struct BlockwiseGenericTensorSliceCopy_v4
         mThreadwiseStore.SetDstSliceOrigin(dst_block_slice_origin + thread_data_id_begin);
     }
 
+    struct SegmentInfo
+    {
+        index_t num_wave_groups;
+        index_t chunks_per_wave;
+    };
+
+    __device__ static constexpr auto GetSegmentInfo()
+    {
+        constexpr index_t long_vector_size = Number<math::lcm(SrcDataPerRead, DstDataPerWrite)>{};
+        constexpr index_t block_slice_size = BlockDstDesc::GetElementSize();
+        constexpr index_t thread_slice_size =
+            reduce_on_sequence(ThreadSliceLengths{}, math::multiplies<index_t>{}, Number<1>{});
+
+        constexpr index_t num_of_waves = BlockSize / wave_size;
+
+        // smallest load element: a vector_load per wave
+        constexpr index_t chunk_size           = wave_size * long_vector_size;
+        constexpr index_t num_chunks_per_block = block_slice_size / chunk_size;
+
+        static_assert(num_chunks_per_block % NumSegments == 0,
+                      "num_chunks cannot evenly divided by NumSegments");
+
+        constexpr index_t chunks_per_segment = num_chunks_per_block / NumSegments;
+
+        // spread chunks to as many waves as possible
+        constexpr index_t waves_per_segment = math::gcd(num_of_waves, chunks_per_segment);
+
+        constexpr index_t num_wave_groups = num_of_waves / waves_per_segment;
+        constexpr index_t chunks_per_wave = chunks_per_segment / waves_per_segment;
+
+        return SegmentInfo{num_wave_groups, chunks_per_wave};
+    }
+
     __device__ static constexpr index_t GetThreadBufferSize()
     {
         return ThreadBufferDesc::GetElementSpace();
+    }
+
+    template <typename BlockSrcData, typename ThreadBufferData>
+    __device__ void RunLoadThreadBufferSegment(const BlockSrcData* p_block_src,
+                                               ThreadBufferData* p_thread_buffer,
+                                               index_t seg_id) const
+    {
+        constexpr auto seg_info            = GetSegmentInfo();
+        const index_t wave_id              = get_thread_local_1d_id() / wave_size;
+        const index_t wave_group_id        = wave_id / seg_info.num_wave_groups;
+        const index_t active_wave_group_id = seg_id % seg_info.num_wave_groups;
+        const index_t chunk_offset = (seg_id / seg_info.num_wave_groups) * seg_info.chunks_per_wave;
+
+        if(wave_group_id == active_wave_group_id)
+            mThreadwiseLoad.Run(p_block_src, p_thread_buffer);
     }
 
     template <typename BlockSrcData, typename ThreadBufferData>
@@ -172,6 +221,11 @@ struct BlockwiseGenericTensorSliceCopy_v4
 
     ThreadwiseLoad mThreadwiseLoad;
     ThreadwiseStore mThreadwiseStore;
+
+    static constexpr index_t wave_size = 64;
+    index_t wave_group_id;
+    index_t num_wave_groups;
+    index_t chunks_per_wave;
 };
 
 } // namespace ck

@@ -131,8 +131,8 @@ struct GridwiseGemmTransposedANormalBNormalCXdlops_v1
                                                AddressSpace::Global,
                                                AddressSpace::Vgpr,
                                                AddressSpace::Lds,
-                                               InMemoryDataOperation::Set>(
-                {0, n_block_data_on_global}, {0, 0});
+                                               InMemoryDataOperation::Set,
+                                               4>({0, n_block_data_on_global}, {0, 0});
 
         // GEMM definition
         // c_mtx += transpose(a_mtx) * b_mtx
