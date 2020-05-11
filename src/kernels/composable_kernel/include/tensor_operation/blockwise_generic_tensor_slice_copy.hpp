@@ -75,26 +75,26 @@ struct BlockwiseGenericTensorSliceCopy_v4
     struct SegmentInfo
     {
         index_t num_wave_groups;
+        index_t waves_per_segment;
         index_t chunks_per_wave;
+        index_t num_chunks;
     };
 
     __device__ static constexpr auto GetSegmentInfo()
     {
         constexpr index_t long_vector_size = Number<math::lcm(SrcDataPerRead, DstDataPerWrite)>{};
-        constexpr index_t block_slice_size = BlockDstDesc::GetElementSize();
-        constexpr index_t thread_slice_size =
-            reduce_on_sequence(ThreadSliceLengths{}, math::multiplies<index_t>{}, Number<1>{});
+        constexpr index_t block_copy_size  = BlockDstDesc::GetElementSize();
 
         constexpr index_t num_of_waves = BlockSize / wave_size;
 
-        // smallest load element: a vector_load per wave
-        constexpr index_t chunk_size           = wave_size * long_vector_size;
-        constexpr index_t num_chunks_per_block = block_slice_size / chunk_size;
+        // chunk - smallest load element: a vector_load per wave
+        constexpr index_t chunk_size = wave_size * long_vector_size;
+        constexpr index_t num_chunks = block_copy_size / chunk_size;
 
-        static_assert(num_chunks_per_block % NumSegments == 0,
+        static_assert(num_chunks % NumSegments == 0,
                       "num_chunks cannot evenly divided by NumSegments");
 
-        constexpr index_t chunks_per_segment = num_chunks_per_block / NumSegments;
+        constexpr index_t chunks_per_segment = num_chunks / NumSegments;
 
         // spread chunks to as many waves as possible
         constexpr index_t waves_per_segment = math::gcd(num_of_waves, chunks_per_segment);
@@ -102,7 +102,7 @@ struct BlockwiseGenericTensorSliceCopy_v4
         constexpr index_t num_wave_groups = num_of_waves / waves_per_segment;
         constexpr index_t chunks_per_wave = chunks_per_segment / waves_per_segment;
 
-        return SegmentInfo{num_wave_groups, chunks_per_wave};
+        return SegmentInfo{num_wave_groups, waves_per_segment, chunks_per_wave, num_chunks};
     }
 
     __device__ static constexpr index_t GetThreadBufferSize()
@@ -119,10 +119,20 @@ struct BlockwiseGenericTensorSliceCopy_v4
         const index_t wave_id              = get_thread_local_1d_id() / wave_size;
         const index_t wave_group_id        = wave_id / seg_info.num_wave_groups;
         const index_t active_wave_group_id = seg_id % seg_info.num_wave_groups;
-        const index_t chunk_offset = (seg_id / seg_info.num_wave_groups) * seg_info.chunks_per_wave;
+        const index_t chunk_id             = seg_id / seg_info.num_wave_groups;
+
+        // SliceLengths = Sequence<2, 4>{};
+        constexpr auto SegmentSliceLengths = Sequence<1, 4>{};
+        constexpr auto SegmentLengths      = Sequence<2, 1>{};
+
+        constexpr auto segment_desc = make_cluster_descriptor(SegmentLengths);
 
         if(wave_group_id == active_wave_group_id)
-            mThreadwiseLoad.Run(p_block_src, p_thread_buffer);
+        {
+            const auto SegmentSliceOffset = segment_desc.CalculateClusterIndex(chunk_id);
+            mThreadwiseLoad.template RunSegment<decltype(SegmentSliceLengths)>(
+                p_block_src, p_thread_buffer, SegmentSliceOffset);
+        }
     }
 
     template <typename BlockSrcData, typename ThreadBufferData>
@@ -172,7 +182,10 @@ struct BlockwiseGenericTensorSliceCopy_v4
 
         BlockSrcData p_thread_buffer[GetThreadBufferSize()];
 
-        RunLoadThreadBuffer(p_block_src, p_thread_buffer);
+        static_if<(NumSegments > 1)>{}([&](auto) {
+            for(index_t seg_id = 0; seg_id < NumSegments; seg_id++)
+                RunLoadThreadBufferSegment(p_block_src, p_thread_buffer, seg_id);
+        }).Else([&](auto) { RunLoadThreadBuffer(p_block_src, p_thread_buffer); });
 
         // if there is type conversion, it's done during store
         RunStoreThreadBuffer(p_thread_buffer, p_block_dst);

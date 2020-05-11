@@ -67,6 +67,97 @@ struct ThreadwiseGenericTensorSliceCopy_v4r2
         mDstSliceOrigin = dst_slice_origin;
     }
 
+    template <typename SegmentSliceLengths, typename SrcData, typename DstData, typename OffsetData>
+    __device__ void
+    RunSegment(const SrcData* p_src, DstData* p_dst, const OffsetData segment_offset) const
+    {
+        constexpr auto vector_access_dim = Number<SrcDstVectorReadWriteDim>{};
+
+        constexpr auto src_data_per_access = Number<SrcDataPerRead>{};
+        constexpr auto dst_data_per_access = Number<DstDataPerWrite>{};
+
+        constexpr auto long_vector_size = Number<math::lcm(SrcDataPerRead, DstDataPerWrite)>{};
+
+        constexpr auto long_vector_access_lengths = SegmentSliceLengths::Modify(
+            vector_access_dim, SegmentSliceLengths::Get(vector_access_dim) / long_vector_size);
+
+        const auto vector_access_offset = segment_offset * SegmentSliceLengths{};
+
+        ford<decltype(long_vector_access_lengths), SrcDstDimAccessOrder>{}([&](
+            auto long_vector_access_id) {
+
+            // data id w.r.t slicing-window
+            auto long_vector_data_begin_id = long_vector_access_id + vector_access_offset;
+            long_vector_data_begin_id(vector_access_dim) =
+                long_vector_size * long_vector_access_id[vector_access_dim];
+
+            // buffer to hold a src long-vector
+            SrcData p_src_long_vector[long_vector_size];
+
+            // zero out buffer
+            for(index_t i = 0; i < long_vector_size; ++i)
+            {
+                p_src_long_vector[i] = 0;
+            }
+
+            // load data from src to the long-vector buffer
+            for(index_t i = 0; i < long_vector_size / src_data_per_access; ++i)
+            {
+                auto scalar_id               = make_zero_array<index_t, nDim>();
+                scalar_id(vector_access_dim) = i * src_data_per_access;
+
+                const index_t buffer_offset = i * src_data_per_access;
+
+                const auto src_coord = mSrcSliceOrigin + (long_vector_data_begin_id + scalar_id);
+
+                // Check src data's valid mapping situation, only check the first data in this src
+                //   vector. It's user's responsiblity to make sure all data in the src vector
+                //   has the valid/invalid mapping situation
+                if(src_coord.IsOffsetValidAssumingUpperIndexIsValid())
+                {
+                    transfer_data<SrcData,
+                                  SrcDataPerRead,
+                                  SrcAddressSpace,
+                                  AddressSpace::Vgpr,
+                                  InMemoryDataOperation::Set>(
+                        p_src, src_coord.GetOffset(), p_src_long_vector, buffer_offset);
+                }
+            }
+
+            // SrcData to DstData conversion
+            DstData p_dst_long_vector[long_vector_size];
+
+            for(index_t i = 0; i < long_vector_size; ++i)
+            {
+                p_dst_long_vector[i] = type_convert<DstData>{}(p_src_long_vector[i]);
+            }
+
+            // store data from the long-vector buffer to dst
+            for(index_t i = 0; i < long_vector_size / dst_data_per_access; ++i)
+            {
+                auto scalar_id               = make_zero_array<index_t, nDim>();
+                scalar_id(vector_access_dim) = i * dst_data_per_access;
+
+                const index_t buffer_offset = i * dst_data_per_access;
+
+                const auto dst_coord = mDstSliceOrigin + (long_vector_data_begin_id + scalar_id);
+
+                // Check dst data's valid mapping situation, only check the first data in this dst
+                //   vector. It's user's responsiblity to make sure all data in the dst vector
+                //   has the valid/invalid mapping situation
+                if(dst_coord.IsOffsetValidAssumingUpperIndexIsValid())
+                {
+                    transfer_data<DstData,
+                                  DstDataPerWrite,
+                                  AddressSpace::Vgpr,
+                                  DstAddressSpace,
+                                  DstInMemOp>(
+                        p_dst_long_vector, buffer_offset, p_dst, dst_coord.GetOffset());
+                }
+            }
+        });
+    }
+
     template <typename SrcData, typename DstData>
     __device__ void Run(const SrcData* p_src, DstData* p_dst) const
     {
