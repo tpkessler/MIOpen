@@ -108,8 +108,8 @@ struct GridwiseGemmTransposedANormalBNormalCXdlops_v1
                                                AddressSpace::Global,
                                                AddressSpace::Vgpr,
                                                AddressSpace::Lds,
-                                               InMemoryDataOperation::Set>(
-                {0, m_block_data_on_global}, {0, 0});
+                                               InMemoryDataOperation::Set,
+                                               8>({0, m_block_data_on_global}, {0, 0});
 
         constexpr auto b_k_n_block_desc = make_native_tensor_descriptor_aligned(
             Sequence<KPerBlock, NPerBlock>{}, Number<max_align>{});
@@ -132,8 +132,7 @@ struct GridwiseGemmTransposedANormalBNormalCXdlops_v1
                                                AddressSpace::Vgpr,
                                                AddressSpace::Lds,
                                                InMemoryDataOperation::Set,
-                                               8,
-                                               Sequence<2, 1>>({0, n_block_data_on_global}, {0, 0});
+                                               1>({0, n_block_data_on_global}, {0, 0});
 
         // GEMM definition
         // c_mtx += transpose(a_mtx) * b_mtx
@@ -211,7 +210,9 @@ struct GridwiseGemmTransposedANormalBNormalCXdlops_v1
                 __syncthreads();
 
                 // LDS doubel buffer: load next data from device mem
-                a_blockwise_copy.RunLoadThreadBuffer(p_a_global, p_a_thread_buffer);
+                for(index_t seg_id = 0; seg_id < 8; seg_id++)
+                    a_blockwise_copy.RunLoadThreadBufferSegment(
+                        p_a_global, p_a_thread_buffer, seg_id);
                 b_blockwise_copy.RunLoadThreadBuffer(p_b_global, p_b_thread_buffer);
 
                 // LDS double buffer: GEMM on current data

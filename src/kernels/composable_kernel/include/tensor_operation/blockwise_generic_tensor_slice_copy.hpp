@@ -32,9 +32,7 @@ template <index_t BlockSize,
           AddressSpace ThreadBufferAddressSpace = AddressSpace::Generic,
           AddressSpace DstAddressSpace          = AddressSpace::Generic,
           InMemoryDataOperation DstInMemOp      = InMemoryDataOperation::Set,
-          index_t NumSegments                   = 1,
-          typename SegmentLengths =
-              typename arithmetic_sequence_gen<0, ThreadSliceLengths::Size(), 1>::type>
+          index_t NumSegments                   = 1>
 struct BlockwiseGenericTensorSliceCopy_v4
 {
     static constexpr index_t nDim = BlockSrcDesc::GetNumOfDimension();
@@ -124,7 +122,8 @@ struct BlockwiseGenericTensorSliceCopy_v4
         const index_t active_wave_group_id = seg_id % seg_info.num_wave_groups;
         const index_t chunk_id             = seg_id / seg_info.num_wave_groups;
 
-        // constexpr auto SegmentLengths = Sequence<2, 1>{};
+        // using SegmentLengths        = Sequence<seg_info.segments_per_wave, 1>;
+        using SegmentLengths        = Sequence<1, seg_info.segments_per_wave>;
         constexpr auto segment_desc = make_cluster_descriptor(SegmentLengths{});
 
         constexpr auto SegmentSliceLengths = ThreadSliceLengths{} / SegmentLengths{};
@@ -187,10 +186,7 @@ struct BlockwiseGenericTensorSliceCopy_v4
 
         BlockSrcData p_thread_buffer[GetThreadBufferSize()];
 
-        static_if<(NumSegments > 1)>{}([&](auto) {
-            for(index_t seg_id = 0; seg_id < NumSegments; seg_id++)
-                RunLoadThreadBufferSegment(p_block_src, p_thread_buffer, seg_id);
-        }).Else([&](auto) { RunLoadThreadBuffer(p_block_src, p_thread_buffer); });
+        RunLoadThreadBuffer(p_block_src, p_thread_buffer);
 
         // if there is type conversion, it's done during store
         RunStoreThreadBuffer(p_thread_buffer, p_block_dst);
