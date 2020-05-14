@@ -32,7 +32,10 @@ template <index_t BlockSize,
           AddressSpace ThreadBufferAddressSpace = AddressSpace::Generic,
           AddressSpace DstAddressSpace          = AddressSpace::Generic,
           InMemoryDataOperation DstInMemOp      = InMemoryDataOperation::Set,
-          index_t NumSegments                   = 1>
+          index_t NumSegments                   = 1,
+          typename BlockSegmentLengths          = Sequence<1, 1>,
+          typename ThreadSegmentLengths =
+              typename arithmetic_sequence_gen<0, ThreadSliceLengths::Size(), 1>::type>
 struct BlockwiseGenericTensorSliceCopy_v4
 {
     static constexpr index_t nDim = BlockSrcDesc::GetNumOfDimension();
@@ -75,7 +78,6 @@ struct BlockwiseGenericTensorSliceCopy_v4
     struct SegmentInfo
     {
         index_t num_wave_groups;
-        index_t waves_per_segment;
         index_t segments_per_wave;
     };
 
@@ -93,6 +95,7 @@ struct BlockwiseGenericTensorSliceCopy_v4
         static_assert(num_chunks % NumSegments == 0,
                       "num_chunks cannot evenly divided by NumSegments");
 
+#if 0
         constexpr index_t chunks_per_segment = num_chunks / NumSegments;
 
         // spread chunks to as many waves as possible
@@ -102,8 +105,19 @@ struct BlockwiseGenericTensorSliceCopy_v4
         constexpr index_t chunks_per_segment_wave = chunks_per_segment / waves_per_segment;
         constexpr index_t chunks_per_wave         = num_chunks / num_of_waves;
         constexpr index_t segments_per_wave       = chunks_per_wave / chunks_per_segment_wave;
+#else
+        constexpr index_t num_wave_groups   = BlockSegmentLengths::Get(Number<0>{});
+        constexpr index_t segments_per_wave = BlockSegmentLengths::Get(Number<1>{});
 
-        return SegmentInfo{num_wave_groups, waves_per_segment, segments_per_wave};
+        static_assert(num_of_waves % num_wave_groups == 0,
+                      "num_of_waves cannot be divided by num_wave_groups!");
+
+        static_assert(make_cluster_descriptor(BlockSegmentLengths{}).GetElementSize() ==
+                          NumSegments,
+                      "NumSegments and BlockSegmentLengths is inconsistent!");
+#endif
+
+        return SegmentInfo{num_wave_groups, segments_per_wave};
     }
 
     __device__ static constexpr index_t GetThreadBufferSize()
@@ -111,29 +125,35 @@ struct BlockwiseGenericTensorSliceCopy_v4
         return ThreadBufferDesc::GetElementSpace();
     }
 
-    template <typename BlockSrcData, typename ThreadBufferData>
+    template <typename SegmentId, typename BlockSrcData, typename ThreadBufferData>
     __device__ void RunLoadThreadBufferSegment(const BlockSrcData* p_block_src,
-                                               ThreadBufferData* p_thread_buffer,
-                                               index_t seg_id) const
+                                               ThreadBufferData* p_thread_buffer) const
     {
-        constexpr auto seg_info            = GetSegmentInfo();
-        const index_t wave_id              = get_thread_local_1d_id() / wave_size;
-        const index_t wave_group_id        = wave_id / seg_info.num_wave_groups;
+        constexpr auto seg_info     = GetSegmentInfo();
+        const index_t wave_id       = get_thread_local_1d_id() / wave_size;
+        const index_t wave_group_id = wave_id / seg_info.num_wave_groups;
+
+#if 0
         const index_t active_wave_group_id = seg_id % seg_info.num_wave_groups;
-        const index_t chunk_id             = seg_id / seg_info.num_wave_groups;
+        const index_t thread_seg_id             = seg_id / seg_info.num_wave_groups;
+#else
+        constexpr index_t active_wave_group_id = SegmentId::Get(Number<0>{});
+        constexpr index_t thread_seg_id        = SegmentId::Get(Number<1>{});
+#endif
 
-        // using SegmentLengths        = Sequence<seg_info.segments_per_wave, 1>;
-        using SegmentLengths        = Sequence<1, seg_info.segments_per_wave>;
-        constexpr auto segment_desc = make_cluster_descriptor(SegmentLengths{});
+        constexpr auto segment_desc = make_cluster_descriptor(ThreadSegmentLengths{});
 
-        constexpr auto SegmentSliceLengths = ThreadSliceLengths{} / SegmentLengths{};
+        static_assert(ThreadSliceLengths::Size() == ThreadSegmentLengths::Size(),
+                      "nDim is not consistent!");
+
+        constexpr auto SegmentSliceLengths = ThreadSliceLengths{} / ThreadSegmentLengths{};
 
         static_assert(segment_desc.GetElementSize() == seg_info.segments_per_wave,
-                      "SegmentLengths is wrong!");
+                      "ThreadSegmentLengths is wrong!");
 
         if(wave_group_id == active_wave_group_id)
         {
-            const auto SegmentSliceOffset = segment_desc.CalculateClusterIndex(chunk_id);
+            const auto SegmentSliceOffset = segment_desc.CalculateClusterIndex(thread_seg_id);
             mThreadwiseLoad.template RunSegment<decltype(SegmentSliceLengths)>(
                 p_block_src, p_thread_buffer, SegmentSliceOffset);
         }
