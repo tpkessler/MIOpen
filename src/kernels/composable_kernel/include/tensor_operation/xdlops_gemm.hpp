@@ -501,7 +501,8 @@ template <class data_type,
           index_t MPerWave,
           index_t NPerWave,
           index_t GemmDataPerReadA,
-          index_t GemmDataPerReadB>
+          index_t GemmDataPerReadB,
+          index_t NumSegments = 1>
 struct XdlopsGemm_t
 {
     struct MatrixIndex
@@ -818,6 +819,90 @@ struct XdlopsGemm_t
         });
     }
 #endif
+
+    template <index_t M,
+              index_t N,
+              index_t K,
+              index_t SegmentId,
+              class FloatA,
+              class FloatB,
+              class FloatC>
+    __device__ void RunSegment(const FloatA* const __restrict__ p_a_wave,
+                               const FloatB* const __restrict__ p_b_wave,
+                               FloatC* const __restrict__ p_c_thread) const
+    {
+        constexpr auto mfma_type = GetMFMAInfo();
+
+        static_assert(GemmDataPerReadA == 1 && GemmDataPerReadB == 1, "GemmDataPerReadA/B != 1");
+
+        static_assert(is_same<FloatA, FloatB>::value, "FloatA != FloatB");
+        static_assert(is_same<FloatC, float>::value, "FloatC != float");
+        static_assert(SegmentId < NumSegments, "SegmentId >= NumSegments");
+        static_assert(K % (NumSegments * mfma_type.num_input_blks) == 0,
+                      "K cannot be divided by NumSegments!");
+
+        constexpr index_t SegmentSize   = K / NumSegments;
+        constexpr index_t SegmentOffset = SegmentId * SegmentSize;
+
+        const index_t laneId = get_thread_local_1d_id() % mfma_type.wave_size;
+
+        FloatA a[SegmentSize];
+        FloatB b[SegmentSize];
+
+        static_if<!IsKReduction()>{}([&](auto) {
+
+            // load into registers
+            for(index_t k = 0; k < SegmentSize; ++k)
+            {
+                a[k] = p_a_wave[(k + SegmentOffset) * M + laneId];
+                b[k] = p_b_wave[(k + SegmentOffset) * N + laneId];
+            }
+
+            // get pointer of registers
+            auto pa = reinterpret_cast<const data_type*>(&a);
+            auto pb = reinterpret_cast<const data_type*>(&b);
+
+#if WORKAROUND_SWDEV_229564
+#pragma unroll
+#endif
+            for(index_t k = 0; k < SegmentSize; ++k)
+            {
+                constexpr index_t nxdlops = sizeof(FloatA) / (mfma_type.k * sizeof(data_type));
+
+                for(index_t i = 0; i < nxdlops; ++i, pa += mfma_type.k, pb += mfma_type.k)
+                    mfma_type.run(Number<MPerWave>{}, Number<NPerWave>{}, pa, pb, p_c_thread);
+            }
+
+        }).Else([&](auto) {
+
+            const index_t blk_id = laneId / mfma_type.num_threads_blk;
+            const index_t blk_td = laneId % mfma_type.num_threads_blk;
+
+            // load into registers
+            for(index_t k = 0; k < SegmentSize; k += mfma_type.num_input_blks)
+            {
+                a[k] = p_a_wave[(k + SegmentOffset + blk_id) * M + blk_td];
+                b[k] = p_b_wave[(k + SegmentOffset + blk_id) * N + blk_td];
+            }
+
+            // get pointer of registers
+            auto pa = reinterpret_cast<const data_type*>(&a);
+            auto pb = reinterpret_cast<const data_type*>(&b);
+
+            constexpr index_t nxdlops =
+                (sizeof(FloatA) * mfma_type.num_input_blks) / (mfma_type.k * sizeof(data_type));
+
+#if WORKAROUND_SWDEV_229564
+#pragma unroll
+#endif
+            for(index_t k = 0; k < SegmentSize; k += mfma_type.num_input_blks)
+            {
+                for(index_t i = 0; i < nxdlops; ++i, pa += mfma_type.k, pb += mfma_type.k)
+                    mfma_type.run(Number<MPerWave>{}, Number<NPerWave>{}, pa, pb, p_c_thread);
+            }
+
+        });
+    }
 
     template <index_t M, index_t N, index_t K, class FloatA, class FloatB, class FloatC>
     __device__ void Run(const FloatA* const __restrict__ p_a_wave,

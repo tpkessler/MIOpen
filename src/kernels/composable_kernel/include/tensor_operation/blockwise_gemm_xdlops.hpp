@@ -17,7 +17,8 @@ template <index_t BlockSize,
           index_t GemmMWaves,
           index_t GemmNWaves,
           index_t GemmDataPerReadA,
-          index_t GemmDataPerReadB>
+          index_t GemmDataPerReadB,
+          index_t NumSegments = 1>
 struct BlockwiseGemmBlockABlockBThreadCTransANormalBNormalC_xdlops
 {
     struct MatrixIndex
@@ -26,8 +27,12 @@ struct BlockwiseGemmBlockABlockBThreadCTransANormalBNormalC_xdlops
         index_t col;
     };
 
-    static constexpr auto XdlopsGemm =
-        XdlopsGemm_t<Float, GemmMPerWave, GemmNPerWave, GemmDataPerReadA, GemmDataPerReadB>{};
+    static constexpr auto XdlopsGemm = XdlopsGemm_t<Float,
+                                                    GemmMPerWave,
+                                                    GemmNPerWave,
+                                                    GemmDataPerReadA,
+                                                    GemmDataPerReadB,
+                                                    NumSegments>{};
 
     index_t mMyWaveOffsetA;
     index_t mMyWaveOffsetB;
@@ -42,7 +47,10 @@ struct BlockwiseGemmBlockABlockBThreadCTransANormalBNormalC_xdlops
                       "wrong! K dimension not consistent\n");
 
         constexpr index_t M = BlockMatrixA::NCol(); // A is transposed
+        constexpr index_t K = BlockMatrixA::NCol();
         constexpr index_t N = BlockMatrixB::NCol();
+
+        static_assert(K % NumSegments == 0, "K cannot be divided by NumSegments!");
 
         static_assert(GemmMPerWave * GemmMWaves == M, "GemmMWaves * GemmMPerWave != M");
         static_assert(GemmNPerWave * GemmNWaves == N, "GemmNWaves * GemmNPerWave != N");
@@ -69,6 +77,20 @@ struct BlockwiseGemmBlockABlockBThreadCTransANormalBNormalC_xdlops
         constexpr index_t K = BlockMatrixA::NRow();
 
         XdlopsGemm.template Run<M, N, K>(
+            &p_a_block[mMyWaveOffsetA], &p_b_block[mMyWaveOffsetB], p_c_thread);
+    }
+
+    template <index_t SegmentId, class FloatA, class FloatB, class FloatC>
+    __device__ void RunSegment(const FloatA* __restrict__ p_a_block,
+                               const FloatB* __restrict__ p_b_block,
+                               FloatC* __restrict__ p_c_thread) const
+
+    {
+        constexpr index_t M = BlockMatrixA::NCol(); // A is transposed
+        constexpr index_t N = BlockMatrixB::NCol();
+        constexpr index_t K = BlockMatrixA::NRow();
+
+        XdlopsGemm.template RunSegment<M, N, K, SegmentId>(
             &p_a_block[mMyWaveOffsetA], &p_b_block[mMyWaveOffsetB], p_c_thread);
     }
 
