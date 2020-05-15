@@ -48,8 +48,6 @@ struct GridwiseGemmTransposedANormalBNormalCXdlops_v1
                         const Float* const __restrict__ p_b_global,
                         Float* const __restrict__ p_c_global) const
     {
-        constexpr index_t NumSegments = 4;
-
         constexpr auto True = integral_constant<bool, true>{};
 
         constexpr auto a_k_m_global_desc = AGlobalDesc{};
@@ -91,6 +89,8 @@ struct GridwiseGemmTransposedANormalBNormalCXdlops_v1
         //     be careful of LDS alignment
         constexpr auto a_k_m_block_desc = make_native_tensor_descriptor_aligned(
             Sequence<KPerBlock, MPerBlock>{}, Number<max_align>{});
+
+        constexpr index_t NumSegments = 4;
 
         auto a_blockwise_copy =
             BlockwiseGenericTensorSliceCopy_v4<BlockSize,
