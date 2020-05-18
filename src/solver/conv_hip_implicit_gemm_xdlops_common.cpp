@@ -337,7 +337,7 @@ void PerformanceImplicitGemmXdlops::EuristicInit(const ConvolutionContext& ctx)
     }
     else if(ctx.IsFp16())
     {
-        tmp = {128, 128, 16, 1, 4, 64, 64, 8, 32, 4, 64, use_spare_set};
+        tmp = {128, 128, 8, 1, 4, 64, 64, 8, 32, 4, 64, use_spare_set};
         if(!tmp.IsValid(ctx))
             tmp = {64, 32, 4, 1, 4, 32, 64, 4, 16, 2, 32, use_spare_set};
         if(!tmp.IsValid(ctx))
