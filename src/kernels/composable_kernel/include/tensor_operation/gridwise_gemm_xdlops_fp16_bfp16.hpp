@@ -477,8 +477,6 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
         constexpr auto a_g_k_m_kpack_block_desc = make_native_tensor_descriptor_aligned(
             Sequence<1, KPerBlock, MPerBlock, KPACK>{}, Number<max_align>{});
 
-        constexpr index_t NumSegments = 2;
-
         auto a_blockwise_copy = BlockwiseGenericTensorSliceCopy_v4<
             BlockSize,
             decltype(a_g_k_m_kpack_global_desc),
@@ -497,9 +495,9 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
             AddressSpace::Vgpr,
             AddressSpace::Lds,
             InMemoryDataOperation::Set,
-            NumSegments,
-            Sequence<1, 2>,
-            Sequence<1, 1, 2, 1>>({group_id, 0, m_block_data_on_global, 0}, {0, 0, 0, 0});
+            4,
+            Sequence<1, 4>,
+            Sequence<1, 2, 2, 1>>({group_id, 0, m_block_data_on_global, 0}, {0, 0, 0, 0});
 
         constexpr auto b_g_k_n_kpack_block_desc = make_native_tensor_descriptor_aligned(
             Sequence<1, KPerBlock, NPerBlock, KPACK>{}, Number<max_align>{});
@@ -523,9 +521,9 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
             AddressSpace::Vgpr,
             AddressSpace::Lds,
             InMemoryDataOperation::Set,
-            NumSegments,
-            Sequence<1, 2>,
-            Sequence<1, 1, 2, 1>>({group_id, 0, n_block_data_on_global, 0}, {0, 0, 0, 0});
+            4,
+            Sequence<1, 4>,
+            Sequence<1, 1, 1, 4>>({group_id, 0, n_block_data_on_global, 0}, {0, 0, 0, 0});
 
         // GEMM definition
         // c_mtx += transpose(a_mtx) * b_mtx
@@ -549,7 +547,7 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
             NWaves,
             GemmDataPerReadM,
             GemmDataPerReadN,
-            NumSegments>{};
+            4>{};
 
         constexpr auto c_k_thread_mtx_desc = blockwise_gemm.GetThreadMatrixCDescriptor();
 
@@ -633,19 +631,29 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
                     reinterpret_cast<const typename vector_type<ABFloat, KPACK>::MemoryType*>(
                         p_b_block_now);
 
-                a_blockwise_copy.template RunLoadThreadBufferSegment<Sequence<0, 0>>(
+                a_blockwise_copy.template RunLoadThreadBufferSegment<0, Sequence<0, 0, 0, 0>>(
                     p_a_global, p_a_thread_buffer);
-                b_blockwise_copy.template RunLoadThreadBufferSegment<Sequence<0, 0>>(
+                b_blockwise_copy.template RunLoadThreadBufferSegment<0, Sequence<0, 0, 0, 0>>(
                     p_b_global, p_b_thread_buffer);
-
                 blockwise_gemm.template RunSegment<0>(p_a_block_vec, p_b_block_vec, p_c_thread);
 
-                a_blockwise_copy.template RunLoadThreadBufferSegment<Sequence<0, 1>>(
+                a_blockwise_copy.template RunLoadThreadBufferSegment<0, Sequence<0, 0, 1, 0>>(
                     p_a_global, p_a_thread_buffer);
-                b_blockwise_copy.template RunLoadThreadBufferSegment<Sequence<0, 1>>(
+                b_blockwise_copy.template RunLoadThreadBufferSegment<0, Sequence<0, 0, 0, 1>>(
                     p_b_global, p_b_thread_buffer);
-
                 blockwise_gemm.template RunSegment<1>(p_a_block_vec, p_b_block_vec, p_c_thread);
+
+                a_blockwise_copy.template RunLoadThreadBufferSegment<0, Sequence<0, 1, 0, 0>>(
+                    p_a_global, p_a_thread_buffer);
+                b_blockwise_copy.template RunLoadThreadBufferSegment<0, Sequence<0, 0, 0, 2>>(
+                    p_b_global, p_b_thread_buffer);
+                blockwise_gemm.template RunSegment<2>(p_a_block_vec, p_b_block_vec, p_c_thread);
+
+                a_blockwise_copy.template RunLoadThreadBufferSegment<0, Sequence<0, 1, 1, 0>>(
+                    p_a_global, p_a_thread_buffer);
+                b_blockwise_copy.template RunLoadThreadBufferSegment<0, Sequence<0, 0, 0, 3>>(
+                    p_b_global, p_b_thread_buffer);
+                blockwise_gemm.template RunSegment<3>(p_a_block_vec, p_b_block_vec, p_c_thread);
 #endif
 
                 // LDS double buffer: store next data to LDS

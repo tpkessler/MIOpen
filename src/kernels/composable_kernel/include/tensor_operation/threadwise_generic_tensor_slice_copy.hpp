@@ -67,9 +67,11 @@ struct ThreadwiseGenericTensorSliceCopy_v4r2
         mDstSliceOrigin = dst_slice_origin;
     }
 
-    template <typename SegmentSliceLengths, typename SrcData, typename DstData, typename OffsetData>
-    __device__ void
-    RunSegment(const SrcData* p_src, DstData* p_dst, const OffsetData segment_offset) const
+    template <typename SegmentSliceLengths,
+              typename SegmentOffsets,
+              typename SrcData,
+              typename DstData>
+    __device__ void RunSegment(const SrcData* p_src, DstData* p_dst) const
     {
         constexpr auto vector_access_dim = Number<SrcDstVectorReadWriteDim>{};
 
@@ -81,7 +83,7 @@ struct ThreadwiseGenericTensorSliceCopy_v4r2
         constexpr auto long_vector_access_lengths = SegmentSliceLengths::Modify(
             vector_access_dim, SegmentSliceLengths::Get(vector_access_dim) / long_vector_size);
 
-        const auto vector_access_offset = segment_offset * long_vector_access_lengths;
+        constexpr auto vector_access_offset = SegmentOffsets{} * long_vector_access_lengths;
 
         ford<decltype(long_vector_access_lengths), SrcDstDimAccessOrder>{}([&](
             auto long_vector_access_id) {

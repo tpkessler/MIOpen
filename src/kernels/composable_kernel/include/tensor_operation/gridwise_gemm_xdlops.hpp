@@ -90,7 +90,7 @@ struct GridwiseGemmTransposedANormalBNormalCXdlops_v1
         constexpr auto a_k_m_block_desc = make_native_tensor_descriptor_aligned(
             Sequence<KPerBlock, MPerBlock>{}, Number<max_align>{});
 
-        constexpr index_t NumSegments = 4;
+        constexpr index_t NumSegments = 2;
 
         auto a_blockwise_copy =
             BlockwiseGenericTensorSliceCopy_v4<BlockSize,
@@ -111,7 +111,7 @@ struct GridwiseGemmTransposedANormalBNormalCXdlops_v1
                                                AddressSpace::Lds,
                                                InMemoryDataOperation::Set,
                                                NumSegments,
-                                               Sequence<2, 2>,
+                                               Sequence<1, 2>,
                                                Sequence<1, 2>>({0, m_block_data_on_global}, {0, 0});
 
         constexpr auto b_k_n_block_desc = make_native_tensor_descriptor_aligned(
@@ -136,7 +136,7 @@ struct GridwiseGemmTransposedANormalBNormalCXdlops_v1
                                                AddressSpace::Lds,
                                                InMemoryDataOperation::Set,
                                                NumSegments,
-                                               Sequence<2, 2>,
+                                               Sequence<1, 2>,
                                                Sequence<2, 1>>({0, n_block_data_on_global}, {0, 0});
 
         // GEMM definition
@@ -223,29 +223,19 @@ struct GridwiseGemmTransposedANormalBNormalCXdlops_v1
                 // LDS double buffer: GEMM on current data
                 blockwise_gemm.Run(p_a_block_now, p_b_block_now, p_c_thread);
 #else
-                a_blockwise_copy.template RunLoadThreadBufferSegment<Sequence<0, 0>>(
-                    p_a_global, p_a_thread_buffer);
-                b_blockwise_copy.template RunLoadThreadBufferSegment<Sequence<0, 0>>(
+                a_blockwise_copy.RunLoadThreadBuffer(p_a_global, p_a_thread_buffer);
+
+                // a_blockwise_copy.template RunLoadThreadBufferSegment<0, Sequence<0, 0>>(
+                // p_a_global, p_a_thread_buffer);
+                b_blockwise_copy.template RunLoadThreadBufferSegment<0, Sequence<0, 0>>(
                     p_b_global, p_b_thread_buffer);
                 blockwise_gemm.template RunSegment<0>(p_a_block_now, p_b_block_now, p_c_thread);
 
-                a_blockwise_copy.template RunLoadThreadBufferSegment<Sequence<1, 0>>(
-                    p_a_global, p_a_thread_buffer);
-                b_blockwise_copy.template RunLoadThreadBufferSegment<Sequence<1, 0>>(
+                // a_blockwise_copy.template RunLoadThreadBufferSegment<0, Sequence<0, 1>>(
+                // p_a_global, p_a_thread_buffer);
+                b_blockwise_copy.template RunLoadThreadBufferSegment<0, Sequence<1, 0>>(
                     p_b_global, p_b_thread_buffer);
                 blockwise_gemm.template RunSegment<1>(p_a_block_now, p_b_block_now, p_c_thread);
-
-                a_blockwise_copy.template RunLoadThreadBufferSegment<Sequence<0, 1>>(
-                    p_a_global, p_a_thread_buffer);
-                b_blockwise_copy.template RunLoadThreadBufferSegment<Sequence<0, 1>>(
-                    p_b_global, p_b_thread_buffer);
-                blockwise_gemm.template RunSegment<2>(p_a_block_now, p_b_block_now, p_c_thread);
-
-                a_blockwise_copy.template RunLoadThreadBufferSegment<Sequence<1, 1>>(
-                    p_a_global, p_a_thread_buffer);
-                b_blockwise_copy.template RunLoadThreadBufferSegment<Sequence<1, 1>>(
-                    p_b_global, p_b_thread_buffer);
-                blockwise_gemm.template RunSegment<3>(p_a_block_now, p_b_block_now, p_c_thread);
 #endif
 
                 // LDS double buffer: store next data to LDS
