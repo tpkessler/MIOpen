@@ -148,16 +148,9 @@ struct BlockwiseGenericTensorSliceCopy_v4
 
         constexpr auto SegmentSliceLengths = ThreadSliceLengths{} / ThreadSegmentLengths{};
 
-        constexpr auto SegmentSliceSize =
-            make_cluster_descriptor(SegmentSliceLengths).GetElementSize();
-        constexpr auto ThreadSliceSize =
-            make_cluster_descriptor(ThreadSliceLengths{}).GetElementSize();
-        constexpr auto ThreadSegmentSize =
-            make_cluster_descriptor(ThreadSegmentLengths{}).GetElementSize();
-
-        static_assert(SegmentSliceSize > 0 && ThreadSliceSize % ThreadSegmentSize == 0 &&
-                          ThreadSliceSize / ThreadSegmentSize == SegmentSliceSize,
-                      "SegmentSliceLengths is wrong!");
+        static_assert(
+            is_same<ThreadSliceLengths, decltype(ThreadSegmentLengths{} * SegmentSliceLengths)>{},
+            "wrong ThreadSliceLengths cannot evenly divided by ThreadSegmentLengths");
 
         static_assert(segment_desc.GetElementSize() == seg_info.segments_per_wave,
                       "ThreadSegmentLengths is wrong!");

@@ -81,7 +81,7 @@ struct ThreadwiseGenericTensorSliceCopy_v4r2
         constexpr auto long_vector_access_lengths = SegmentSliceLengths::Modify(
             vector_access_dim, SegmentSliceLengths::Get(vector_access_dim) / long_vector_size);
 
-        const auto vector_access_offset = segment_offset * SegmentSliceLengths{};
+        const auto vector_access_offset = segment_offset * long_vector_access_lengths;
 
         ford<decltype(long_vector_access_lengths), SrcDstDimAccessOrder>{}([&](
             auto long_vector_access_id) {
