@@ -148,15 +148,32 @@ struct BlockwiseGenericTensorSliceCopy_v4
 
         constexpr auto SegmentSliceLengths = ThreadSliceLengths{} / ThreadSegmentLengths{};
 
+        constexpr auto SegmentSliceSize =
+            make_cluster_descriptor(SegmentSliceLengths).GetElementSize();
+        constexpr auto ThreadSliceSize =
+            make_cluster_descriptor(ThreadSliceLengths{}).GetElementSize();
+        constexpr auto ThreadSegmentSize =
+            make_cluster_descriptor(ThreadSegmentLengths{}).GetElementSize();
+
+        static_assert(SegmentSliceSize > 0 && ThreadSliceSize % ThreadSegmentSize == 0 &&
+                          ThreadSliceSize / ThreadSegmentSize == SegmentSliceSize,
+                      "SegmentSliceLengths is wrong!");
+
         static_assert(segment_desc.GetElementSize() == seg_info.segments_per_wave,
                       "ThreadSegmentLengths is wrong!");
 
-        if(wave_group_id == active_wave_group_id)
-        {
+        static_if<(seg_info.num_wave_groups > 1)>{}([&](auto) {
+            if(wave_group_id == active_wave_group_id)
+            {
+                const auto SegmentSliceOffset = segment_desc.CalculateClusterIndex(thread_seg_id);
+                mThreadwiseLoad.template RunSegment<decltype(SegmentSliceLengths)>(
+                    p_block_src, p_thread_buffer, SegmentSliceOffset);
+            }
+        }).Else([&](auto) {
             const auto SegmentSliceOffset = segment_desc.CalculateClusterIndex(thread_seg_id);
             mThreadwiseLoad.template RunSegment<decltype(SegmentSliceLengths)>(
                 p_block_src, p_thread_buffer, SegmentSliceOffset);
-        }
+        });
     }
 
     template <typename BlockSrcData, typename ThreadBufferData>
