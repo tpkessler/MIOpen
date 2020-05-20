@@ -838,8 +838,6 @@ struct XdlopsGemm_t
         static_assert(is_same<FloatA, FloatB>::value, "FloatA != FloatB");
         static_assert(is_same<FloatC, float>::value, "FloatC != float");
         static_assert(SegmentId < NumSegments, "SegmentId >= NumSegments");
-        static_assert(K % (NumSegments * mfma_type.num_input_blks) == 0,
-                      "K cannot be divided by NumSegments!");
 
         constexpr index_t SegmentSize   = K / NumSegments;
         constexpr index_t SegmentOffset = SegmentId * SegmentSize;
@@ -850,6 +848,8 @@ struct XdlopsGemm_t
         FloatB b[SegmentSize];
 
         static_if<!IsKReduction()>{}([&](auto) {
+
+            static_assert(K % NumSegments == 0, "K cannot be divided by NumSegments!");
 
             // load into registers
             for(index_t k = 0; k < SegmentSize; ++k)
@@ -874,6 +874,9 @@ struct XdlopsGemm_t
             }
 
         }).Else([&](auto) {
+
+            static_assert(!IsKReduction() || K % (NumSegments * mfma_type.num_input_blks) == 0,
+                          "K cannot be divided by NumSegments!");
 
             const index_t blk_id = laneId / mfma_type.num_threads_blk;
             const index_t blk_td = laneId % mfma_type.num_threads_blk;
