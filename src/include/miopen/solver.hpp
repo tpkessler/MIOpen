@@ -910,20 +910,21 @@ struct PerformanceImplicitGemmForwardV4R4Xdlops
     int GemmKPerBlock; // 2^n[4..16]
     int GemmMPerWave;
     int GemmNPerWave;
-    int GemmG;     // 2*n[1..64]
-    int GemmKPack; // 2*n[1..8]
+    int GemmG;       // 2*n[1..64]
+    int GemmKPack;   // 2*n[1..8]
+    int NumSegments; // 2*n[1..4]
 
     bool use_spare_set;
 
-    PerformanceImplicitGemmForwardV4R4Xdlops(int, int, int, int, int, int, int, bool);
+    PerformanceImplicitGemmForwardV4R4Xdlops(int, int, int, int, int, int, int, int, bool);
 
-    PerformanceImplicitGemmForwardV4R4Xdlops(int a, int b, int c, int d, int e, int f, int g)
-        : PerformanceImplicitGemmForwardV4R4Xdlops(a, b, c, d, e, f, g, false)
+    PerformanceImplicitGemmForwardV4R4Xdlops(int a, int b, int c, int d, int e, int f, int g, int h)
+        : PerformanceImplicitGemmForwardV4R4Xdlops(a, b, c, d, e, f, g, h, false)
     {
     }
 
     PerformanceImplicitGemmForwardV4R4Xdlops()
-        : PerformanceImplicitGemmForwardV4R4Xdlops(-1, -1, -1, -1, -1, -1, -1, false)
+        : PerformanceImplicitGemmForwardV4R4Xdlops(-1, -1, -1, -1, -1, -1, -1, -1, false)
     {
     }
 
@@ -939,6 +940,7 @@ struct PerformanceImplicitGemmForwardV4R4Xdlops
         f(self.GemmNPerWave, "GemmNPerWave");
         f(self.GemmG, "GemmG");
         f(self.GemmKPack, "GemmKPack");
+        f(self.NumSegments, "NumSegments");
     }
 
     void EuristicInit(const ConvolutionContext& ctx);
@@ -957,9 +959,9 @@ struct PerformanceImplicitGemmForwardV4R4Xdlops
     CalculateGemmBBlockCopyPerformanceParameters(const ConvolutionContext& ctx) const;
     std::tuple<std::size_t, bool> CalculateLdsNumberOfByte(const ConvolutionContext& ctx) const;
     std::tuple<int, int, int, bool>
-    CalculateGemmABlockCopyThreadSegmentLengths(const ConvolutionContext& ctx, int) const;
+    CalculateGemmABlockCopyThreadSegmentLengths(const ConvolutionContext& ctx) const;
     std::tuple<int, int, int, bool>
-    CalculateGemmBBlockCopyThreadSegmentLengths(const ConvolutionContext& ctx, int) const;
+    CalculateGemmBBlockCopyThreadSegmentLengths(const ConvolutionContext& ctx) const;
 };
 
 struct ConvHipImplicitGemmV4R4FwdXdlops : SolverBase<ConvolutionContext>

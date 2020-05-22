@@ -97,17 +97,6 @@ struct BlockwiseGenericTensorSliceCopy_v4
         static_assert(num_chunks % NumSegments == 0,
                       "num_chunks cannot evenly divided by NumSegments");
 
-#if 0
-        constexpr index_t chunks_per_segment = num_chunks / NumSegments;
-
-        // spread chunks to as many waves as possible
-        constexpr index_t waves_per_segment = math::gcd(num_of_waves, chunks_per_segment);
-
-        constexpr index_t num_wave_groups         = num_of_waves / waves_per_segment;
-        constexpr index_t chunks_per_segment_wave = chunks_per_segment / waves_per_segment;
-        constexpr index_t chunks_per_wave         = num_chunks / num_of_waves;
-        constexpr index_t segments_per_wave       = chunks_per_wave / chunks_per_segment_wave;
-#else
         constexpr index_t num_wave_groups   = BlockSegmentLengths::Get(Number<0>{});
         constexpr index_t segments_per_wave = BlockSegmentLengths::Get(Number<1>{});
 
@@ -121,14 +110,13 @@ struct BlockwiseGenericTensorSliceCopy_v4
         static_assert(ThreadSliceLengths::Size() == ThreadSegmentLengths::Size(),
                       "nDim is not consistent!");
 
-        static_assert(
-            ThreadSegmentSliceLengths::Get(Number<SrcVectoReadDim>{}) % long_vector_size == 0,
-            "vector load dimension cannot be divided");
+        // static_assert(
+        // ThreadSegmentSliceLengths::Get(Number<SrcVectoReadDim>{}) % long_vector_size == 0,
+        //"vector load dimension cannot be divided");
 
         static_assert(is_same<ThreadSliceLengths,
                               decltype(ThreadSegmentLengths{} * ThreadSegmentSliceLengths{})>{},
                       "wrong ThreadSliceLengths cannot evenly divided by ThreadSegmentLengths");
-#endif
 
         return SegmentInfo{num_wave_groups, segments_per_wave};
     }
