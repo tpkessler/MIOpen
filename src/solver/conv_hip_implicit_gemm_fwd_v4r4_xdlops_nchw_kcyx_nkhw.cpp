@@ -484,6 +484,93 @@ PerformanceImplicitGemmForwardV4R4Xdlops::CalculateGemmBBlockCopyPerformancePara
                            true);
 }
 
+std::tuple<int, int, int, bool>
+PerformanceImplicitGemmForwardV4R4Xdlops::CalculateGemmABlockCopyThreadSegmentLengths(
+    const ConvolutionContext& ctx, int NumSegments) const
+{
+    int ThreadSegmentLengths_GemmK     = 1;
+    int ThreadSegmentLengths_GemmM     = 1;
+    int ThreadSegmentLengths_GemmKPack = 1; // vector_load dimesion, no segment
+
+    try
+    {
+
+        int GemmABlockCopyClusterLengths_GemmK = -1;
+        int GemmABlockCopyClusterLengths_GemmM = -1;
+
+        std::tie(GemmABlockCopyClusterLengths_GemmK,
+                 GemmABlockCopyClusterLengths_GemmM,
+                 std::ignore,
+                 std::ignore,
+                 std::ignore,
+                 std::ignore) = CalculateGemmABlockCopyPerformanceParameters(ctx);
+
+        int GemmABlockCopySliceLengths_GemmK = GemmKPerBlock / GemmABlockCopyClusterLengths_GemmK;
+        int GemmABlockCopySliceLengths_GemmM = GemmMPerBlock / GemmABlockCopyClusterLengths_GemmM;
+
+        if((GemmABlockCopySliceLengths_GemmK * GemmABlockCopySliceLengths_GemmM) % NumSegments != 0)
+            MIOPEN_THROW("invalid num of segments");
+
+        ThreadSegmentLengths_GemmK = gcd(GemmABlockCopySliceLengths_GemmK, NumSegments);
+        ThreadSegmentLengths_GemmM =
+            gcd(NumSegments / ThreadSegmentLengths_GemmK, GemmABlockCopySliceLengths_GemmM);
+    }
+    catch(...)
+    {
+        return std::make_tuple(-1, -1, -1, false);
+    }
+
+    return std::make_tuple(ThreadSegmentLengths_GemmK,
+                           ThreadSegmentLengths_GemmM,
+                           ThreadSegmentLengths_GemmKPack,
+                           true);
+}
+
+std::tuple<int, int, int, bool>
+PerformanceImplicitGemmForwardV4R4Xdlops::CalculateGemmBBlockCopyThreadSegmentLengths(
+    const ConvolutionContext& ctx, int NumSegments) const
+{
+    int ThreadSegmentLengths_GemmK     = 1;
+    int ThreadSegmentLengths_GemmN     = 1; // vector load dimesion, no segment
+    int ThreadSegmentLengths_GemmKPack = 1;
+
+    try
+    {
+
+        int GemmBBlockCopyClusterLengths_GemmK     = -1;
+        int GemmBBlockCopyClusterLengths_GemmKPack = -1;
+
+        std::tie(GemmBBlockCopyClusterLengths_GemmK,
+                 std::ignore,
+                 GemmBBlockCopyClusterLengths_GemmKPack,
+                 std::ignore,
+                 std::ignore,
+                 std::ignore) = CalculateGemmBBlockCopyPerformanceParameters(ctx);
+
+        int GemmBBlockCopySliceLengths_GemmK = GemmKPerBlock / GemmBBlockCopyClusterLengths_GemmK;
+        int GemmBBlockCopySliceLengths_GemmKPack =
+            GemmKPack / GemmBBlockCopyClusterLengths_GemmKPack;
+
+        if((GemmBBlockCopySliceLengths_GemmK * GemmBBlockCopySliceLengths_GemmKPack) %
+               NumSegments !=
+           0)
+            MIOPEN_THROW("invalid num of segments");
+
+        ThreadSegmentLengths_GemmK = gcd(GemmBBlockCopySliceLengths_GemmK, NumSegments);
+        ThreadSegmentLengths_GemmKPack =
+            gcd(NumSegments / ThreadSegmentLengths_GemmK, GemmBBlockCopySliceLengths_GemmKPack);
+    }
+    catch(...)
+    {
+        return std::make_tuple(-1, -1, -1, false);
+    }
+
+    return std::make_tuple(ThreadSegmentLengths_GemmK,
+                           ThreadSegmentLengths_GemmN,
+                           ThreadSegmentLengths_GemmKPack,
+                           true);
+}
+
 std::tuple<std::size_t, bool> PerformanceImplicitGemmForwardV4R4Xdlops::CalculateLdsNumberOfByte(
     const ConvolutionContext& ctx) const
 {
@@ -611,6 +698,26 @@ ConvSolution ConvHipImplicitGemmForwardV4R4Xdlops::GetSolution(
              GemmBBlockCopyDstDataPerWrite_GemmKPack,
              std::ignore) = config.CalculateGemmBBlockCopyPerformanceParameters(ctx);
 
+    int GemmABlockCopyThreadSegmentLengths_GemmK     = -1;
+    int GemmABlockCopyThreadSegmentLengths_GemmM     = -1;
+    int GemmABlockCopyThreadSegmentLengths_GemmKPack = -1;
+
+    int GemmBBlockCopyThreadSegmentLengths_GemmK     = -1;
+    int GemmBBlockCopyThreadSegmentLengths_GemmN     = -1;
+    int GemmBBlockCopyThreadSegmentLengths_GemmKPack = -1;
+
+    int NumSegments = 2;
+
+    std::tie(GemmABlockCopyThreadSegmentLengths_GemmK,
+             GemmABlockCopyThreadSegmentLengths_GemmM,
+             GemmABlockCopyThreadSegmentLengths_GemmKPack,
+             std::ignore) = config.CalculateGemmABlockCopyThreadSegmentLengths(ctx, NumSegments);
+
+    std::tie(GemmBBlockCopyThreadSegmentLengths_GemmK,
+             GemmBBlockCopyThreadSegmentLengths_GemmN,
+             GemmBBlockCopyThreadSegmentLengths_GemmKPack,
+             std::ignore) = config.CalculateGemmBBlockCopyThreadSegmentLengths(ctx, NumSegments);
+
     // clang-format off
     construction_parameters.comp_options =
         std::string(" -std=c++14 ") +
@@ -661,13 +768,13 @@ ConvSolution ConvHipImplicitGemmForwardV4R4Xdlops::GetSolution(
         ctx.general_compile_options;
 
     construction_parameters.comp_options +=
-        std::string(" -DCK_PARAM_TUNABLE_NUM_SEGMENTS=2") +
-        std::string(" -DCK_PARAM_DEPENDENT_GEMM_A_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_K=2") +
-        std::string(" -DCK_PARAM_DEPENDENT_GEMM_A_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_M=1") +
-        std::string(" -DCK_PARAM_DEPENDENT_GEMM_A_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_KPACK=1") +
-        std::string(" -DCK_PARAM_DEPENDENT_GEMM_B_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_K=1") +
-        std::string(" -DCK_PARAM_DEPENDENT_GEMM_B_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_N=1") +
-        std::string(" -DCK_PARAM_DEPENDENT_GEMM_B_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_KPACK=2");
+        std::string(" -DCK_PARAM_TUNABLE_NUM_SEGMENTS=") + std::to_string(NumSegments) +
+        std::string(" -DCK_PARAM_DEPENDENT_GEMM_A_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_K=") + std::to_string(GemmABlockCopyThreadSegmentLengths_GemmK) +
+        std::string(" -DCK_PARAM_DEPENDENT_GEMM_A_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_M=") + std::to_string(GemmABlockCopyThreadSegmentLengths_GemmM) +
+        std::string(" -DCK_PARAM_DEPENDENT_GEMM_A_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_KPACK=") + std::to_string(GemmABlockCopyThreadSegmentLengths_GemmKPack) +
+        std::string(" -DCK_PARAM_DEPENDENT_GEMM_B_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_K=") + std::to_string(GemmBBlockCopyThreadSegmentLengths_GemmK) +
+        std::string(" -DCK_PARAM_DEPENDENT_GEMM_B_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_N=") + std::to_string(GemmBBlockCopyThreadSegmentLengths_GemmN) +
+        std::string(" -DCK_PARAM_DEPENDENT_GEMM_B_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_KPACK=") + std::to_string(GemmBBlockCopyThreadSegmentLengths_GemmKPack);
     // clang-format on
 
     result.invoker_factory = conv::MakeImplGemmDataInvokerFactory(ctx);

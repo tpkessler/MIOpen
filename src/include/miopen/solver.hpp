@@ -956,6 +956,10 @@ struct PerformanceImplicitGemmForwardV4R4Xdlops
     std::tuple<int, int, int, int, int, bool>
     CalculateGemmBBlockCopyPerformanceParameters(const ConvolutionContext& ctx) const;
     std::tuple<std::size_t, bool> CalculateLdsNumberOfByte(const ConvolutionContext& ctx) const;
+    std::tuple<int, int, int, bool>
+    CalculateGemmABlockCopyThreadSegmentLengths(const ConvolutionContext& ctx, int) const;
+    std::tuple<int, int, int, bool>
+    CalculateGemmBBlockCopyThreadSegmentLengths(const ConvolutionContext& ctx, int) const;
 };
 
 struct ConvHipImplicitGemmV4R4FwdXdlops : SolverBase<ConvolutionContext>
