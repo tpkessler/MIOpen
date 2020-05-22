@@ -130,7 +130,6 @@ static auto GetDirectSolvers()
 
 static auto GetImplicitGemmSolvers()
 {
-
     return miopen::solver::
         SolverContainer< // miopen::solver::ConvHipImplicitGemmV4R4GenXdlopsFwdFp32,
             // miopen::solver::ConvHipImplicitGemmV4R4Xdlops_1x1,

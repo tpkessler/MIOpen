@@ -142,7 +142,7 @@ struct GridwiseGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
             2,                          // Dst dim to be written in vector form (KPACK dimension)
             ABlockCopySrcDataPerRead,
             ABlockCopyDstDataPerWrite_KPACK,
-            AddressSpace::Generic,
+            AddressSpace::Global,
             AddressSpace::Vgpr,
             AddressSpace::Lds,
             InMemoryDataOperation::Set>({0, k_block_data_on_global, 0}, {0, 0, 0});
@@ -165,7 +165,7 @@ struct GridwiseGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
             2,                          // Dst dim to be written in vector form (KPACK dimension)
             BBlockCopySrcDataPerRead,
             BBlockCopyDstDataPerWrite_KPACK,
-            AddressSpace::Generic,
+            AddressSpace::Global,
             AddressSpace::Vgpr,
             AddressSpace::Lds,
             InMemoryDataOperation::Set>({0, b_block_data_on_global, 0}, {0, 0, 0});
@@ -491,13 +491,13 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
             3,                          // Dst dim to be written in vector form (KPACK dimension)
             ABlockCopySrcDataPerRead,
             ABlockCopyDstDataPerWrite_KPACK,
-            AddressSpace::Generic,
+            AddressSpace::Global,
             AddressSpace::Vgpr,
             AddressSpace::Lds,
             InMemoryDataOperation::Set,
-            4,
-            Sequence<1, 4>,
-            Sequence<1, 2, 2, 1>>({group_id, 0, m_block_data_on_global, 0}, {0, 0, 0, 0});
+            2,
+            Sequence<1, 2>,
+            Sequence<1, 2, 1, 1>>({group_id, 0, m_block_data_on_global, 0}, {0, 0, 0, 0});
 
         constexpr auto b_g_k_n_kpack_block_desc = make_native_tensor_descriptor_aligned(
             Sequence<1, KPerBlock, NPerBlock, KPACK>{}, Number<max_align>{});
@@ -517,13 +517,13 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
             3,                          // Dst dim to be written in vector form (KPACK dimension)
             BBlockCopySrcDataPerRead,   // N dimension
             BBlockCopyDstDataPerWrite_KPACK,
-            AddressSpace::Generic,
+            AddressSpace::Global,
             AddressSpace::Vgpr,
             AddressSpace::Lds,
             InMemoryDataOperation::Set,
-            4,
-            Sequence<1, 4>,
-            Sequence<1, 1, 1, 4>>({group_id, 0, n_block_data_on_global, 0}, {0, 0, 0, 0});
+            2,
+            Sequence<1, 2>,
+            Sequence<1, 1, 1, 2>>({group_id, 0, n_block_data_on_global, 0}, {0, 0, 0, 0});
 
         // GEMM definition
         // c_mtx += transpose(a_mtx) * b_mtx
@@ -547,7 +547,7 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
             NWaves,
             GemmDataPerReadM,
             GemmDataPerReadN,
-            8>{};
+            4>{};
 
         constexpr auto c_k_thread_mtx_desc = blockwise_gemm.GetThreadMatrixCDescriptor();
 
@@ -633,31 +633,17 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
 
                 a_blockwise_copy.template RunLoadThreadBufferSegment<0, Sequence<0, 0, 0, 0>>(
                     p_a_global, p_a_thread_buffer);
-                blockwise_gemm.template RunSegment<0>(p_a_block_vec, p_b_block_vec, p_c_thread);
                 b_blockwise_copy.template RunLoadThreadBufferSegment<0, Sequence<0, 0, 0, 0>>(
                     p_b_global, p_b_thread_buffer);
+                blockwise_gemm.template RunSegment<0>(p_a_block_vec, p_b_block_vec, p_c_thread);
                 blockwise_gemm.template RunSegment<1>(p_a_block_vec, p_b_block_vec, p_c_thread);
-
-                a_blockwise_copy.template RunLoadThreadBufferSegment<0, Sequence<0, 0, 1, 0>>(
-                    p_a_global, p_a_thread_buffer);
-                blockwise_gemm.template RunSegment<2>(p_a_block_vec, p_b_block_vec, p_c_thread);
-                b_blockwise_copy.template RunLoadThreadBufferSegment<0, Sequence<0, 0, 0, 1>>(
-                    p_b_global, p_b_thread_buffer);
-                blockwise_gemm.template RunSegment<3>(p_a_block_vec, p_b_block_vec, p_c_thread);
 
                 a_blockwise_copy.template RunLoadThreadBufferSegment<0, Sequence<0, 1, 0, 0>>(
                     p_a_global, p_a_thread_buffer);
-                blockwise_gemm.template RunSegment<4>(p_a_block_vec, p_b_block_vec, p_c_thread);
-                b_blockwise_copy.template RunLoadThreadBufferSegment<0, Sequence<0, 0, 0, 2>>(
+                b_blockwise_copy.template RunLoadThreadBufferSegment<0, Sequence<0, 0, 0, 1>>(
                     p_b_global, p_b_thread_buffer);
-                blockwise_gemm.template RunSegment<5>(p_a_block_vec, p_b_block_vec, p_c_thread);
-
-                a_blockwise_copy.template RunLoadThreadBufferSegment<0, Sequence<0, 1, 1, 0>>(
-                    p_a_global, p_a_thread_buffer);
-                blockwise_gemm.template RunSegment<6>(p_a_block_vec, p_b_block_vec, p_c_thread);
-                b_blockwise_copy.template RunLoadThreadBufferSegment<0, Sequence<0, 0, 0, 3>>(
-                    p_b_global, p_b_thread_buffer);
-                blockwise_gemm.template RunSegment<7>(p_a_block_vec, p_b_block_vec, p_c_thread);
+                blockwise_gemm.template RunSegment<2>(p_a_block_vec, p_b_block_vec, p_c_thread);
+                blockwise_gemm.template RunSegment<3>(p_a_block_vec, p_b_block_vec, p_c_thread);
 #endif
 
                 // LDS double buffer: store next data to LDS
@@ -767,22 +753,22 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
                 const index_t n_thread_data_on_global =
                     n_block_data_on_global + c_thread_mtx_on_block.col;
 
-                ThreadwiseGenericTensorSliceCopy_v4r2<
-                    decltype(c_g_m0_m1_m2_n_thread_desc),
-                    decltype(c_g_m0_m1_m2_n_global_desc),
-                    CThreadCopySliceLengths,
-                    arithmetic_sequence_gen<0, 5, 1>::type,
-                    4,
-                    1,
-                    1,
-                    AddressSpace::Vgpr,
-                    is_same<AccFloat, CFloat>::value ? AddressSpace::Global : AddressSpace::Generic,
-                    OutputMemOp>({0, 0, 0, 0, 0},
-                                 {group_id,
-                                  m_thread_data_on_global / (M2 * M1),
-                                  m_thread_data_on_global % (M2 * M1) / M2,
-                                  m_thread_data_on_global % M2,
-                                  n_thread_data_on_global})
+                ThreadwiseGenericTensorSliceCopy_v4r2<decltype(c_g_m0_m1_m2_n_thread_desc),
+                                                      decltype(c_g_m0_m1_m2_n_global_desc),
+                                                      CThreadCopySliceLengths,
+                                                      arithmetic_sequence_gen<0, 5, 1>::type,
+                                                      4,
+                                                      1,
+                                                      1,
+                                                      AddressSpace::Vgpr,
+                                                      AddressSpace::Global,
+                                                      OutputMemOp>(
+                    {0, 0, 0, 0, 0},
+                    {group_id,
+                     m_thread_data_on_global / (M2 * M1),
+                     m_thread_data_on_global % (M2 * M1) / M2,
+                     m_thread_data_on_global % M2,
+                     n_thread_data_on_global})
                     .Run(p_c_thread + i * BlkSize, p_c_global);
             }
         }
