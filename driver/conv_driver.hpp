@@ -2865,12 +2865,12 @@ int ConvDriver<Tgpu, Tref>::VerifyForward()
         if(!TryReadVerificationCache(GetVCacheFwdOutBasename(), outputTensor, outhost.data.data()))
             RunForwardCPU();
 
-    for(int i = 0; i < outhost.data.size(); i++)
-    {
-        if(abs(outhost.data.data()[i] - out.data.data()[i]) > 0.001)
-            std::cerr << i << " CPU = " << outhost.data.data()[i] << " GPU = " << out.data.data()[i]
-                      << std::endl;
-    }
+    // for(int i = 0; i < outhost.data.size(); i++)
+    //{
+    // if(abs(outhost.data.data()[i] - out.data.data()[i]) > 0.001)
+    // std::cerr << i << " CPU = " << outhost.data.data()[i] << " GPU = " << out.data.data()[i]
+    //<< std::endl;
+    //}
 
     const auto isInt8 = (data_type == miopenInt8 || data_type == miopenInt8x4);
     auto error        = is_fwd_run_failed ? std::numeric_limits<double>::max()
