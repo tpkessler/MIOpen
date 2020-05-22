@@ -421,7 +421,9 @@ template <index_t GridSize,
           index_t BBlockCopyDstDataPerWrite_KPACK,
           InMemoryDataOperation OutputMemOp,
           WorkgroupScheduleOrder WorkgroupSchdOrder,
-          index_t NumSegments = 2>
+          index_t NumSegments                              = 1,
+          class ABlockCopyThreadSegmentLengths_G_K_M_KPACK = Sequence<1, 1, 1, 1>,
+          class BBlockCopyThreadSegmentLengths_G_K_N_KPACK = Sequence<1, 1, 1, 1>>
 struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
 {
     __device__ void Run(const ABFloat* const __restrict__ p_a_global,
@@ -497,8 +499,9 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
             AddressSpace::Lds,
             InMemoryDataOperation::Set,
             NumSegments,
-            Sequence<1, 2>,
-            Sequence<1, 2, 1, 1>>({group_id, 0, m_block_data_on_global, 0}, {0, 0, 0, 0});
+            Sequence<1, NumSegments>,
+            ABlockCopyThreadSegmentLengths_G_K_M_KPACK>({group_id, 0, m_block_data_on_global, 0},
+                                                        {0, 0, 0, 0});
 
         constexpr auto b_g_k_n_kpack_block_desc = make_native_tensor_descriptor_aligned(
             Sequence<1, KPerBlock, NPerBlock, KPACK>{}, Number<max_align>{});
@@ -523,8 +526,9 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
             AddressSpace::Lds,
             InMemoryDataOperation::Set,
             NumSegments,
-            Sequence<1, 2>,
-            Sequence<1, 1, 1, 2>>({group_id, 0, n_block_data_on_global, 0}, {0, 0, 0, 0});
+            Sequence<1, NumSegments>,
+            BBlockCopyThreadSegmentLengths_G_K_N_KPACK>({group_id, 0, n_block_data_on_global, 0},
+                                                        {0, 0, 0, 0});
 
         // GEMM definition
         // c_mtx += transpose(a_mtx) * b_mtx
@@ -635,7 +639,6 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
 #pragma unroll
                 for(index_t seg_id = 0; seg_id < NumSegments; ++seg_id)
                 {
-
                     a_blockwise_copy.RunLoadThreadBufferSegment(
                         p_a_global, p_a_thread_buffer, seg_id);
                     b_blockwise_copy.RunLoadThreadBufferSegment(

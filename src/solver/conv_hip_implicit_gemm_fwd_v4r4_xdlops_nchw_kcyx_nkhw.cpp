@@ -659,6 +659,15 @@ ConvSolution ConvHipImplicitGemmForwardV4R4Xdlops::GetSolution(
         std::string(" -DCK_USE_AMD_BUFFER_ADDRESSING=") + (miopen::IsEnabled(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_USE_AMD_BUFFER_ADDRESSING{}) ? '1' : '0') +
         std::string(" -DCK_USE_AMD_BUFFER_ADDRESSING_INTRINSIC=") + (miopen::IsEnabled(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_USE_AMD_BUFFER_ADDRESSING_INTRINSIC{}) ? '1' : '0') +
         ctx.general_compile_options;
+
+    construction_parameters.comp_options +=
+        std::string(" -DCK_PARAM_TUNABLE_NUM_SEGMENTS=2") +
+        std::string(" -DCK_PARAM_DEPENDENT_GEMM_A_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_K=2") +
+        std::string(" -DCK_PARAM_DEPENDENT_GEMM_A_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_M=1") +
+        std::string(" -DCK_PARAM_DEPENDENT_GEMM_A_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_KPACK=1") +
+        std::string(" -DCK_PARAM_DEPENDENT_GEMM_B_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_K=1") +
+        std::string(" -DCK_PARAM_DEPENDENT_GEMM_B_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_N=1") +
+        std::string(" -DCK_PARAM_DEPENDENT_GEMM_B_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_KPACK=2");
     // clang-format on
 
     result.invoker_factory = conv::MakeImplGemmDataInvokerFactory(ctx);

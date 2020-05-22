@@ -133,6 +133,18 @@ extern "C" __global__
     // gridwise GEMM
     constexpr auto wkgrp_schd_order = NBlock1MBlock0;
 
+    constexpr index_t NumSegments = CK_PARAM_TUNABLE_NUM_SEGMENTS;
+    using GemmABlockCopyThreadSegmentLengths_GemmG_GemmK_GemmM_GemmKPack =
+        Sequence<1,
+                 CK_PARAM_DEPENDENT_GEMM_A_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_K,
+                 CK_PARAM_DEPENDENT_GEMM_A_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_M,
+                 CK_PARAM_DEPENDENT_GEMM_A_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_KPACK>;
+    using GemmBBlockCopyThreadSegmentLengths_GemmG_GemmK_GemmN_GemmKPack =
+        Sequence<1,
+                 CK_PARAM_DEPENDENT_GEMM_B_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_K,
+                 CK_PARAM_DEPENDENT_GEMM_B_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_N,
+                 CK_PARAM_DEPENDENT_GEMM_B_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_KPACK>;
+
     constexpr auto gridwise_conv =
         GridwiseConvolutionForwardImplicitGemm_v4r4_xdlops_nchw_kcyx_nkhw<
             GridSize,
@@ -168,6 +180,9 @@ extern "C" __global__
             GemmBBlockCopyDstAccessOrder,
             GemmBBlockCopySrcDataPerRead_GemmN,
             GemmBBlockCopyDstDataPerWrite_GemmKPack,
-            wkgrp_schd_order>{};
+            wkgrp_schd_order,
+            NumSegments,
+            GemmABlockCopyThreadSegmentLengths_GemmG_GemmK_GemmM_GemmKPack,
+            GemmBBlockCopyThreadSegmentLengths_GemmG_GemmK_GemmN_GemmKPack>{};
     gridwise_conv.Run(p_in_global, p_wei_global, p_out_global);
 }
