@@ -837,16 +837,11 @@ struct XdlopsGemm_t
     }
 #endif
 
-    template <index_t M,
-              index_t N,
-              index_t K,
-              index_t SegmentId,
-              class FloatA,
-              class FloatB,
-              class FloatC>
+    template <index_t M, index_t N, index_t K, class FloatA, class FloatB, class FloatC>
     __device__ void RunSegment(const FloatA* const __restrict__ p_a_wave,
                                const FloatB* const __restrict__ p_b_wave,
-                               FloatC* const __restrict__ p_c_thread) const
+                               FloatC* const __restrict__ p_c_thread,
+                               const index_t segment_id) const
     {
         constexpr auto mfma_type = GetMFMAInfo();
 
@@ -854,10 +849,9 @@ struct XdlopsGemm_t
 
         static_assert(is_same<FloatA, FloatB>::value, "FloatA != FloatB");
         static_assert(is_same<FloatC, float>::value, "FloatC != float");
-        static_assert(SegmentId < NumSegments, "SegmentId >= NumSegments");
 
-        constexpr index_t SegmentSize   = K / NumSegments;
-        constexpr index_t SegmentOffset = SegmentId * SegmentSize;
+        const index_t SegmentSize   = K / NumSegments;
+        const index_t SegmentOffset = segment_id * SegmentSize;
 
         const index_t laneId = get_thread_local_1d_id() % mfma_type.wave_size;
 

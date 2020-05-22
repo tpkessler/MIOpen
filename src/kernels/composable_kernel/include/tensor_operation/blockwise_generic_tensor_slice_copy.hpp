@@ -138,9 +138,10 @@ struct BlockwiseGenericTensorSliceCopy_v4
         return ThreadBufferDesc::GetElementSpace();
     }
 
-    template <index_t SegmentId, typename BlockSrcData, typename ThreadBufferData>
+    template <typename BlockSrcData, typename ThreadBufferData>
     __device__ void RunLoadThreadBufferSegment(const BlockSrcData* p_block_src,
-                                               ThreadBufferData* p_thread_buffer) const
+                                               ThreadBufferData* p_thread_buffer,
+                                               const index_t segment_id) const
     {
         constexpr auto seg_info     = GetSegmentInfo();
         const index_t wave_id       = get_thread_local_1d_id() / wave_size;
@@ -150,7 +151,7 @@ struct BlockwiseGenericTensorSliceCopy_v4
 
         constexpr auto thread_segment_desc = make_cluster_descriptor(ThreadSegmentLengths{});
 
-        const auto block_segment_offsets = block_segment_desc.CalculateClusterIndex(SegmentId);
+        const auto block_segment_offsets = block_segment_desc.CalculateClusterIndex(segment_id);
 
         const index_t wave_segment_id   = block_segment_offsets[0];
         const index_t thread_segment_id = block_segment_offsets[1];

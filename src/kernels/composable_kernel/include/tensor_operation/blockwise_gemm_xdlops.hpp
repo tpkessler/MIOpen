@@ -80,18 +80,19 @@ struct BlockwiseGemmBlockABlockBThreadCTransANormalBNormalC_xdlops
             &p_a_block[mMyWaveOffsetA], &p_b_block[mMyWaveOffsetB], p_c_thread);
     }
 
-    template <index_t SegmentId, class FloatA, class FloatB, class FloatC>
+    template <class FloatA, class FloatB, class FloatC>
     __device__ void RunSegment(const FloatA* __restrict__ p_a_block,
                                const FloatB* __restrict__ p_b_block,
-                               FloatC* __restrict__ p_c_thread) const
+                               FloatC* __restrict__ p_c_thread,
+                               const index_t segment_id) const
 
     {
         constexpr index_t M = BlockMatrixA::NCol(); // A is transposed
         constexpr index_t N = BlockMatrixB::NCol();
         constexpr index_t K = BlockMatrixA::NRow();
 
-        XdlopsGemm.template RunSegment<M, N, K, SegmentId>(
-            &p_a_block[mMyWaveOffsetA], &p_b_block[mMyWaveOffsetB], p_c_thread);
+        XdlopsGemm.template RunSegment<M, N, K>(
+            &p_a_block[mMyWaveOffsetA], &p_b_block[mMyWaveOffsetB], p_c_thread, segment_id);
     }
 
     __device__ static MatrixIndex GetBeginOfThreadMatrixC(index_t i)
