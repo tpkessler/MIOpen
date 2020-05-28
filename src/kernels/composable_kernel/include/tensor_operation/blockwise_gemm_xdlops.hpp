@@ -67,6 +67,10 @@ struct BlockwiseGemmBlockABlockBThreadCTransANormalBNormalC_xdlops
         static_assert(GemmMPerWave * GemmMWaves == M, "GemmMWaves * GemmMPerWave != M");
         static_assert(GemmNPerWave * GemmNWaves == N, "GemmNWaves * GemmNPerWave != N");
 
+        static_assert(CK_USE_AMD_XDLOPS_INLINE_ASM == 0 ||
+                          (GemmMPerWave <= 64 && GemmNPerWave <= 65),
+                      "inline asm xdlops_gemm does not support gemm > 64x64");
+
         static_assert(BlockSize == GemmMWaves * GemmNWaves * WaveSize,
                       "BlockSize != GemmMWaves * GemmNWaves * WaveSize\n");
 

@@ -446,6 +446,9 @@ static inline bool IsValidXdlopsGemm(const int GemmMPerBlock,
         return false;
     if(GemmNPerWave > 64 && GemmMPerWave < 64)
         return false;
+    if(miopen::IsEnabled(MIOPEN_DEBUG_IMPLICIT_GEMM_XDLOPS_INLINE_ASM{}) &&
+       (GemmNPerWave > 64 || GemmMPerWave > 64))
+        return false;
 
     const auto WaveSize  = 64;
     const auto BlockSize = GemmNPerBlock * GemmMPerBlock / (GemmMPerWave * GemmNPerWave) * WaveSize;
