@@ -892,6 +892,11 @@ struct XdlopsGemm_t
         FloatA a[SegmentSize];
         FloatB b[SegmentSize];
 
+        static_assert(sizeof(FloatA) % (sizeof(data_type) * mfma_type.k_base) == 0,
+                      "wrong! FloatA is consistent with mfma");
+
+        constexpr index_t nxdlops = sizeof(FloatA) / (sizeof(data_type) * mfma_type.k_base);
+
         static_if<!IsKReduction()>{}([&](auto) {
 
             static_assert(K % NumSegments == 0, "K cannot be divided by NumSegments!");
@@ -910,12 +915,14 @@ struct XdlopsGemm_t
 #if CK_WORKAROUND_SWDEV_229564
 #pragma unroll
 #endif
-            for(index_t k = 0; k < SegmentSize; ++k)
+            for(index_t k = 0; k < K; ++k)
             {
-                constexpr index_t nxdlops = sizeof(FloatA) / (mfma_type.k * sizeof(data_type));
-
-                for(index_t i = 0; i < nxdlops; ++i, pa += mfma_type.k, pb += mfma_type.k)
-                    mfma_type.run(Number<MPerXdlops>{}, Number<NPerXdlops>{}, pa, pb, p_c_thread);
+                for(index_t i = 0; i < nxdlops; ++i)
+                    mfma_type.run(Number<MPerXdlops>{},
+                                  Number<NPerXdlops>{},
+                                  &pa[(k * nxdlops + i) * mfma_type.k_base],
+                                  &pb[(k * nxdlops + i) * mfma_type.k_base],
+                                  p_c_thread);
             }
 
         }).Else([&](auto) {
@@ -937,16 +944,17 @@ struct XdlopsGemm_t
             auto pa = reinterpret_cast<const data_type*>(&a);
             auto pb = reinterpret_cast<const data_type*>(&b);
 
-            constexpr index_t nxdlops =
-                (sizeof(FloatA) * mfma_type.num_input_blks) / (mfma_type.k * sizeof(data_type));
-
 #if CK_WORKAROUND_SWDEV_229564
 #pragma unroll
 #endif
-            for(index_t k = 0; k < SegmentSize; k += mfma_type.num_input_blks)
+            for(index_t k = 0; k < K; k += mfma_type.num_input_blks)
             {
-                for(index_t i = 0; i < nxdlops; ++i, pa += mfma_type.k, pb += mfma_type.k)
-                    mfma_type.run(Number<MPerXdlops>{}, Number<NPerXdlops>{}, pa, pb, p_c_thread);
+                for(index_t i = 0; i < nxdlops; ++i)
+                    mfma_type.run(Number<MPerXdlops>{},
+                                  Number<NPerXdlops>{},
+                                  &pa[(k * nxdlops + i) * mfma_type.k_base],
+                                  &pb[(k * nxdlops + i) * mfma_type.k_base],
+                                  p_c_thread);
             }
 
         });

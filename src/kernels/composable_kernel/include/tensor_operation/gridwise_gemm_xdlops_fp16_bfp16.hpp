@@ -981,14 +981,14 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlops_v2
             a_blockwise_copy.MoveSrcSliceWindow(blockwise_a_copy_src_step{}, True);
             b_blockwise_copy.MoveSrcSliceWindow(blockwise_b_copy_src_step{}, True);
 
-            a_blockwise_copy.RunLoadThreadBuffer(p_a_global, p_a_thread_buffer);
-            b_blockwise_copy.RunLoadThreadBuffer(p_b_global, p_b_thread_buffer);
+            // a_blockwise_copy.RunLoadThreadBuffer(p_a_global, p_a_thread_buffer);
+            // b_blockwise_copy.RunLoadThreadBuffer(p_b_global, p_b_thread_buffer);
 
-            //for(index_t seg_id = 0; seg_id < NumSegments; ++seg_id)
-            //{
-                //a_blockwise_copy.RunLoadThreadBufferSegment(p_a_global, p_a_thread_buffer, seg_id);
-                //b_blockwise_copy.RunLoadThreadBufferSegment(p_b_global, p_b_thread_buffer, seg_id);
-            //}
+            for(index_t seg_id = 0; seg_id < NumSegments; ++seg_id)
+            {
+                a_blockwise_copy.RunLoadThreadBufferSegment(p_a_global, p_a_thread_buffer, seg_id);
+                b_blockwise_copy.RunLoadThreadBufferSegment(p_b_global, p_b_thread_buffer, seg_id);
+            }
 
             block_sync_lds();
 
@@ -1000,12 +1000,12 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlops_v2
                 reinterpret_cast<const typename vector_type<ABFloat, KPACK>::MemoryType*>(
                     p_b_block);
 
-            blockwise_gemm.Run(p_a_block_vec, p_b_block_vec, p_c_thread);
+            // blockwise_gemm.Run(p_a_block_vec, p_b_block_vec, p_c_thread);
 
-            //for(index_t seg_id = 0; seg_id < NumSegments; ++seg_id)
-            //{
-                //blockwise_gemm.RunSegment(p_a_block_vec, p_b_block_vec, p_c_thread, seg_id);
-            //}
+            for(index_t seg_id = 0; seg_id < NumSegments; ++seg_id)
+            {
+                blockwise_gemm.RunSegment(p_a_block_vec, p_b_block_vec, p_c_thread, seg_id);
+            }
 
             block_sync_lds();
 

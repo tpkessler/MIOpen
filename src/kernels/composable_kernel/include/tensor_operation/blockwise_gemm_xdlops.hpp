@@ -124,8 +124,19 @@ struct BlockwiseGemmBlockABlockBThreadCTransANormalBNormalC_xdlops
         constexpr index_t N = BlockMatrixB::NCol();
         constexpr index_t K = BlockMatrixA::NRow();
 
-        XdlopsGemm.template RunSegment<M, N, K>(
-            &p_a_block[mMyWaveOffsetA], &p_b_block[mMyWaveOffsetB], p_c_thread, segment_id);
+        constexpr auto reg_size_xdlops = MPerXdlops * NPerXdlops / WaveSize;
+
+        for(index_t m = 0; m < MRepeats; m++)
+        {
+            for(index_t n = 0; n < NRepeats; n++)
+            {
+                XdlopsGemm.template RunSegment<M, N, K>(&p_a_block[mMyWaveOffsetA + MPerXdlops * m],
+                                                        &p_b_block[mMyWaveOffsetB + NPerXdlops * n],
+                                                        p_c_thread +
+                                                            (NRepeats * m + n) * reg_size_xdlops,
+                                                        segment_id);
+            }
+        }
     }
 
     __device__ static MatrixIndex GetBeginOfThreadMatrixC(index_t i)
