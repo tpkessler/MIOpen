@@ -85,6 +85,8 @@ PerformanceImplicitGemmForwardV4R4Xdlops::PerformanceImplicitGemmForwardV4R4Xdlo
     GemmG     = 1;
     GemmKPack = 1;
 
+    NumSegments = 1;
+
     GemmAThreadCopyMoreGemmK     = false;
     GemmBThreadCopyMoreGemmKPack = false;
 
@@ -99,6 +101,7 @@ PerformanceImplicitGemmForwardV4R4Xdlops::PerformanceImplicitGemmForwardV4R4Xdlo
     int GemmNPerWave_,
     int GemmG_,
     int GemmKPack_,
+    int NumSegments_,
     bool GemmAThreadCopyMoreGemmK_,
     bool GemmBThreadCopyMoreGemmKPack_,
     bool use_spare_set_)
@@ -109,6 +112,7 @@ PerformanceImplicitGemmForwardV4R4Xdlops::PerformanceImplicitGemmForwardV4R4Xdlo
       GemmNPerWave(GemmNPerWave_),
       GemmG(GemmG_),
       GemmKPack(GemmKPack_),
+      NumSegments(NumSegments_),
       GemmAThreadCopyMoreGemmK(GemmAThreadCopyMoreGemmK_),
       GemmBThreadCopyMoreGemmKPack(GemmBThreadCopyMoreGemmKPack_),
       use_spare_set(use_spare_set_)
@@ -126,6 +130,7 @@ operator==(const PerformanceImplicitGemmForwardV4R4Xdlops& other) const
         && GemmNPerWave == other.GemmNPerWave
         && GemmG == other.GemmG
         && GemmKPack == other.GemmKPack 
+        && NumSegments== other.NumSegments
         && GemmAThreadCopyMoreGemmK  == other.GemmAThreadCopyMoreGemmK
         && GemmBThreadCopyMoreGemmKPack  == other.GemmBThreadCopyMoreGemmKPack
         && use_spare_set == other.use_spare_set;
@@ -141,7 +146,8 @@ bool PerformanceImplicitGemmForwardV4R4Xdlops::IsValidValue() const
         && IsTwoPower<16,128>(GemmMPerWave)
         && IsTwoPower<16,128>(GemmNPerWave)
         && IsTwoPower<1,1>(GemmG)
-        && IsTwoPower<1,16>(GemmKPack);
+        && IsTwoPower<1,16>(GemmKPack)
+        && IsTwoPower<1,4>(NumSegments);
     // clang-format on
 }
 
@@ -167,6 +173,8 @@ bool PerformanceImplicitGemmForwardV4R4Xdlops::SetNextValue()
             break;
         if(!NextFlag(GemmBThreadCopyMoreGemmKPack))
             break;
+        if(!NextTwoPower<1, 4>(NumSegments))
+            break;
         return false;
     } while(false);
 
@@ -178,81 +186,81 @@ void PerformanceImplicitGemmForwardV4R4Xdlops::EuristicInit(const ConvolutionCon
     PerformanceImplicitGemmForwardV4R4Xdlops tmp;
     if(ctx.IsFp32())
     {
-        tmp = {128, 128, 4, 64, 64, 1, 4, false, true};
+        tmp = {128, 128, 4, 64, 64, 1, 4, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {128, 128, 8, 64, 64, 1, 2, false, true};
+            tmp = {128, 128, 8, 64, 64, 1, 2, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {64, 32, 4, 32, 64, 1, 2, false, true};
+            tmp = {64, 32, 4, 32, 64, 1, 2, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {64, 32, 4, 32, 64, 1, 2, false, true};
+            tmp = {64, 32, 4, 32, 64, 1, 2, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {32, 64, 4, 64, 32, 1, 2, false, true};
+            tmp = {32, 64, 4, 64, 32, 1, 2, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {32, 32, 4, 32, 32, 1, 2, false, true};
+            tmp = {32, 32, 4, 32, 32, 1, 2, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {64, 16, 4, 16, 64, 1, 2, false, true};
+            tmp = {64, 16, 4, 16, 64, 1, 2, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {16, 64, 4, 64, 16, 1, 2, false, true};
+            tmp = {16, 64, 4, 64, 16, 1, 2, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {16, 16, 4, 16, 16, 1, 2, false, true};
+            tmp = {16, 16, 4, 16, 16, 1, 2, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {64, 4, 16, 4, 64, 1, 2, false, true};
+            tmp = {64, 4, 16, 4, 64, 1, 2, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {64, 8, 8, 8, 64, 1, 2, false, true};
+            tmp = {64, 8, 8, 8, 64, 1, 2, 1, false, true};
     }
     else if(ctx.IsFp16())
     {
-        tmp = {256, 128, 4, 64, 128, 1, 8, false, true};
+        tmp = {256, 128, 4, 64, 128, 1, 8, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {256, 128, 4, 128, 64, 1, 8, false, true};
+            tmp = {256, 128, 4, 128, 64, 1, 8, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {128, 256, 4, 64, 128, 1, 8, false, true};
+            tmp = {128, 256, 4, 64, 128, 1, 8, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {256, 128, 4, 128, 64, 1, 8, false, true};
+            tmp = {256, 128, 4, 128, 64, 1, 8, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {128, 128, 4, 64, 64, 1, 8, false, true};
+            tmp = {128, 128, 4, 64, 64, 1, 8, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {128, 128, 8, 64, 64, 1, 4, false, true};
+            tmp = {128, 128, 8, 64, 64, 1, 4, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {64, 32, 4, 32, 64, 1, 4, false, true};
+            tmp = {64, 32, 4, 32, 64, 1, 4, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {64, 32, 4, 32, 64, 1, 4, false, true};
+            tmp = {64, 32, 4, 32, 64, 1, 4, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {32, 64, 4, 64, 32, 1, 4, false, true};
+            tmp = {32, 64, 4, 64, 32, 1, 4, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {32, 32, 4, 32, 32, 1, 4, false, true};
+            tmp = {32, 32, 4, 32, 32, 1, 4, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {64, 16, 4, 16, 64, 1, 4, false, true};
+            tmp = {64, 16, 4, 16, 64, 1, 4, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {16, 64, 4, 64, 16, 1, 4, false, true};
+            tmp = {16, 64, 4, 64, 16, 1, 4, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {16, 16, 4, 16, 16, 1, 4, false, true};
+            tmp = {16, 16, 4, 16, 16, 1, 4, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {64, 4, 16, 4, 64, 1, 4, false, true};
+            tmp = {64, 4, 16, 4, 64, 1, 4, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {64, 8, 8, 8, 64, 1, 4, false, true};
+            tmp = {64, 8, 8, 8, 64, 1, 4, 1, false, true};
     }
     else if(ctx.IsBfp16())
     {
-        tmp = {128, 128, 16, 64, 64, 1, 2, false, true};
+        tmp = {128, 128, 16, 64, 64, 1, 2, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {64, 32, 4, 32, 64, 1, 2, false, true};
+            tmp = {64, 32, 4, 32, 64, 1, 2, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {64, 32, 4, 32, 64, 1, 2, false, true};
+            tmp = {64, 32, 4, 32, 64, 1, 2, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {32, 64, 4, 64, 32, 1, 2, false, true};
+            tmp = {32, 64, 4, 64, 32, 1, 2, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {32, 32, 4, 32, 32, 1, 2, false, true};
+            tmp = {32, 32, 4, 32, 32, 1, 2, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {64, 16, 4, 16, 64, 1, 2, false, true};
+            tmp = {64, 16, 4, 16, 64, 1, 2, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {16, 64, 4, 64, 16, 1, 2, false, true};
+            tmp = {16, 64, 4, 64, 16, 1, 2, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {16, 16, 4, 16, 16, 1, 2, false, true};
+            tmp = {16, 16, 4, 16, 16, 1, 2, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {64, 4, 16, 4, 64, 1, 2, false, true};
+            tmp = {64, 4, 16, 4, 64, 1, 2, 1, false, true};
         if(!tmp.IsValid(ctx))
-            tmp = {64, 8, 8, 8, 64, 1, 2, false, true};
+            tmp = {64, 8, 8, 8, 64, 1, 2, 1, false, true};
     }
     else
     {
@@ -534,6 +542,93 @@ PerformanceImplicitGemmForwardV4R4Xdlops::CalculateGemmBBlockCopyPerformancePara
                            true);
 }
 
+std::tuple<int, int, int, bool>
+PerformanceImplicitGemmForwardV4R4Xdlops::CalculateGemmABlockCopyThreadSegmentLengths(
+    const ConvolutionContext& ctx) const
+{
+    int ThreadSegmentLengths_GemmK     = 1;
+    int ThreadSegmentLengths_GemmM     = 1;
+    int ThreadSegmentLengths_GemmKPack = 1; // vector_load dimesion, no segment
+
+    try
+    {
+
+        int GemmABlockCopyClusterLengths_GemmK = -1;
+        int GemmABlockCopyClusterLengths_GemmM = -1;
+
+        std::tie(GemmABlockCopyClusterLengths_GemmK,
+                 GemmABlockCopyClusterLengths_GemmM,
+                 std::ignore,
+                 std::ignore,
+                 std::ignore,
+                 std::ignore) = CalculateGemmABlockCopyPerformanceParameters(ctx);
+
+        int GemmABlockCopySliceLengths_GemmK = GemmKPerBlock / GemmABlockCopyClusterLengths_GemmK;
+        int GemmABlockCopySliceLengths_GemmM = GemmMPerBlock / GemmABlockCopyClusterLengths_GemmM;
+
+        if((GemmABlockCopySliceLengths_GemmK * GemmABlockCopySliceLengths_GemmM) % NumSegments != 0)
+            MIOPEN_THROW("invalid num of segments");
+
+        ThreadSegmentLengths_GemmK = gcd(GemmABlockCopySliceLengths_GemmK, NumSegments);
+        ThreadSegmentLengths_GemmM =
+            gcd(NumSegments / ThreadSegmentLengths_GemmK, GemmABlockCopySliceLengths_GemmM);
+    }
+    catch(...)
+    {
+        return std::make_tuple(-1, -1, -1, false);
+    }
+
+    return std::make_tuple(ThreadSegmentLengths_GemmK,
+                           ThreadSegmentLengths_GemmM,
+                           ThreadSegmentLengths_GemmKPack,
+                           true);
+}
+
+std::tuple<int, int, int, bool>
+PerformanceImplicitGemmForwardV4R4Xdlops::CalculateGemmBBlockCopyThreadSegmentLengths(
+    const ConvolutionContext& ctx) const
+{
+    int ThreadSegmentLengths_GemmK     = 1;
+    int ThreadSegmentLengths_GemmN     = 1; // vector load dimesion, no segment
+    int ThreadSegmentLengths_GemmKPack = 1;
+
+    try
+    {
+
+        int GemmBBlockCopyClusterLengths_GemmK     = -1;
+        int GemmBBlockCopyClusterLengths_GemmKPack = -1;
+
+        std::tie(GemmBBlockCopyClusterLengths_GemmK,
+                 std::ignore,
+                 GemmBBlockCopyClusterLengths_GemmKPack,
+                 std::ignore,
+                 std::ignore,
+                 std::ignore) = CalculateGemmBBlockCopyPerformanceParameters(ctx);
+
+        int GemmBBlockCopySliceLengths_GemmK = GemmKPerBlock / GemmBBlockCopyClusterLengths_GemmK;
+        int GemmBBlockCopySliceLengths_GemmKPack =
+            GemmKPack / GemmBBlockCopyClusterLengths_GemmKPack;
+
+        if((GemmBBlockCopySliceLengths_GemmK * GemmBBlockCopySliceLengths_GemmKPack) %
+               NumSegments !=
+           0)
+            MIOPEN_THROW("invalid num of segments");
+
+        ThreadSegmentLengths_GemmK = gcd(GemmBBlockCopySliceLengths_GemmK, NumSegments);
+        ThreadSegmentLengths_GemmKPack =
+            gcd(NumSegments / ThreadSegmentLengths_GemmK, GemmBBlockCopySliceLengths_GemmKPack);
+    }
+    catch(...)
+    {
+        return std::make_tuple(-1, -1, -1, false);
+    }
+
+    return std::make_tuple(ThreadSegmentLengths_GemmK,
+                           ThreadSegmentLengths_GemmN,
+                           ThreadSegmentLengths_GemmKPack,
+                           true);
+}
+
 std::tuple<std::size_t, bool> PerformanceImplicitGemmForwardV4R4Xdlops::CalculateLdsNumberOfByte(
     const ConvolutionContext& ctx) const
 {
@@ -612,6 +707,18 @@ bool PerformanceImplicitGemmForwardV4R4Xdlops::IsValid(const ConvolutionContext&
     // check blockwise copy of B matrix
     std::tie(std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, valid) =
         CalculateGemmBBlockCopyPerformanceParameters(ctx);
+
+    if(!valid)
+        return false;
+
+    std::tie(std::ignore, std::ignore, std::ignore, valid) =
+        CalculateGemmABlockCopyThreadSegmentLengths(ctx);
+
+    if(!valid)
+        return false;
+
+    std::tie(std::ignore, std::ignore, std::ignore, valid) =
+        CalculateGemmBBlockCopyThreadSegmentLengths(ctx);
 
     if(!valid)
         return false;
@@ -712,6 +819,24 @@ ConvSolution ConvHipImplicitGemmForwardV4R4Xdlops::GetSolution(
              GemmBBlockCopyDstDataPerWrite_GemmKPack,
              std::ignore) = config.CalculateGemmBBlockCopyPerformanceParameters(ctx);
 
+    int GemmABlockCopyThreadSegmentLengths_GemmK     = -1;
+    int GemmABlockCopyThreadSegmentLengths_GemmM     = -1;
+    int GemmABlockCopyThreadSegmentLengths_GemmKPack = -1;
+
+    int GemmBBlockCopyThreadSegmentLengths_GemmK     = -1;
+    int GemmBBlockCopyThreadSegmentLengths_GemmN     = -1;
+    int GemmBBlockCopyThreadSegmentLengths_GemmKPack = -1;
+
+    std::tie(GemmABlockCopyThreadSegmentLengths_GemmK,
+             GemmABlockCopyThreadSegmentLengths_GemmM,
+             GemmABlockCopyThreadSegmentLengths_GemmKPack,
+             std::ignore) = config.CalculateGemmABlockCopyThreadSegmentLengths(ctx);
+
+    std::tie(GemmBBlockCopyThreadSegmentLengths_GemmK,
+             GemmBBlockCopyThreadSegmentLengths_GemmN,
+             GemmBBlockCopyThreadSegmentLengths_GemmKPack,
+             std::ignore) = config.CalculateGemmBBlockCopyThreadSegmentLengths(ctx);
+
     // clang-format off
     construction_parameters.comp_options =
         std::string(" -std=c++14 ") +
@@ -756,6 +881,15 @@ ConvSolution ConvHipImplicitGemmForwardV4R4Xdlops::GetSolution(
         std::string(" -DCK_USE_AMD_XDLOPS_EMULATE=") + (miopen::IsEnabled(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_XDLOPS_EMULATE{}) ? '1' : '0') +
         std::string(" -DCK_BLOCK_SYNC_LDS_WITHOUT_SYNC_VMEM=") + (miopen::IsEnabled(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_BLOCK_SYNC_LDS_WITHOUT_SYNC_VMEM{}) ? '1' : '0') +
         ctx.general_compile_options;
+
+    construction_parameters.comp_options +=
+        std::string(" -DCK_PARAM_TUNABLE_NUM_SEGMENTS=") + std::to_string(config.NumSegments) +
+        std::string(" -DCK_PARAM_DEPENDENT_GEMM_A_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_K=") + std::to_string(GemmABlockCopyThreadSegmentLengths_GemmK) +
+        std::string(" -DCK_PARAM_DEPENDENT_GEMM_A_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_M=") + std::to_string(GemmABlockCopyThreadSegmentLengths_GemmM) +
+        std::string(" -DCK_PARAM_DEPENDENT_GEMM_A_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_KPACK=") + std::to_string(GemmABlockCopyThreadSegmentLengths_GemmKPack) +
+        std::string(" -DCK_PARAM_DEPENDENT_GEMM_B_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_K=") + std::to_string(GemmBBlockCopyThreadSegmentLengths_GemmK) +
+        std::string(" -DCK_PARAM_DEPENDENT_GEMM_B_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_N=") + std::to_string(GemmBBlockCopyThreadSegmentLengths_GemmN) +
+        std::string(" -DCK_PARAM_DEPENDENT_GEMM_B_BLOCK_COPY_THREAD_SEGMENT_LENGTHS_GEMM_KPACK=") + std::to_string(GemmBBlockCopyThreadSegmentLengths_GemmKPack);
     // clang-format on
 
     result.invoker_factory = conv::MakeImplGemmDataInvokerFactory(ctx);

@@ -426,7 +426,10 @@ template <index_t GridSize,
           index_t BBlockCopySrcDataPerRead,
           index_t BBlockCopyDstDataPerWrite_KPACK,
           InMemoryDataOperation OutputMemOp,
-          WorkgroupScheduleOrder WorkgroupSchdOrder>
+          WorkgroupScheduleOrder WorkgroupSchdOrder,
+          index_t NumSegments                              = 1,
+          class ABlockCopyThreadSegmentLengths_G_K_M_KPACK = Sequence<1, 1, 1, 1>,
+          class BBlockCopyThreadSegmentLengths_G_K_N_KPACK = Sequence<1, 1, 1, 1>>
 struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
 {
     __device__ void Run(const ABFloat* const __restrict__ p_a_global,
@@ -500,7 +503,11 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
             AddressSpace::Global,
             AddressSpace::Vgpr,
             AddressSpace::Lds,
-            InMemoryDataOperation::Set>({group_id, 0, m_block_data_on_global, 0}, {0, 0, 0, 0});
+            InMemoryDataOperation::Set,
+            NumSegments,
+            Sequence<1, NumSegments>,
+            ABlockCopyThreadSegmentLengths_G_K_M_KPACK>({group_id, 0, m_block_data_on_global, 0},
+                                                        {0, 0, 0, 0});
 
         constexpr auto b_g_k_n_kpack_block_desc = make_native_tensor_descriptor_aligned(
             Sequence<1, KPerBlock, NPerBlock, KPACK>{}, Number<max_align>{});
@@ -523,7 +530,11 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
             AddressSpace::Global,
             AddressSpace::Vgpr,
             AddressSpace::Lds,
-            InMemoryDataOperation::Set>({group_id, 0, n_block_data_on_global, 0}, {0, 0, 0, 0});
+            InMemoryDataOperation::Set,
+            NumSegments,
+            Sequence<1, NumSegments>,
+            BBlockCopyThreadSegmentLengths_G_K_N_KPACK>({group_id, 0, n_block_data_on_global, 0},
+                                                        {0, 0, 0, 0});
 
         // GEMM definition
         // c_mtx += transpose(a_mtx) * b_mtx
@@ -546,7 +557,8 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
             MWaves,
             NWaves,
             GemmDataPerReadM,
-            GemmDataPerReadN>{};
+            GemmDataPerReadN,
+            NumSegments>{};
 
         constexpr auto c_k_thread_mtx_desc = blockwise_gemm.GetThreadMatrixCDescriptor();
 
@@ -602,6 +614,7 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
 
                 __syncthreads();
 
+#if 0
                 // LDS doubel buffer: load next data from device mem
                 a_blockwise_copy.RunLoadThreadBuffer(p_a_global, p_a_thread_buffer);
                 b_blockwise_copy.RunLoadThreadBuffer(p_b_global, p_b_thread_buffer);
@@ -620,6 +633,25 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
                     reinterpret_cast<const typename vector_type<ABFloat, KPACK>::MemoryType*>(
                         p_b_block_now);
                 blockwise_gemm.Run(p_a_block_vec, p_b_block_vec, p_c_thread);
+
+#else
+                const typename vector_type<ABFloat, KPACK>::MemoryType* p_a_block_vec =
+                    reinterpret_cast<const typename vector_type<ABFloat, KPACK>::MemoryType*>(
+                        p_a_block_now);
+                const typename vector_type<ABFloat, KPACK>::MemoryType* p_b_block_vec =
+                    reinterpret_cast<const typename vector_type<ABFloat, KPACK>::MemoryType*>(
+                        p_b_block_now);
+
+#pragma unroll
+                for(index_t seg_id = 0; seg_id < NumSegments; ++seg_id)
+                {
+                    a_blockwise_copy.RunLoadThreadBufferSegment(
+                        p_a_global, p_a_thread_buffer, seg_id);
+                    b_blockwise_copy.RunLoadThreadBufferSegment(
+                        p_b_global, p_b_thread_buffer, seg_id);
+                    blockwise_gemm.RunSegment(p_a_block_vec, p_b_block_vec, p_c_thread, seg_id);
+                }
+#endif
 
                 // LDS double buffer: store next data to LDS
                 a_blockwise_copy.RunStoreThreadBuffer(p_a_thread_buffer, p_a_block_next);
@@ -780,7 +812,10 @@ template <index_t GridSize,
           index_t BBlockCopySrcDataPerRead,
           index_t BBlockCopyDstDataPerWrite_KPACK,
           InMemoryDataOperation OutputMemOp,
-          WorkgroupScheduleOrder WorkgroupSchdOrder>
+          WorkgroupScheduleOrder WorkgroupSchdOrder,
+          index_t NumSegments                              = 1,
+          class ABlockCopyThreadSegmentLengths_G_K_M_KPACK = Sequence<1, 1, 1, 1>,
+          class BBlockCopyThreadSegmentLengths_G_K_N_KPACK = Sequence<1, 1, 1, 1>>
 struct GridwiseBatchedGemmTransposedANormalBNormalCXdlops_v2
 {
     __device__ void Run(const ABFloat* const __restrict__ p_a_global,
@@ -851,7 +886,11 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlops_v2
             AddressSpace::Global,
             AddressSpace::Vgpr,
             AddressSpace::Lds,
-            InMemoryDataOperation::Set>({group_id, 0, m_block_data_on_global, 0}, {0, 0, 0, 0});
+            InMemoryDataOperation::Set,
+            NumSegments,
+            Sequence<1, NumSegments>,
+            ABlockCopyThreadSegmentLengths_G_K_M_KPACK>({group_id, 0, m_block_data_on_global, 0},
+                                                        {0, 0, 0, 0});
 
         constexpr auto b_g_k_n_kpack_block_desc = make_native_tensor_descriptor_aligned(
             Sequence<1, KPerBlock, NPerBlock, KPACK>{}, Number<max_align>{});
@@ -874,7 +913,11 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlops_v2
             AddressSpace::Global,
             AddressSpace::Vgpr,
             AddressSpace::Lds,
-            InMemoryDataOperation::Set>({group_id, 0, n_block_data_on_global, 0}, {0, 0, 0, 0});
+            InMemoryDataOperation::Set,
+            NumSegments,
+            Sequence<1, NumSegments>,
+            BBlockCopyThreadSegmentLengths_G_K_N_KPACK>({group_id, 0, n_block_data_on_global, 0},
+                                                        {0, 0, 0, 0});
 
         // GEMM definition
         // c_mtx += transpose(a_mtx) * b_mtx
@@ -897,7 +940,8 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlops_v2
             MWaves,
             NWaves,
             1,
-            1>{};
+            1,
+            NumSegments>{};
 
         constexpr auto c_k_thread_mtx_desc = blockwise_gemm.GetThreadMatrixCDescriptor();
 
@@ -940,6 +984,12 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlops_v2
             a_blockwise_copy.RunLoadThreadBuffer(p_a_global, p_a_thread_buffer);
             b_blockwise_copy.RunLoadThreadBuffer(p_b_global, p_b_thread_buffer);
 
+            //for(index_t seg_id = 0; seg_id < NumSegments; ++seg_id)
+            //{
+                //a_blockwise_copy.RunLoadThreadBufferSegment(p_a_global, p_a_thread_buffer, seg_id);
+                //b_blockwise_copy.RunLoadThreadBufferSegment(p_b_global, p_b_thread_buffer, seg_id);
+            //}
+
             block_sync_lds();
 
             // GEMM on current data
@@ -949,7 +999,13 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlops_v2
             const typename vector_type<ABFloat, KPACK>::MemoryType* p_b_block_vec =
                 reinterpret_cast<const typename vector_type<ABFloat, KPACK>::MemoryType*>(
                     p_b_block);
+
             blockwise_gemm.Run(p_a_block_vec, p_b_block_vec, p_c_thread);
+
+            //for(index_t seg_id = 0; seg_id < NumSegments; ++seg_id)
+            //{
+                //blockwise_gemm.RunSegment(p_a_block_vec, p_b_block_vec, p_c_thread, seg_id);
+            //}
 
             block_sync_lds();
 
@@ -1002,9 +1058,6 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlops_v2
 
             constexpr index_t BlkSize = blockwise_gemm.GetBlkSize();
             constexpr index_t NumBlks = blockwise_gemm.GetNumBlks();
-
-            constexpr index_t MRepeats = blockwise_gemm.GetMRepeats();
-            constexpr index_t NRepeats = blockwise_gemm.GetNRepeats();
 
             for(index_t i = 0; i < NumBlks; ++i)
             {
