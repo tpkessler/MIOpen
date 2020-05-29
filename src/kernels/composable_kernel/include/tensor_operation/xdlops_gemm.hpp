@@ -884,7 +884,9 @@ struct XdlopsGemm_t
         static_assert(is_same<FloatA, FloatB>::value, "FloatA != FloatB");
         static_assert(is_same<FloatC, float>::value, "FloatC != float");
 
-        const index_t SegmentSize   = K / NumSegments;
+        constexpr index_t nxdlops = sizeof(FloatA) / (sizeof(data_type) * mfma_type.k_base);
+
+        const index_t SegmentSize   = (K * nxdlops) / NumSegments;
         const index_t SegmentOffset = segment_id * SegmentSize;
 
         const index_t laneId = get_thread_local_1d_id() % mfma_type.wave_size;
@@ -895,11 +897,9 @@ struct XdlopsGemm_t
         static_assert(sizeof(FloatA) % (sizeof(data_type) * mfma_type.k_base) == 0,
                       "wrong! FloatA is consistent with mfma");
 
-        constexpr index_t nxdlops = sizeof(FloatA) / (sizeof(data_type) * mfma_type.k_base);
-
         static_if<!IsKReduction()>{}([&](auto) {
 
-            static_assert(K % NumSegments == 0, "K cannot be divided by NumSegments!");
+            static_assert((K * nxdlops) % NumSegments == 0, "K cannot be divided by NumSegments!");
 
             // load into registers
             for(index_t k = 0; k < SegmentSize; ++k)
@@ -915,19 +915,19 @@ struct XdlopsGemm_t
 #if CK_WORKAROUND_SWDEV_229564
 #pragma unroll
 #endif
-            for(index_t k = 0; k < K; ++k)
+            for(index_t k = 0; k < K * nxdlops; ++k)
             {
-                for(index_t i = 0; i < nxdlops; ++i)
-                    mfma_type.run(Number<MPerXdlops>{},
-                                  Number<NPerXdlops>{},
-                                  &pa[(k * nxdlops + i) * mfma_type.k_base],
-                                  &pb[(k * nxdlops + i) * mfma_type.k_base],
-                                  p_c_thread);
+                mfma_type.run(Number<MPerXdlops>{},
+                              Number<NPerXdlops>{},
+                              &pa[k * mfma_type.k_base],
+                              &pb[k * mfma_type.k_base],
+                              p_c_thread);
             }
 
         }).Else([&](auto) {
 
-            static_assert(!IsKReduction() || K % (NumSegments * mfma_type.num_input_blks) == 0,
+            static_assert(!IsKReduction() ||
+                              (K * nxdlops) % (NumSegments * mfma_type.num_input_blks) == 0,
                           "K cannot be divided by NumSegments!");
 
             const index_t blk_id = laneId / mfma_type.num_threads_blk;
@@ -947,14 +947,13 @@ struct XdlopsGemm_t
 #if CK_WORKAROUND_SWDEV_229564
 #pragma unroll
 #endif
-            for(index_t k = 0; k < K; k += mfma_type.num_input_blks)
+            for(index_t k = 0; k < K * nxdlops; k += mfma_type.num_input_blks)
             {
-                for(index_t i = 0; i < nxdlops; ++i)
-                    mfma_type.run(Number<MPerXdlops>{},
-                                  Number<NPerXdlops>{},
-                                  &pa[(k * nxdlops + i) * mfma_type.k_base],
-                                  &pb[(k * nxdlops + i) * mfma_type.k_base],
-                                  p_c_thread);
+                mfma_type.run(Number<MPerXdlops>{},
+                              Number<NPerXdlops>{},
+                              &pa[k * mfma_type.k_base],
+                              &pb[k * mfma_type.k_base],
+                              p_c_thread);
             }
 
         });
