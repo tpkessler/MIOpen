@@ -218,7 +218,7 @@ void PerformanceImplicitGemmForwardV4R4Xdlops::EuristicInit(const ConvolutionCon
     }
     else if(ctx.IsFp16())
     {
-        tmp = {128, 128, 4, 64, 64, 1, 8, 2, false, true};
+        tmp = {128, 128, 8, 64, 64, 1, 4, 4, false, true};
         if(!tmp.IsValid(ctx))
             tmp = {256, 128, 4, 128, 64, 1, 8, 1, false, true};
         if(!tmp.IsValid(ctx))

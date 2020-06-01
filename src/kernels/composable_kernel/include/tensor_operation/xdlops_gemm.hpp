@@ -915,7 +915,7 @@ struct XdlopsGemm_t
 #if CK_WORKAROUND_SWDEV_229564
 #pragma unroll
 #endif
-            for(index_t k = 0; k < K * nxdlops; ++k)
+            for(index_t k = 0; k < SegmentSize; ++k)
             {
                 mfma_type.run(Number<MPerXdlops>{},
                               Number<NPerXdlops>{},
@@ -947,7 +947,7 @@ struct XdlopsGemm_t
 #if CK_WORKAROUND_SWDEV_229564
 #pragma unroll
 #endif
-            for(index_t k = 0; k < K * nxdlops; k += mfma_type.num_input_blks)
+            for(index_t k = 0; k < SegmentSize; k += mfma_type.num_input_blks)
             {
                 mfma_type.run(Number<MPerXdlops>{},
                               Number<NPerXdlops>{},

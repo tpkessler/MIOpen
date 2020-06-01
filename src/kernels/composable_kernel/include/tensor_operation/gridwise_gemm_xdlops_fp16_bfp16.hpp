@@ -941,7 +941,7 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlops_v2
             NWaves,
             1,
             1,
-            2 * NumSegments>{};
+            NumSegments>{};
 
         constexpr auto c_k_thread_mtx_desc = blockwise_gemm.GetThreadMatrixCDescriptor();
 
@@ -1002,9 +1002,8 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlops_v2
             for(index_t seg_id = 0; seg_id < NumSegments; ++seg_id)
             {
                 a_blockwise_copy.RunLoadThreadBufferSegment(p_a_global, p_a_thread_buffer, seg_id);
-                blockwise_gemm.RunSegment(p_a_block_vec, p_b_block_vec, p_c_thread, seg_id * 2);
                 b_blockwise_copy.RunLoadThreadBufferSegment(p_b_global, p_b_thread_buffer, seg_id);
-                blockwise_gemm.RunSegment(p_a_block_vec, p_b_block_vec, p_c_thread, seg_id * 2 + 1);
+                blockwise_gemm.RunSegment(p_a_block_vec, p_b_block_vec, p_c_thread, seg_id);
             }
 
 #endif
