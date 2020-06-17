@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2019 Advanced Micro Devices, Inc.
+ * Copyright (c) 2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,77 +28,16 @@
 #include <miopen/solver.hpp>
 #include <miopen/handle.hpp>
 #include <miopen/generic_search.hpp>
+#include <miopen/hip_build_utils.hpp>
 #include "implicitgemm_util.hpp"
-
-#define WORKAROUND_LARGE_WAVEWISE_GEMM_FOR_PAD_FAILURE 1
 
 namespace miopen {
 namespace solver {
 
-static inline bool IsValidXdlopsGemm_v2(const ConvolutionContext& ctx,
-                                        const int GemmMPerBlock,
-                                        const int GemmNPerBlock,
-                                        const int GemmMPerWave,
-                                        const int GemmNPerWave,
-                                        const int GemmKPack)
+PerformanceImplicitGemmForwardV4R4Xdlops::PerformanceImplicitGemmForwardV4R4Xdlops()
+    : PerformanceImplicitGemmForwardV4R4Xdlops::PerformanceImplicitGemmForwardV4R4Xdlops(
+          32, 32, 1, 16, 16, 1, 1, false, false)
 {
-    if(ctx.IsFp16() && GemmKPack % 4 != 0)
-        return false;
-
-    if(ctx.IsBfp16() && GemmKPack % 2 != 0)
-        return false;
-
-    // unsupported xdlops-gemm
-    if(GemmMPerWave == 16 && GemmNPerWave == 32)
-        return false;
-    if(GemmMPerWave == 32 && GemmNPerWave == 16)
-        return false;
-    if(GemmMPerWave == 8 && GemmNPerWave != 64)
-        return false;
-    if(GemmMPerWave == 4 && GemmNPerWave != 64)
-        return false;
-    if(GemmMPerWave == 32 && GemmNPerWave == 32 && GemmKPack % 2 != 0)
-        return false;
-    if(GemmMPerWave == 16 && GemmNPerWave == 16 && GemmKPack % 4 != 0)
-        return false;
-
-    if(GemmMPerWave > 64 && GemmNPerWave < 64)
-        return false;
-    if(GemmNPerWave > 64 && GemmMPerWave < 64)
-        return false;
-    if(miopen::IsEnabled(MIOPEN_DEBUG_IMPLICIT_GEMM_XDLOPS_INLINE_ASM{}) &&
-       (GemmNPerWave > 64 || GemmMPerWave > 64))
-        return false;
-
-    const auto WaveSize = 64;
-    const auto BlockSize =
-        (GemmNPerBlock * GemmMPerBlock) / (GemmMPerWave * GemmNPerWave) * WaveSize;
-
-    if(BlockSize < 64 || BlockSize > 256)
-        return false;
-
-    return (GemmMPerBlock % GemmMPerWave) == 0 && (GemmNPerBlock % GemmNPerWave) == 0;
-}
-
-PerformanceImplicitGemmForwardV4R4Xdlops::PerformanceImplicitGemmForwardV4R4Xdlops(bool spare)
-{
-    // always search full space, no matter if use_spare_set or not
-    GemmMPerBlock = 32;
-    GemmNPerBlock = 32;
-    GemmKPerBlock = 4;
-
-    GemmMPerWave = 16;
-    GemmNPerWave = 16;
-
-    GemmG     = 1;
-    GemmKPack = 1;
-
-    NumSegments = 1;
-
-    GemmAThreadCopyMoreGemmK     = false;
-    GemmBThreadCopyMoreGemmKPack = false;
-
-    use_spare_set = spare;
 }
 
 PerformanceImplicitGemmForwardV4R4Xdlops::PerformanceImplicitGemmForwardV4R4Xdlops(
@@ -107,23 +46,19 @@ PerformanceImplicitGemmForwardV4R4Xdlops::PerformanceImplicitGemmForwardV4R4Xdlo
     int GemmKPerBlock_,
     int GemmMPerWave_,
     int GemmNPerWave_,
-    int GemmG_,
     int GemmKPack_,
     int NumSegments_,
     bool GemmAThreadCopyMoreGemmK_,
-    bool GemmBThreadCopyMoreGemmKPack_,
-    bool use_spare_set_)
+    bool GemmBThreadCopyMoreGemmKPack_)
     : GemmMPerBlock(GemmMPerBlock_),
       GemmNPerBlock(GemmNPerBlock_),
       GemmKPerBlock(GemmKPerBlock_),
       GemmMPerWave(GemmMPerWave_),
       GemmNPerWave(GemmNPerWave_),
-      GemmG(GemmG_),
       GemmKPack(GemmKPack_),
       NumSegments(NumSegments_),
       GemmAThreadCopyMoreGemmK(GemmAThreadCopyMoreGemmK_),
-      GemmBThreadCopyMoreGemmKPack(GemmBThreadCopyMoreGemmKPack_),
-      use_spare_set(use_spare_set_)
+      GemmBThreadCopyMoreGemmKPack(GemmBThreadCopyMoreGemmKPack_)
 {
 }
 
@@ -136,26 +71,10 @@ operator==(const PerformanceImplicitGemmForwardV4R4Xdlops& other) const
         && GemmKPerBlock == other.GemmKPerBlock
         && GemmMPerWave == other.GemmMPerWave
         && GemmNPerWave == other.GemmNPerWave
-        && GemmG == other.GemmG
         && GemmKPack == other.GemmKPack 
         && NumSegments== other.NumSegments
         && GemmAThreadCopyMoreGemmK  == other.GemmAThreadCopyMoreGemmK
-        && GemmBThreadCopyMoreGemmKPack  == other.GemmBThreadCopyMoreGemmKPack
-        && use_spare_set == other.use_spare_set;
-    // clang-format on
-}
-
-bool PerformanceImplicitGemmForwardV4R4Xdlops::IsValidValue() const
-{
-    // clang-format off
-    return IsTwoPower<16,256>(GemmMPerBlock)
-        && IsTwoPower<16,256>(GemmNPerBlock)
-        && IsTwoPower<1,32>(GemmKPerBlock)
-        && IsTwoPower<16,128>(GemmMPerWave)
-        && IsTwoPower<16,128>(GemmNPerWave)
-        && IsTwoPower<1,1>(GemmG)
-        && IsTwoPower<1,16>(GemmKPack)
-        && IsTwoPower<1,4>(NumSegments);
+        && GemmBThreadCopyMoreGemmKPack  == other.GemmBThreadCopyMoreGemmKPack;
     // clang-format on
 }
 
@@ -163,23 +82,23 @@ bool PerformanceImplicitGemmForwardV4R4Xdlops::SetNextValue()
 {
     do
     {
-        if(!NextTwoPower<128, 256>(GemmMPerBlock))
+        // write performance parameters in reverse order, in order for tuning to iterate over the
+        // range in normal order
+        if(!NextFlag<false, true>(GemmBThreadCopyMoreGemmKPack))
             break;
-        if(!NextTwoPower<128, 256>(GemmNPerBlock))
+        if(!NextFlag<false, false>(GemmAThreadCopyMoreGemmK))
             break;
-        if(!NextTwoPower<4, 8>(GemmKPerBlock))
+        if(!NextTwoPower<1, 8>(GemmKPack))
             break;
-        if(!NextTwoPower<64, 128>(GemmMPerWave))
+        if(!NextTwoPower<16, 128>(GemmNPerWave))
             break;
-        if(!NextTwoPower<64, 128>(GemmNPerWave))
+        if(!NextTwoPower<16, 128>(GemmMPerWave))
             break;
-        if(!NextTwoPower<1, 1>(GemmG))
+        if(!NextTwoPower<1, 8>(GemmKPerBlock))
             break;
-        if(!NextTwoPower<4, 8>(GemmKPack))
+        if(!NextTwoPower<32, 256>(GemmNPerBlock))
             break;
-        if(!NextFlag(GemmAThreadCopyMoreGemmK))
-            break;
-        if(!NextFlag(GemmBThreadCopyMoreGemmKPack))
+        if(!NextTwoPower<32, 256>(GemmMPerBlock))
             break;
         if(!NextTwoPower<1, 4>(NumSegments))
             break;
@@ -194,82 +113,75 @@ void PerformanceImplicitGemmForwardV4R4Xdlops::EuristicInit(const ConvolutionCon
     PerformanceImplicitGemmForwardV4R4Xdlops tmp;
     if(ctx.IsFp32())
     {
-        // tmp = {128, 128, 4, 64, 64, 1, 4, 1, false, true};
-        tmp = {128, 128, 4, 64, 64, 1, 4, 2, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {128, 128, 8, 64, 64, 1, 2, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {64, 32, 4, 32, 64, 1, 2, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {64, 32, 4, 32, 64, 1, 2, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {32, 64, 4, 64, 32, 1, 2, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {32, 32, 4, 32, 32, 1, 2, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {64, 16, 4, 16, 64, 1, 2, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {16, 64, 4, 64, 16, 1, 2, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {16, 16, 4, 16, 16, 1, 2, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {64, 4, 16, 4, 64, 1, 2, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {64, 8, 8, 8, 64, 1, 2, 1, false, true};
+        tmp = {128, 128, 4, 64, 64, 4, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {128, 128, 8, 64, 64, 2, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {128, 64, 4, 64, 64, 4, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {128, 64, 8, 64, 64, 2, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {64, 128, 4, 64, 64, 4, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {64, 128, 8, 64, 64, 2, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {64, 64, 4, 64, 64, 4, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {64, 64, 8, 64, 64, 2, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {64, 64, 2, 64, 64, 4, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {64, 64, 2, 64, 64, 2, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {64, 32, 4, 32, 64, 2, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {64, 32, 4, 32, 64, 2, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {32, 64, 4, 64, 32, 2, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {32, 32, 4, 32, 32, 2, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {64, 16, 4, 16, 64, 2, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {16, 64, 4, 64, 16, 2, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {16, 16, 4, 16, 16, 2, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {64, 4, 16, 4, 64, 2, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {64, 8, 8, 8, 64, 2, 1, false, true};
     }
-    else if(ctx.IsFp16())
+    else if(ctx.IsFp16() or ctx.IsBfp16())
     {
-        tmp = {128, 128, 8, 64, 64, 1, 4, 4, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {256, 128, 4, 128, 64, 1, 8, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {128, 256, 4, 64, 128, 1, 8, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {256, 128, 4, 128, 64, 1, 8, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {128, 128, 4, 64, 64, 1, 8, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {128, 128, 8, 64, 64, 1, 4, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {64, 32, 4, 32, 64, 1, 4, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {64, 32, 4, 32, 64, 1, 4, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {32, 64, 4, 64, 32, 1, 4, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {32, 32, 4, 32, 32, 1, 4, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {64, 16, 4, 16, 64, 1, 4, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {16, 64, 4, 64, 16, 1, 4, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {16, 16, 4, 16, 16, 1, 4, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {64, 4, 16, 4, 64, 1, 4, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {64, 8, 8, 8, 64, 1, 4, 1, false, true};
-    }
-    else if(ctx.IsBfp16())
-    {
-        tmp = {128, 128, 16, 64, 64, 1, 2, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {64, 32, 4, 32, 64, 1, 2, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {64, 32, 4, 32, 64, 1, 2, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {32, 64, 4, 64, 32, 1, 2, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {32, 32, 4, 32, 32, 1, 2, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {64, 16, 4, 16, 64, 1, 2, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {16, 64, 4, 64, 16, 1, 2, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {16, 16, 4, 16, 16, 1, 2, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {64, 4, 16, 4, 64, 1, 2, 1, false, true};
-        if(!tmp.IsValid(ctx))
-            tmp = {64, 8, 8, 8, 64, 1, 2, 1, false, true};
+        tmp = {256, 128, 4, 64, 128, 8, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {256, 128, 4, 128, 64, 8, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {128, 256, 4, 64, 128, 8, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {256, 128, 4, 128, 64, 8, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {128, 128, 4, 64, 64, 8, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {128, 128, 8, 64, 64, 4, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {64, 32, 4, 32, 64, 4, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {64, 32, 4, 32, 64, 4, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {32, 64, 4, 64, 32, 4, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {32, 32, 4, 32, 32, 4, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {64, 16, 4, 16, 64, 4, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {16, 64, 4, 64, 16, 4, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {16, 16, 4, 16, 16, 4, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {64, 4, 16, 4, 64, 4, 1, false, true};
+        if(!tmp.IsReallyValid(ctx))
+            tmp = {64, 8, 8, 8, 64, 4, 1, false, true};
     }
     else
     {
@@ -277,7 +189,7 @@ void PerformanceImplicitGemmForwardV4R4Xdlops::EuristicInit(const ConvolutionCon
         assert(false);
     }
 
-    if(!tmp.IsValid(ctx))
+    if(!tmp.IsReallyValid(ctx))
     {
         MIOPEN_LOG_E("All attempts failed");
         assert(false);
@@ -291,24 +203,6 @@ std::string PerformanceImplicitGemmForwardV4R4Xdlops::ToString() const
     std::ostringstream ss;
     Serialize(ss);
     return ss.str();
-}
-
-std::tuple<int, int, int>
-PerformanceImplicitGemmForwardV4R4Xdlops::CalculateGemmSize(const ConvolutionContext& ctx) const
-{
-    const auto n  = ConvolutionContextInterpreter::GetBatchN(ctx);
-    const auto k  = ConvolutionContextInterpreter::GetOutputChannelK(ctx);
-    const auto c  = ConvolutionContextInterpreter::GetInputChannelC(ctx);
-    const auto ho = ConvolutionContextInterpreter::GetOutputHeightHo(ctx);
-    const auto wo = ConvolutionContextInterpreter::GetOutputWidthWo(ctx);
-    const auto y  = ConvolutionContextInterpreter::GetFilterHeightY(ctx);
-    const auto x  = ConvolutionContextInterpreter::GetFilterWidthX(ctx);
-
-    const auto gemm_m       = k;
-    const auto gemm_n       = n * ho * wo;
-    const auto gemm_k_total = c * y * x;
-
-    return std::make_tuple(gemm_m, gemm_n, gemm_k_total);
 }
 
 std::tuple<int, bool> PerformanceImplicitGemmForwardV4R4Xdlops::CalculateBlockSize() const
@@ -338,15 +232,17 @@ PerformanceImplicitGemmForwardV4R4Xdlops::CalculateGridSize(const ConvolutionCon
 
     try
     {
-        int gemm_m = 0;
-        int gemm_n = 0;
+        int gemm_g = -1;
+        int gemm_m = -1;
+        int gemm_n = -1;
 
-        std::tie(gemm_m, gemm_n, std::ignore) = CalculateGemmSize(ctx);
+        std::tie(gemm_g, gemm_m, gemm_n, std::ignore) =
+            ConvHipImplicitGemmForwardV4R4Xdlops::CalculateGemmSize(ctx);
 
         if(!(gemm_m % GemmMPerBlock == 0 && gemm_n % GemmNPerBlock == 0))
             MIOPEN_THROW("invalid performance parameter");
 
-        GridSize = (gemm_m / GemmMPerBlock) * (gemm_n / GemmNPerBlock);
+        GridSize = gemm_g * (gemm_m / GemmMPerBlock) * (gemm_n / GemmNPerBlock);
     }
     catch(...)
     {
@@ -362,9 +258,9 @@ PerformanceImplicitGemmForwardV4R4Xdlops::CalculateGemmABlockCopyPerformancePara
 {
     // A tensor shape [GemmG, GemmK, GemmM, GemmKPack]
 
-    int ClusterLengths_GemmK     = 0;
-    int ClusterLengths_GemmM     = 0;
-    int ClusterLengths_GemmKPack = 0;
+    int ClusterLengths_GemmK     = -1;
+    int ClusterLengths_GemmM     = -1;
+    int ClusterLengths_GemmKPack = -1;
     int SrcDataPerRead_GemmKPack = ctx.IsFp32() ? amd_buffer_load_max_length<float>()
                                                 : amd_buffer_load_max_length<half_float::half>();
     int DstDataPerWrite_GemmKPack = ctx.IsFp32() ? amd_lds_write_max_length<float>()
@@ -396,8 +292,8 @@ PerformanceImplicitGemmForwardV4R4Xdlops::CalculateGemmABlockCopyPerformancePara
         const auto data_per_thread_copy_gemmkpack = SrcDataPerRead_GemmKPack;
         const auto tmp = data_per_thread_copy / data_per_thread_copy_gemmkpack;
 
-        int data_per_thread_copy_gemmk = 0;
-        int data_per_thread_copy_gemmm = 0;
+        int data_per_thread_copy_gemmk = -1;
+        int data_per_thread_copy_gemmm = -1;
 
         if(GemmAThreadCopyMoreGemmK)
         {
@@ -441,9 +337,9 @@ PerformanceImplicitGemmForwardV4R4Xdlops::CalculateGemmBBlockCopyPerformancePara
 {
     // B tensor shape [GemmG, GemmK, GemmN, GemmKPack]
 
-    int ClusterLengths_GemmK     = 0;
-    int ClusterLengths_GemmN     = 0;
-    int ClusterLengths_GemmKPack = 0;
+    int ClusterLengths_GemmK     = -1;
+    int ClusterLengths_GemmN     = -1;
+    int ClusterLengths_GemmKPack = -1;
     int SrcDataPerRead_GemmN     = ctx.IsFp32() ? amd_buffer_load_max_length<float>()
                                             : amd_buffer_load_max_length<half_float::half>();
     int DstDataPerWrite_GemmKPack = ctx.IsFp32() ? amd_lds_write_max_length<float>()
@@ -512,8 +408,8 @@ PerformanceImplicitGemmForwardV4R4Xdlops::CalculateGemmBBlockCopyPerformancePara
         const auto data_per_thread_copy_gemmn = SrcDataPerRead_GemmN;
         const auto tmp                        = data_per_thread_copy / data_per_thread_copy_gemmn;
 
-        int data_per_thread_copy_gemmkpack = 0;
-        int data_per_thread_copy_gemmk     = 0;
+        int data_per_thread_copy_gemmkpack = -1;
+        int data_per_thread_copy_gemmk     = -1;
 
         if(GemmBThreadCopyMoreGemmKPack)
         {
@@ -650,75 +546,68 @@ std::tuple<std::size_t, bool> PerformanceImplicitGemmForwardV4R4Xdlops::Calculat
     return std::make_tuple(lds_size, true);
 }
 
-bool PerformanceImplicitGemmForwardV4R4Xdlops::IsValid(const ConvolutionContext& ctx) const
+// Used by IsReallyValid()
+bool PerformanceImplicitGemmForwardV4R4Xdlops::IsValidValue() const
 {
-#if WORKAROUND_LARGE_WAVEWISE_GEMM_FOR_PAD_FAILURE
-    const auto in_left_pad_h  = ConvolutionContextInterpreter::GetInputLeftPadH(ctx);
-    const auto in_left_pad_w  = ConvolutionContextInterpreter::GetInputLeftPadW(ctx);
-    const auto in_right_pad_h = ConvolutionContextInterpreter::GetAdjustedInputRightPadH(ctx);
-    const auto in_right_pad_w = ConvolutionContextInterpreter::GetAdjustedInputRightPadW(ctx);
+    // clang-format off
+    return IsTwoPower<32, 256>(GemmMPerBlock) 
+        && IsTwoPower<32, 256>(GemmNPerBlock) 
+        && IsTwoPower<1, 8>(GemmKPerBlock)
+        && IsTwoPower<16, 128>(GemmMPerWave)
+        && IsTwoPower<16, 128>(GemmNPerWave)
+        && IsTwoPower<1, 8>(GemmKPack);
+    // clang-format on
+}
 
-    if((in_left_pad_h > 0 || in_right_pad_w > 0 || in_left_pad_w > 0 || in_right_pad_h > 0))
-    {
-        if((GemmMPerBlock * GemmNPerBlock == 128 * 128 &&
-            GemmMPerWave * GemmNPerWave >= 128 * 64) ||
-           (GemmMPerBlock * GemmNPerBlock == 256 * 128 &&
-            GemmMPerWave * GemmNPerWave >= 128 * 64) ||
-           (GemmMPerBlock * GemmNPerBlock == 256 * 256 && GemmMPerWave * GemmNPerWave >= 128 * 128))
-        {
-            return false;
-        }
-    }
-#endif
-
-#if 0 // reduce tuning range
-    if(GemmMPerWave * GemmNPerWave != 128 * 64 || GemmMPerBlock * GemmNPerBlock != 256 * 128)
-        return false;
-#endif
-
+// Used by EuristicInit() and GenericSearch
+// Only return false if a performance config will violate requirements given by kernel algorithm
+bool PerformanceImplicitGemmForwardV4R4Xdlops::IsReallyValid(const ConvolutionContext& ctx) const
+{
     if(!IsValidValue())
         return false;
 
-    if(!IsValidXdlopsGemm_v2(
-           ctx, GemmMPerBlock, GemmNPerBlock, GemmMPerWave, GemmNPerWave, GemmKPack))
+    if(!IsValidBlockwiseGemmXdlops(
+           ctx, GemmMPerBlock, GemmNPerBlock, GemmKPerBlock, GemmMPerWave, GemmNPerWave, GemmKPack))
         return false;
 
     bool valid = false;
 
     // check blockwise GEMM size
-    const auto n  = ConvolutionContextInterpreter::GetBatchN(ctx);
-    const auto k  = ConvolutionContextInterpreter::GetOutputChannelK(ctx);
-    const auto c  = ConvolutionContextInterpreter::GetInputChannelC(ctx);
-    const auto ho = ConvolutionContextInterpreter::GetOutputHeightHo(ctx);
-    const auto wo = ConvolutionContextInterpreter::GetOutputWidthWo(ctx);
-    const auto y  = ConvolutionContextInterpreter::GetFilterHeightY(ctx);
-    const auto x  = ConvolutionContextInterpreter::GetFilterWidthX(ctx);
+    {
+        int gemm_m       = -1;
+        int gemm_n       = -1;
+        int gemm_k_total = -1;
 
-    const auto gemm_m       = k;
-    const auto gemm_n       = static_cast<std::size_t>(n) * ho * wo;
-    const auto gemm_k_total = static_cast<std::size_t>(c) * y * x;
+        std::tie(std::ignore, gemm_m, gemm_n, gemm_k_total) =
+            ConvHipImplicitGemmForwardV4R4Xdlops::CalculateGemmSize(ctx);
 
-    if(gemm_k_total % (GemmG * GemmKPack) != 0)
-        return false;
+        if(gemm_k_total % GemmKPack != 0)
+            return false;
 
-    const auto gemm_k = gemm_k_total / (GemmG * GemmKPack);
+        const auto gemm_k = gemm_k_total / GemmKPack;
 
-    if(!(gemm_m % GemmMPerBlock == 0 && gemm_n % GemmNPerBlock == 0 && gemm_k % GemmKPerBlock == 0))
-        return false;
+        if(!(gemm_m % GemmMPerBlock == 0 && gemm_n % GemmNPerBlock == 0 &&
+             gemm_k % GemmKPerBlock == 0))
+            return false;
+    }
 
     // check blockwise copy of A matrix
-    std::tie(std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, valid) =
-        CalculateGemmABlockCopyPerformanceParameters(ctx);
+    {
+        std::tie(std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, valid) =
+            CalculateGemmABlockCopyPerformanceParameters(ctx);
 
-    if(!valid)
-        return false;
+        if(!valid)
+            return false;
+    }
 
     // check blockwise copy of B matrix
-    std::tie(std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, valid) =
-        CalculateGemmBBlockCopyPerformanceParameters(ctx);
+    {
+        std::tie(std::ignore, std::ignore, std::ignore, std::ignore, std::ignore, valid) =
+            CalculateGemmBBlockCopyPerformanceParameters(ctx);
 
-    if(!valid)
-        return false;
+        if(!valid)
+            return false;
+    }
 
     std::tie(std::ignore, std::ignore, std::ignore, valid) =
         CalculateGemmABlockCopyThreadSegmentLengths(ctx);
@@ -739,10 +628,203 @@ bool PerformanceImplicitGemmForwardV4R4Xdlops::IsValid(const ConvolutionContext&
     return (valid and lds_size <= get_lds_max_number_of_byte());
 }
 
+// Used by GenericSearch, not used by EuristicInit
+// Return false if a performance config is known to be sub-optimal, comparing to other performance
+// config inside tuning range
+bool PerformanceImplicitGemmForwardV4R4Xdlops::IsFastToBeUsedForTuning(
+    const ConvolutionContext& ctx) const
+{
+    // don't need too many blocks
+    {
+        int gemm_m = 0;
+        int gemm_n = 0;
+
+        std::tie(std::ignore, gemm_m, gemm_n, std::ignore) =
+            ConvHipImplicitGemmForwardV4R4Xdlops::CalculateGemmSize(ctx);
+
+        // this is grid size using current blockwise-GEMM
+        const int grid_size = (gemm_m * gemm_n) / (GemmMPerBlock * GemmNPerBlock);
+
+        // this the the biggest blockwise-GEMM you can do
+        int max_blockwise_gemm_size =
+#if WORKAROUND_SWDEV_240356
+            gcd(128, gemm_m) * gcd(128, gemm_n);
+#else
+            std::max(gcd(256, gemm_m) * gcd(128, gemm_n), gcd(128, gemm_m) * gcd(256, gemm_n));
+#endif
+
+        // this is the grid size using the biggest blockwise-GEMM
+        auto grid_size_max_blockwise_gemm =
+            (std::size_t(gemm_m) * gemm_n) / max_blockwise_gemm_size;
+
+        const float ratio = float(grid_size) / grid_size_max_blockwise_gemm;
+
+        if(grid_size_max_blockwise_gemm > 600)
+        {
+            if(ratio > 1.41)
+                return false;
+        }
+        if(grid_size_max_blockwise_gemm > 480)
+        {
+            if(ratio > 1.81)
+                return false;
+        }
+        if(grid_size_max_blockwise_gemm > 360)
+        {
+            if(ratio > 2.21)
+                return false;
+        }
+        if(grid_size_max_blockwise_gemm > 240)
+        {
+            if(ratio > 3.21)
+                return false;
+        }
+        else if(grid_size_max_blockwise_gemm > 120)
+        {
+            if(ratio > 6.21)
+                return false;
+        }
+    }
+
+    // don't need too many waves per block
+    {
+        const int wave_per_block = (GemmMPerBlock / GemmMPerWave) * (GemmNPerBlock / GemmNPerWave);
+
+        if(!(wave_per_block > 1 && wave_per_block <= 4))
+        {
+            return false;
+        }
+    }
+
+    // avoid skinny blockwise GEMM whenever possible
+    {
+        int gemm_m = 0;
+        int gemm_n = 0;
+
+        std::tie(std::ignore, gemm_m, gemm_n, std::ignore) =
+            ConvHipImplicitGemmForwardV4R4Xdlops::CalculateGemmSize(ctx);
+
+        if(GemmMPerBlock > 2 * GemmNPerBlock)
+        {
+            if(gemm_n % (2 * GemmNPerBlock) == 0)
+                return false;
+        }
+
+        if(GemmNPerBlock > 2 * GemmMPerBlock)
+        {
+            if(gemm_m % (2 * GemmMPerBlock) == 0)
+                return false;
+        }
+    }
+
+    // avoid skinny wavewise GEMM whenever possible
+    {
+        if(GemmMPerWave > 2 * GemmNPerWave)
+        {
+            if(GemmNPerBlock % (2 * GemmNPerWave) == 0)
+                return false;
+        }
+
+        if(GemmNPerWave > 2 * GemmMPerWave)
+        {
+            if(GemmMPerBlock % (2 * GemmMPerWave) == 0)
+                return false;
+        }
+    }
+
+    // each thread should not too much data
+    {
+        const int block_size = (GemmMPerBlock / GemmMPerWave) * (GemmNPerBlock / GemmNPerWave) * 64;
+
+        const int a_data_per_thread_copy = (GemmKPerBlock * GemmMPerBlock * GemmKPack) / block_size;
+        const int b_data_per_thread_copy = (GemmKPerBlock * GemmNPerBlock * GemmKPack) / block_size;
+
+        if(ctx.IsFp32())
+        {
+            if(a_data_per_thread_copy > 16 || b_data_per_thread_copy > 16)
+                return false;
+        }
+        else if(ctx.IsFp16())
+        {
+            if(a_data_per_thread_copy > 32 || b_data_per_thread_copy > 32)
+                return false;
+        }
+        else if(ctx.IsBfp16())
+        {
+            if(a_data_per_thread_copy > 32 || b_data_per_thread_copy > 32)
+                return false;
+        }
+    }
+
+    // GemmKPerBlock*GemmKPack should not be too small, otherwise read performance of A matrix would
+    // be bad
+    {
+        if(ctx.IsFp32())
+        {
+            if(GemmKPerBlock * GemmKPack < 8)
+                return false;
+        }
+        else if(ctx.IsFp16())
+        {
+            if(GemmKPerBlock * GemmKPack < 16)
+                return false;
+        }
+        else if(ctx.IsBfp16())
+        {
+            if(GemmKPerBlock * GemmKPack < 16)
+                return false;
+        }
+    }
+
+    return true;
+}
+
+// Used by GenericSearch, not used by EuristicInit
+// Return false, if you don't want to this to be included in tuning range used by generic search
+// A performance config may still be valid w.r.t algorithm correctness, even when IsValid() return
+// false
+bool PerformanceImplicitGemmForwardV4R4Xdlops::IsValid(const ConvolutionContext& ctx) const
+{
+    return IsReallyValid(ctx) && IsFastToBeUsedForTuning(ctx);
+}
+
+// Used by GenericSearch, not used by EuristicInit
+bool ConvHipImplicitGemmForwardV4R4Xdlops::IsValidPerformanceConfig(
+    const ConvolutionContext& ctx, const PerformanceImplicitGemmForwardV4R4Xdlops& c) const
+{
+    return c.IsReallyValid(ctx);
+}
+
+std::tuple<int, int, int, int>
+ConvHipImplicitGemmForwardV4R4Xdlops::CalculateGemmSize(const ConvolutionContext& ctx)
+{
+    const auto g  = ConvolutionContextInterpreter::GetGroupCountG(ctx);
+    const auto n  = ConvolutionContextInterpreter::GetBatchN(ctx);
+    const auto k  = ConvolutionContextInterpreter::GetOutputChannelK(ctx);
+    const auto c  = ConvolutionContextInterpreter::GetInputChannelC(ctx);
+    const auto ho = ConvolutionContextInterpreter::GetOutputHeightHo(ctx);
+    const auto wo = ConvolutionContextInterpreter::GetOutputWidthWo(ctx);
+    const auto y  = ConvolutionContextInterpreter::GetFilterHeightY(ctx);
+    const auto x  = ConvolutionContextInterpreter::GetFilterWidthX(ctx);
+
+    const auto k_per_group = k / g;
+    const auto c_per_group = c / g;
+
+    const auto gemm_g       = g;
+    const auto gemm_m       = k_per_group;
+    const auto gemm_n       = n * ho * wo;
+    const auto gemm_k_total = c_per_group * y * x;
+
+    return std::make_tuple(gemm_g, gemm_m, gemm_n, gemm_k_total);
+}
+
 PerformanceImplicitGemmForwardV4R4Xdlops
 ConvHipImplicitGemmForwardV4R4Xdlops::GetPerformanceConfig(const ConvolutionContext& ctx) const
 {
-    return GetPerformanceConfigBase<PerformanceImplicitGemmForwardV4R4Xdlops>(ctx);
+    PerformanceImplicitGemmForwardV4R4Xdlops config;
+    config.EuristicInit(ctx);
+    MIOPEN_LOG_I(config.ToString());
+    return config;
 }
 
 ConvSolution ConvHipImplicitGemmForwardV4R4Xdlops::GetSolution(
@@ -751,42 +833,19 @@ ConvSolution ConvHipImplicitGemmForwardV4R4Xdlops::GetSolution(
     bool) const
 {
 #if 0
-    // bin/MIOpenDriver convfp16 -n 128 -c 1024 -H 14 -W 14 -k 2048 -y 1 -x 1 -p 0 -q 0 -u 1 -v 1 -l 1 -j 1 -V 0 -w 1 -t 1 -F 1 -i 1
-    const auto config = PerformanceImplicitGemmForwardV4R4Xdlops(128, 256, 4, 128,  64, 1, 8, 0, 1);
-#elif 0
-    // bin/MIOpenDriver convfp16 -n 256 -c 288 -H 35 -W 35 -k 2048 -y 3 -x 3 -p 0 -q 0 -u 2 -v 2 -l
-    // 1 -j 1 -V 0 -w 1 -t 1 -F 1 -i 1
-    const auto config = PerformanceImplicitGemmForwardV4R4Xdlops(256, 128, 4, 128, 64, 1, 8, 0, 1);
-#elif 0
-    // bin/MIOpenDriver convfp16 -n 128 -c 256 -H 14 -W 14 -k 1024 -y 3 -x 3 -p 1 -q 1 -u 1 -v 1 -l
-    // 1 -j 1 -V 0 -w 1 -t 1 -F 1 -i 1
-    const auto config = PerformanceImplicitGemmForwardV4R4Xdlops(256, 128, 4, 128, 64, 1, 8, 0, 0);
-#elif 0
-    // bin/MIOpenDriver convfp16 -n 128 -c 256 -H 17 -W 17 -k 1024 -y 1 -x 7 -p 0 -q 3 -u 1 -v 1 -l
-    // 1 -j 1 -V 0 -w 1 -t 1 -F 1 -i 1
-    // const auto config = PerformanceImplicitGemmForwardV4R4Xdlops(128, 128, 4,  64,  64, 1, 8, 0,
-    // 1);
-    const auto config = PerformanceImplicitGemmForwardV4R4Xdlops(256, 128, 4, 64, 128, 1, 8, 0, 1);
-#elif 0
-    // bin/MIOpenDriver conv     -n 128 -c 256 -H 14 -W 14 -k 1024 -y 3 -x 3 -p 1 -q 1 -u 1 -v 1 -l
-    // 1 -j 1 -V 0 -w 1 -t 1 -F 1 -i 1
-    const auto config = PerformanceImplicitGemmForwardV4R4Xdlops(128, 128, 4, 64, 64, 1, 4, 0, 0);
-#elif 0
-    const auto config = PerformanceImplicitGemmForwardV4R4Xdlops(128, 128, 4, 64, 64, 1, 8, 0, 1);
-#elif 0
-    const auto config = PerformanceImplicitGemmForwardV4R4Xdlops(128, 128, 4, 64, 64, 1, 4, 0, 0);
+    const auto config = PerformanceImplicitGemmForwardV4R4Xdlops{256, 128, 4, 64, 128, 8, 0, 1};
 #endif
 
     ConvSolution result;
     KernelInfo construction_parameters;
 
-    assert(config.IsValid(ctx));
+    assert(config.IsReallyValid(ctx));
 
     construction_parameters.kernel_file =
-        "gridwise_convolution_forward_implicit_gemm_v4r4_xdlops_nchw_kcyx_nkhw.cpp";
+        "gridwise_group_convolution_forward_implicit_gemm_v4r4_xdlops_nchw_kcyx_nkhw.cpp";
 
     construction_parameters.kernel_name =
-        "gridwise_convolution_forward_implicit_gemm_v4r4_xdlops_nchw_kcyx_nkhw";
+        "gridwise_group_convolution_forward_implicit_gemm_v4r4_xdlops_nchw_kcyx_nkhw";
 
     int grid_size  = 0;
     int block_size = 0;
@@ -849,6 +908,7 @@ ConvSolution ConvHipImplicitGemmForwardV4R4Xdlops::GetSolution(
     // clang-format off
     construction_parameters.comp_options =
         std::string(" -std=c++14 ") +
+        std::string(" -DCK_PARAM_PROBLEM_G=") + std::to_string(ConvolutionContextInterpreter::GetGroupCountG(ctx)) +
         std::string(" -DCK_PARAM_PROBLEM_N=") + std::to_string(ConvolutionContextInterpreter::GetBatchN(ctx)) +
         std::string(" -DCK_PARAM_PROBLEM_K=") + std::to_string(ConvolutionContextInterpreter::GetOutputChannelK(ctx)) +
         std::string(" -DCK_PARAM_PROBLEM_C=") + std::to_string(ConvolutionContextInterpreter::GetInputChannelC(ctx)) +
@@ -871,7 +931,6 @@ ConvSolution ConvHipImplicitGemmForwardV4R4Xdlops::GetSolution(
         std::string(" -DCK_PARAM_TUNABLE_GEMM_K_PER_BLOCK=") + std::to_string(config.GemmKPerBlock) +
         std::string(" -DCK_PARAM_TUNABLE_GEMM_M_PER_WAVE=") + std::to_string(config.GemmMPerWave) +
         std::string(" -DCK_PARAM_TUNABLE_GEMM_N_PER_WAVE=") + std::to_string(config.GemmNPerWave) +
-        std::string(" -DCK_PARAM_TUNABLE_GEMM_G=") + std::to_string(config.GemmG) +
         std::string(" -DCK_PARAM_TUNABLE_GEMM_KPACK=") + std::to_string(config.GemmKPack) +
         std::string(" -DCK_PARAM_DEPENDENT_BLOCK_SIZE=") + std::to_string(block_size) +
         std::string(" -DCK_PARAM_DEPENDENT_GRID_SIZE=") + std::to_string(grid_size) +
@@ -888,7 +947,9 @@ ConvSolution ConvHipImplicitGemmForwardV4R4Xdlops::GetSolution(
         std::string(" -DCK_USE_AMD_XDLOPS=") + std::to_string(IsXdlopsSupport(ctx) ? 1 : 0) +
         std::string(" -DCK_USE_AMD_XDLOPS_INLINE_ASM=") + std::to_string(miopen::IsEnabled(MIOPEN_DEBUG_IMPLICIT_GEMM_XDLOPS_INLINE_ASM{}) ? 1 : 0) +
         std::string(" -DCK_USE_AMD_XDLOPS_EMULATE=") + (miopen::IsEnabled(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_XDLOPS_EMULATE{}) ? '1' : '0') +
-        std::string(" -DCK_BLOCK_SYNC_LDS_WITHOUT_SYNC_VMEM=") + (miopen::IsEnabled(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_BLOCK_SYNC_LDS_WITHOUT_SYNC_VMEM{}) ? '1' : '0') +
+        std::string(" -DCK_BLOCK_SYNC_LDS_WITHOUT_SYNC_VMEM=") + (miopen::IsDisabled(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_BLOCK_SYNC_LDS_WITHOUT_SYNC_VMEM{}) ? '0' : '1') +
+        std::string(" -DCK_WORKAROUND_SWDEV_229564=") + std::to_string(WORKAROUND_SWDEV_229564) +
+        std::string(" -DCK_WORKAROUND_SWDEV_231101=") + std::to_string(WORKAROUND_SWDEV_231101) +
         ctx.general_compile_options;
 
     construction_parameters.comp_options +=
@@ -925,6 +986,9 @@ int ConvHipImplicitGemmForwardV4R4Xdlops::RunAndMeasureSolution(miopen::Handle& 
 
 bool ConvHipImplicitGemmForwardV4R4Xdlops::IsApplicable(const ConvolutionContext& ctx) const
 {
+    if(!IsXdlopsSupport(ctx))
+        return false;
+
     if(!(ctx.IsFp32() || ctx.IsFp16() || ctx.IsBfp16()))
         return false;
 
@@ -934,17 +998,34 @@ bool ConvHipImplicitGemmForwardV4R4Xdlops::IsApplicable(const ConvolutionContext
     if(!ctx.Is2d())
         return false;
 
-    if(ctx.group_counts > 1)
+    if(!IsIndexRangeLargeEnough(ctx))
         return false;
 
-    return IsApplicableXdlops(ctx);
-}
+#if WORKAROUND_SWDEV_239555
+    if(ctx.IsFp16() || ctx.IsBfp16())
+    {
+        const auto y              = ConvolutionContextInterpreter::GetFilterHeightY(ctx);
+        const auto x              = ConvolutionContextInterpreter::GetFilterWidthX(ctx);
+        const auto in_left_pad_h  = ConvolutionContextInterpreter::GetInputLeftPadH(ctx);
+        const auto in_left_pad_w  = ConvolutionContextInterpreter::GetInputLeftPadW(ctx);
+        const auto in_right_pad_h = ConvolutionContextInterpreter::GetAdjustedInputRightPadH(ctx);
+        const auto in_right_pad_w = ConvolutionContextInterpreter::GetAdjustedInputRightPadW(ctx);
 
-bool ConvHipImplicitGemmForwardV4R4Xdlops::IsValidPerformanceConfig(
-    const ConvolutionContext& ctx, const PerformanceImplicitGemmForwardV4R4Xdlops& c) const
-{
-    MIOPEN_LOG_I("");
-    return c.IsValidValue() && c.IsValid(ctx);
+        if((y > 1 || x > 1) &&
+           (in_left_pad_h > 0 || in_left_pad_w > 0 || in_right_pad_h > 0 || in_right_pad_w > 0))
+            return false;
+    }
+#endif
+
+    // gemm size
+    int gemm_g       = -1;
+    int gemm_m       = -1;
+    int gemm_n       = -1;
+    int gemm_k_total = -1;
+
+    std::tie(gemm_g, gemm_m, gemm_n, gemm_k_total) = CalculateGemmSize(ctx);
+
+    return IsValidGridGemmXdlops(gemm_m, gemm_n, gemm_k_total);
 }
 
 PerformanceImplicitGemmForwardV4R4Xdlops

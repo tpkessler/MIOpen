@@ -82,7 +82,9 @@ template <index_t GridSize,
           index_t BBlockCopySrcDataPerRead,
           index_t BBlockCopyDstDataPerWrite_KPACK,
           InMemoryDataOperation OutputMemOp,
-          WorkgroupScheduleOrder WorkgroupSchdOrder>
+          WorkgroupScheduleOrder WorkgroupSchdOrder,
+          index_t ABlockCopySrcDataStride = 1,
+          index_t BBlockCopySrcDataStride = 1>
 struct GridwiseGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
 {
     __device__ void Run(const ABFloat* const __restrict__ p_a_global,
@@ -151,7 +153,8 @@ struct GridwiseGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
             AddressSpace::Global,
             AddressSpace::Vgpr,
             AddressSpace::Lds,
-            InMemoryDataOperation::Set>({0, k_block_data_on_global, 0}, {0, 0, 0});
+            InMemoryDataOperation::Set,
+            ABlockCopySrcDataStride>({0, k_block_data_on_global, 0}, {0, 0, 0});
 
         constexpr auto b_k_n_kpack_block_desc = make_native_tensor_descriptor_aligned(
             Sequence<KPerBlock, NPerBlock, KPACK>{}, Number<max_align>{});
@@ -174,7 +177,8 @@ struct GridwiseGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
             AddressSpace::Global,
             AddressSpace::Vgpr,
             AddressSpace::Lds,
-            InMemoryDataOperation::Set>({0, b_block_data_on_global, 0}, {0, 0, 0});
+            InMemoryDataOperation::Set,
+            BBlockCopySrcDataStride>({0, b_block_data_on_global, 0}, {0, 0, 0});
 
         // GEMM definition
         // c_mtx += transpose(a_mtx) * b_mtx
@@ -427,9 +431,8 @@ template <index_t GridSize,
           index_t BBlockCopyDstDataPerWrite_KPACK,
           InMemoryDataOperation OutputMemOp,
           WorkgroupScheduleOrder WorkgroupSchdOrder,
-          index_t NumSegments                              = 1,
-          class ABlockCopyThreadSegmentLengths_G_K_M_KPACK = Sequence<1, 1, 1, 1>,
-          class BBlockCopyThreadSegmentLengths_G_K_N_KPACK = Sequence<1, 1, 1, 1>>
+          index_t ABlockCopySrcDataStride = 1,
+          index_t BBlockCopySrcDataStride = 1>
 struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
 {
     __device__ void Run(const ABFloat* const __restrict__ p_a_global,
@@ -504,10 +507,8 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
             AddressSpace::Vgpr,
             AddressSpace::Lds,
             InMemoryDataOperation::Set,
-            NumSegments,
-            Sequence<1, NumSegments>,
-            ABlockCopyThreadSegmentLengths_G_K_M_KPACK>({group_id, 0, m_block_data_on_global, 0},
-                                                        {0, 0, 0, 0});
+            ABlockCopySrcDataStride,
+            1>({group_id, 0, m_block_data_on_global, 0}, {0, 0, 0, 0});
 
         constexpr auto b_g_k_n_kpack_block_desc = make_native_tensor_descriptor_aligned(
             Sequence<1, KPerBlock, NPerBlock, KPACK>{}, Number<max_align>{});
@@ -531,10 +532,8 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
             AddressSpace::Vgpr,
             AddressSpace::Lds,
             InMemoryDataOperation::Set,
-            NumSegments,
-            Sequence<1, NumSegments>,
-            BBlockCopyThreadSegmentLengths_G_K_N_KPACK>({group_id, 0, n_block_data_on_global, 0},
-                                                        {0, 0, 0, 0});
+            BBlockCopySrcDataStride,
+            1>({group_id, 0, n_block_data_on_global, 0}, {0, 0, 0, 0});
 
         // GEMM definition
         // c_mtx += transpose(a_mtx) * b_mtx
@@ -557,8 +556,7 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
             MWaves,
             NWaves,
             GemmDataPerReadM,
-            GemmDataPerReadN,
-            NumSegments>{};
+            GemmDataPerReadN>{};
 
         constexpr auto c_k_thread_mtx_desc = blockwise_gemm.GetThreadMatrixCDescriptor();
 
@@ -614,7 +612,6 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
 
                 __syncthreads();
 
-#if 0
                 // LDS doubel buffer: load next data from device mem
                 a_blockwise_copy.RunLoadThreadBuffer(p_a_global, p_a_thread_buffer);
                 b_blockwise_copy.RunLoadThreadBuffer(p_b_global, p_b_thread_buffer);
@@ -633,25 +630,6 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1
                     reinterpret_cast<const typename vector_type<ABFloat, KPACK>::MemoryType*>(
                         p_b_block_now);
                 blockwise_gemm.Run(p_a_block_vec, p_b_block_vec, p_c_thread);
-
-#else
-                const typename vector_type<ABFloat, KPACK>::MemoryType* p_a_block_vec =
-                    reinterpret_cast<const typename vector_type<ABFloat, KPACK>::MemoryType*>(
-                        p_a_block_now);
-                const typename vector_type<ABFloat, KPACK>::MemoryType* p_b_block_vec =
-                    reinterpret_cast<const typename vector_type<ABFloat, KPACK>::MemoryType*>(
-                        p_b_block_now);
-
-#pragma unroll
-                for(index_t seg_id = 0; seg_id < NumSegments; ++seg_id)
-                {
-                    a_blockwise_copy.RunLoadThreadBufferSegment(
-                        p_a_global, p_a_thread_buffer, seg_id);
-                    b_blockwise_copy.RunLoadThreadBufferSegment(
-                        p_b_global, p_b_thread_buffer, seg_id);
-                    blockwise_gemm.RunSegment(p_a_block_vec, p_b_block_vec, p_c_thread, seg_id);
-                }
-#endif
 
                 // LDS double buffer: store next data to LDS
                 a_blockwise_copy.RunStoreThreadBuffer(p_a_thread_buffer, p_a_block_next);
@@ -811,31 +789,30 @@ template <index_t GridSize,
           index_t BBlockCopySrcVectorReadDim,
           index_t BBlockCopySrcDataPerRead,
           index_t BBlockCopyDstDataPerWrite_KPACK,
-          InMemoryDataOperation OutputMemOp,
+          InMemoryDataOperation CGlobalMemoryOp,
           WorkgroupScheduleOrder WorkgroupSchdOrder,
+          index_t ABlockCopySrcDataStride                  = 1,
+          index_t BBlockCopySrcDataStride                  = 1,
           index_t NumSegments                              = 1,
           class ABlockCopyThreadSegmentLengths_G_K_M_KPACK = Sequence<1, 1, 1, 1>,
           class BBlockCopyThreadSegmentLengths_G_K_N_KPACK = Sequence<1, 1, 1, 1>>
-struct GridwiseBatchedGemmTransposedANormalBNormalCXdlops_v2
+struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v2
 {
     __device__ void Run(const ABFloat* const __restrict__ p_a_global,
                         const ABFloat* const __restrict__ p_b_global,
                         CFloat* const __restrict__ p_c_global) const
     {
+        constexpr auto True = integral_constant<bool, true>{};
 
         constexpr auto a_g_k_m_kpack_global_desc = AGlobalDesc{};
         constexpr auto b_g_k_n_kpack_global_desc = BGlobalDesc{};
         constexpr auto c_g_m_n_global_desc       = CGlobalDesc{};
 
-        constexpr auto True = integral_constant<bool, true>{};
-
-        constexpr auto Gi = b_g_k_n_kpack_global_desc.GetLengths()[0];
-        constexpr auto Go = c_g_m_n_global_desc.GetLengths()[0];
-
+        constexpr auto G     = c_g_m_n_global_desc.GetLengths()[0];
+        constexpr auto M     = c_g_m_n_global_desc.GetLengths()[1];
+        constexpr auto N     = c_g_m_n_global_desc.GetLengths()[2];
         constexpr auto K     = b_g_k_n_kpack_global_desc.GetLengths()[1];
-        constexpr auto N     = b_g_k_n_kpack_global_desc.GetLengths()[2];
-        constexpr auto M     = a_g_k_m_kpack_global_desc.GetLengths()[2];
-        constexpr auto KPACK = b_g_k_n_kpack_global_desc.GetLengths()[3];
+        constexpr auto KPack = b_g_k_n_kpack_global_desc.GetLengths()[3];
 
         // divide block work by [M, N]
         static_assert(M % MPerBlock == 0 && N % NPerBlock == 0 && K % KPerBlock == 0,
@@ -844,16 +821,16 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlops_v2
         constexpr index_t MBlockWork = M / MPerBlock;
         constexpr index_t NBlockWork = N / NPerBlock;
 
-        constexpr index_t MWaves = MPerBlock / MPerWave;
-        constexpr index_t NWaves = NPerBlock / NPerWave;
+        constexpr index_t MWavePerBlock = MPerBlock / MPerWave;
+        constexpr index_t NWavePerBlock = NPerBlock / NPerWave;
 
         constexpr auto block_work_sequence =
-            make_batch_block_work_sequence<Gi, MBlockWork, NBlockWork, WorkgroupSchdOrder>{}.get();
+            make_batch_block_work_sequence<G, MBlockWork, NBlockWork, WorkgroupSchdOrder>{}.get();
         constexpr auto block_work_desc = make_cluster_descriptor(block_work_sequence);
 
         const auto block_work_id = block_work_desc.CalculateClusterIndex(get_block_1d_id());
 
-        const index_t group_id               = block_work_id[0];
+        const index_t g_block_data_on_global = block_work_id[0];
         const index_t m_block_data_on_global = (WorkgroupSchdOrder == MBlock1NBlock0)
                                                    ? (block_work_id[1] * MPerBlock)
                                                    : (block_work_id[2] * MPerBlock);
@@ -862,12 +839,12 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlops_v2
                                                    : (block_work_id[1] * NPerBlock);
 
         //   LDS mem
-        constexpr index_t max_align = KPACK;
+        constexpr index_t max_align = KPack;
 
         //   LDS
         //     be careful of LDS alignment
         constexpr auto a_g_k_m_kpack_block_desc = make_native_tensor_descriptor_aligned(
-            Sequence<1, KPerBlock, MPerBlock, KPACK>{}, Number<max_align>{});
+            Sequence<1, KPerBlock, MPerBlock, KPack>{}, Number<max_align>{});
 
         auto a_blockwise_copy = BlockwiseGenericTensorSliceCopy_v4<
             BlockSize,
@@ -879,21 +856,23 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlops_v2
             ABlockCopyThreadClusterArrangeOrder,
             ABlockCopySrcAccessOrder,
             ABlockCopyDstAccessOrder,
-            ABlockCopySrcVectorReadDim, // Src dim to be read in vector form (K dimension)
-            3,                          // Dst dim to be written in vector form (KPACK dimension)
+            ABlockCopySrcVectorReadDim, // Src dim to be read in vector form
+            3,                          // Dst dim to be written in vector form (KPack dimension)
             ABlockCopySrcDataPerRead,
             ABlockCopyDstDataPerWrite_KPACK,
             AddressSpace::Global,
             AddressSpace::Vgpr,
             AddressSpace::Lds,
             InMemoryDataOperation::Set,
+            ABlockCopySrcDataStride,
+            1,
             NumSegments,
             Sequence<1, NumSegments>,
-            ABlockCopyThreadSegmentLengths_G_K_M_KPACK>({group_id, 0, m_block_data_on_global, 0},
-                                                        {0, 0, 0, 0});
+            ABlockCopyThreadSegmentLengths_G_K_M_KPACK>(
+            {g_block_data_on_global, 0, m_block_data_on_global, 0}, {0, 0, 0, 0});
 
         constexpr auto b_g_k_n_kpack_block_desc = make_native_tensor_descriptor_aligned(
-            Sequence<1, KPerBlock, NPerBlock, KPACK>{}, Number<max_align>{});
+            Sequence<1, KPerBlock, NPerBlock, KPack>{}, Number<max_align>{});
 
         // input blockwise copy
         auto b_blockwise_copy = BlockwiseGenericTensorSliceCopy_v4<
@@ -906,18 +885,20 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlops_v2
             BBlockCopyThreadClusterArrangeOrder,
             BBlockCopySrcAccessOrder,
             BBlockCopyDstAccessOrder,
-            BBlockCopySrcVectorReadDim, // Src dim to be read in vector form (K dimension)
-            3,                          // Dst dim to be written in vector form (KPACK dimension)
-            BBlockCopySrcDataPerRead,   // N dimension
+            BBlockCopySrcVectorReadDim, // Src dim to be read in vector form
+            3,                          // Dst dim to be written in vector form (KPack dimension)
+            BBlockCopySrcDataPerRead,
             BBlockCopyDstDataPerWrite_KPACK,
             AddressSpace::Global,
             AddressSpace::Vgpr,
             AddressSpace::Lds,
             InMemoryDataOperation::Set,
+            BBlockCopySrcDataStride,
+            1,
             NumSegments,
             Sequence<1, NumSegments>,
-            BBlockCopyThreadSegmentLengths_G_K_N_KPACK>({group_id, 0, n_block_data_on_global, 0},
-                                                        {0, 0, 0, 0});
+            BBlockCopyThreadSegmentLengths_G_K_N_KPACK>(
+            {g_block_data_on_global, 0, n_block_data_on_global, 0}, {0, 0, 0, 0});
 
         // GEMM definition
         // c_mtx += transpose(a_mtx) * b_mtx
@@ -937,8 +918,8 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlops_v2
             ABFloat,
             MPerWave,
             NPerWave,
-            MWaves,
-            NWaves,
+            MWavePerBlock,
+            NWavePerBlock,
             1,
             1,
             NumSegments>{};
@@ -967,8 +948,8 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlops_v2
             b_blockwise_copy.Run(p_b_global, p_b_block);
         }
 
-        using blockwise_a_copy_src_step = Sequence<0, KPerBlock, 0, 0>;
-        using blockwise_b_copy_src_step = Sequence<0, KPerBlock, 0, 0>;
+        constexpr auto blockwise_a_copy_src_step = Sequence<0, KPerBlock, 0, 0>{};
+        constexpr auto blockwise_b_copy_src_step = Sequence<0, KPerBlock, 0, 0>{};
 
         // main body
         for(index_t k_block_data_begin = 0; k_block_data_begin < K - KPerBlock;
@@ -978,23 +959,23 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlops_v2
             ABFloat p_b_thread_buffer[b_blockwise_copy.GetThreadBufferSize()];
 
             // load next data from device mem
-            a_blockwise_copy.MoveSrcSliceWindow(blockwise_a_copy_src_step{}, True);
-            b_blockwise_copy.MoveSrcSliceWindow(blockwise_b_copy_src_step{}, True);
+            a_blockwise_copy.MoveSrcSliceWindow(blockwise_a_copy_src_step, True);
+            b_blockwise_copy.MoveSrcSliceWindow(blockwise_b_copy_src_step, True);
 
-            const typename vector_type<ABFloat, KPACK>::MemoryType* p_a_block_vec =
-                reinterpret_cast<const typename vector_type<ABFloat, KPACK>::MemoryType*>(
+            const typename vector_type<ABFloat, KPack>::MemoryType* p_a_block_vec =
+                reinterpret_cast<const typename vector_type<ABFloat, KPack>::MemoryType*>(
                     p_a_block);
-            const typename vector_type<ABFloat, KPACK>::MemoryType* p_b_block_vec =
-                reinterpret_cast<const typename vector_type<ABFloat, KPACK>::MemoryType*>(
+            const typename vector_type<ABFloat, KPack>::MemoryType* p_b_block_vec =
+                reinterpret_cast<const typename vector_type<ABFloat, KPack>::MemoryType*>(
                     p_b_block);
 
 #if 0
-                a_blockwise_copy.RunLoadThreadBuffer(p_a_global, p_a_thread_buffer);
-                b_blockwise_copy.RunLoadThreadBuffer(p_b_global, p_b_thread_buffer);
+            a_blockwise_copy.RunLoadThreadBuffer(p_a_global, p_a_thread_buffer);
+            b_blockwise_copy.RunLoadThreadBuffer(p_b_global, p_b_thread_buffer);
 
-                block_sync_lds();
+            block_sync_lds();
 
-                blockwise_gemm.Run(p_a_block_vec, p_b_block_vec, p_c_thread);
+            blockwise_gemm.Run(p_a_block_vec, p_b_block_vec, p_c_thread);
 #else
             block_sync_lds();
 
@@ -1018,11 +999,11 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlops_v2
             block_sync_lds();
 
             // GEMM on last data
-            const typename vector_type<ABFloat, KPACK>::MemoryType* p_a_block_vec =
-                reinterpret_cast<const typename vector_type<ABFloat, KPACK>::MemoryType*>(
+            const typename vector_type<ABFloat, KPack>::MemoryType* p_a_block_vec =
+                reinterpret_cast<const typename vector_type<ABFloat, KPack>::MemoryType*>(
                     p_a_block);
-            const typename vector_type<ABFloat, KPACK>::MemoryType* p_b_block_vec =
-                reinterpret_cast<const typename vector_type<ABFloat, KPACK>::MemoryType*>(
+            const typename vector_type<ABFloat, KPack>::MemoryType* p_b_block_vec =
+                reinterpret_cast<const typename vector_type<ABFloat, KPack>::MemoryType*>(
                     p_b_block);
             blockwise_gemm.Run(p_a_block_vec, p_b_block_vec, p_c_thread);
         }
@@ -1045,7 +1026,7 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlops_v2
 
             constexpr auto c_g_m0_m1_m2_n_global_desc = transform_tensor_descriptor(
                 c_g_m_n_global_desc,
-                make_tuple(PassThrough<Go>{}, UnMerge<Sequence<M0, M1, M2>>{}, PassThrough<N>{}),
+                make_tuple(PassThrough<G>{}, UnMerge<Sequence<M0, M1, M2>>{}, PassThrough<N>{}),
                 make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}),
                 make_tuple(Sequence<0>{}, Sequence<1, 2, 3>{}, Sequence<4>{}));
 
@@ -1079,9 +1060,9 @@ struct GridwiseBatchedGemmTransposedANormalBNormalCXdlops_v2
                                                       1,
                                                       AddressSpace::Vgpr,
                                                       AddressSpace::Global,
-                                                      OutputMemOp>(
+                                                      CGlobalMemoryOp>(
                     {0, 0, 0, 0, 0},
-                    {group_id,
+                    {g_block_data_on_global,
                      m_thread_data_on_global / (M2 * M1),
                      m_thread_data_on_global % (M2 * M1) / M2,
                      m_thread_data_on_global % M2,

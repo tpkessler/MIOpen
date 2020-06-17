@@ -10,12 +10,20 @@ MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_IMPLICIT_GEMM_NON_XDLOPS_INLINE_ASM)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_XDLOPS)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_XDLOPS_EMULATE)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_IMPLICIT_GEMM_XDLOPS_INLINE_ASM)
-MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_USE_AMD_BUFFER_ADDRESSING)
-MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_USE_AMD_BUFFER_ADDRESSING_INTRINSIC)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_BLOCK_SYNC_LDS_WITHOUT_SYNC_VMEM)
 
 #define WORKAROUND_SWDEV_200782 1
 #define WORKAROUND_SWDEV_229277_227616_229195 1
+// workaround for unnecessary VGPA <--> AGRP data movement when using mfma LLVM intrinsic
+#define WORKAROUND_SWDEV_229564 1
+// workaround for buffer load/store fp16/bfp16 intrinsic bug
+#define WORKAROUND_SWDEV_231101 1
+// workaround for GPU memory access fault, due to compiler bug
+#define WORKAROUND_SWDEV_239555 1
+// LLVM xdlops instrinsic will do unnecessey VGRP <--> AGPR movement, and result in
+// register spill, for bfloat16 datatype, when doing blockwise GEMM larger
+// than 128x128 or wavewise-GEMM large than 64x64
+#define WORKAROUND_SWDEV_240356 1
 
 namespace miopen {
 
@@ -25,6 +33,8 @@ namespace solver {
 template <typename T>
 T gcd(T x, T y)
 {
+    assert(!(x == 0 && y == 0));
+
     if(x == y || x == 0)
     {
         return y;
@@ -381,14 +391,15 @@ inline static bool NextTwoPower(int& v)
     return false;
 }
 
-inline static bool NextFlag(bool& flag)
+template <bool L, bool H>
+inline static bool NextFlag(bool& v)
 {
-    if(flag)
+    if(v == H)
     {
-        flag = false;
+        v = L;
         return true;
     }
-    flag = true;
+    v = H;
     return false;
 }
 
@@ -403,7 +414,7 @@ static inline bool IsXdlopsSupport(const ConvolutionContext& c)
     return StartsWith(c.GetStream().GetDeviceName(), "gfx908") &&
 #if WORKAROUND_SWDEV_200782
            /// \todo Remove workaround when we drop suport of HCC older than 2.10.19392.
-           ((miopen::HipGetHccVersion() >= external_tool_version_t{2, 10, 19392})
+           ((miopen::HipCompilerVersion() >= external_tool_version_t{2, 10, 19392})
                 ? !miopen::IsDisabled(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_XDLOPS{})
                 : miopen::IsEnabled(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_XDLOPS{}));
 #else
@@ -411,11 +422,13 @@ static inline bool IsXdlopsSupport(const ConvolutionContext& c)
 #endif
 }
 
+///\todo remove
 inline static uint32_t GetReadWriteVectorSize(const int v)
 {
     return v % 4 == 0 ? 4 : (v % 2 == 0 ? 2 : 1);
 }
 
+///\todo remove
 inline static uint32_t GetEPackLength(const ConvolutionContext& ctx, bool isXdlopsInvoked)
 {
     // Based on data type, Es are packed
@@ -435,6 +448,7 @@ inline static uint32_t GetEPackLength(const ConvolutionContext& ctx, bool isXdlo
     return EPACK;
 }
 
+///\todo remove
 static inline bool IsValidXdlopsGemm(const int GemmMPerBlock,
                                      const int GemmNPerBlock,
                                      const int GemmKPackedPerBlock, // packed
@@ -472,6 +486,52 @@ static inline bool IsValidXdlopsGemm(const int GemmMPerBlock,
     return (GemmMPerBlock % GemmMPerWave) == 0 && (GemmNPerBlock % GemmNPerWave) == 0;
 }
 
+static inline bool IsIndexRangeLargeEnough(const ConvolutionContext& ctx)
+{
+    // composable kernel use int32_t for memory offset, which covers 2GB of memory maximum
+    const std::size_t max_index_range = std::size_t(2) * 1024 * 1024 * 1024;
+
+    return ctx.bot_sz < max_index_range && ctx.weights_sz < max_index_range &&
+           ctx.top_sz < max_index_range;
+}
+
+static inline bool IsValidBlockwiseGemmXdlops(const ConvolutionContext& ctx,
+                                              const int GemmMPerBlock,
+                                              const int GemmNPerBlock,
+                                              const int GemmKPerBlock,
+                                              const int GemmMPerWave,
+                                              const int GemmNPerWave,
+                                              const int GemmKPack)
+{
+    // unsupported xdlops-gemm
+    if(ctx.IsFp16() && GemmKPack % 4 != 0)
+        return false;
+    if(ctx.IsBfp16() && GemmKPack % 2 != 0)
+        return false;
+
+    if(GemmMPerWave == 16 && GemmNPerWave == 32)
+        return false;
+    if(GemmMPerWave == 32 && GemmNPerWave == 16)
+        return false;
+    if(GemmMPerWave == 8 && GemmNPerWave != 64)
+        return false;
+    if(GemmMPerWave == 4 && GemmNPerWave != 64)
+        return false;
+    if(GemmMPerWave == 32 && GemmNPerWave == 32 && GemmKPerBlock % 2 != 0)
+        return false;
+    if(GemmMPerWave == 16 && GemmNPerWave == 16 && GemmKPerBlock % 4 != 0)
+        return false;
+
+    const auto WaveSize = 64;
+    const auto BlockSize =
+        (GemmNPerBlock * GemmMPerBlock) / (GemmMPerWave * GemmNPerWave) * WaveSize;
+
+    if(BlockSize < 64 || BlockSize > 256)
+        return false;
+
+    return (GemmMPerBlock % GemmMPerWave) == 0 && (GemmNPerBlock % GemmNPerWave) == 0;
+}
+
 static inline bool
 IsValidGridGemmXdlops(const std::size_t GemmM, const std::size_t GemmN, const std::size_t GemmK)
 {
@@ -485,6 +545,7 @@ IsValidGridGemmXdlops(const std::size_t GemmM, const std::size_t GemmN, const st
            (GemmK * GemmN) % WaveSize == 0 && GemmN % 16 == 0 && GemmM % 4 == 0 && GemmK % 4 == 0;
 }
 
+///\todo remove
 static inline bool IsApplicableXdlops(const ConvolutionContext& ctx)
 {
     if(!IsXdlopsSupport(ctx))
@@ -536,6 +597,7 @@ static inline bool IsApplicableXdlops(const ConvolutionContext& ctx)
     return IsValidGridGemmXdlops(GemmM, GemmN, GemmK);
 }
 
+///\todo remove
 template <class PerformanceImplicitGemm_t>
 inline static auto GetPerformanceConfigBase(const ConvolutionContext& ctx)
 {
@@ -545,6 +607,7 @@ inline static auto GetPerformanceConfigBase(const ConvolutionContext& ctx)
     return pp;
 }
 
+///\todo remove
 static inline size_t ComputeLDSRequiredSize(const ConvolutionContext& ctx,
                                             const int BPerBlock,
                                             const int KPerBlock,
@@ -576,7 +639,7 @@ static inline size_t ComputeLDSRequiredSize(const ConvolutionContext& ctx,
 }
 
 template <typename BotBufType, typename TopBufType, typename WeiBufType>
-static inline int RunAndMeasureSolutionBase(miopen::Handle& profile_h,
+static inline int RunAndMeasureSolutionBase(const miopen::Handle& profile_h,
                                             BotBufType bot_buf,
                                             TopBufType top_buf,
                                             WeiBufType wei_buf,

@@ -32,6 +32,8 @@ template <index_t BlockSize,
           AddressSpace ThreadBufferAddressSpace = AddressSpace::Generic,
           AddressSpace DstAddressSpace          = AddressSpace::Generic,
           InMemoryDataOperation DstInMemOp      = InMemoryDataOperation::Set,
+          index_t SrcDataStride                 = 1,
+          index_t DstDataStride                 = 1,
           index_t NumSegments                   = 1,
           typename BlockSegmentLengths          = Sequence<1, 1>,
           typename ThreadSegmentLengths =
@@ -243,7 +245,9 @@ struct BlockwiseGenericTensorSliceCopy_v4
                                                                  1,
                                                                  SrcAddressSpace,
                                                                  ThreadBufferAddressSpace,
-                                                                 InMemoryDataOperation::Set>;
+                                                                 InMemoryDataOperation::Set,
+                                                                 SrcDataStride,
+                                                                 1>;
 
     using ThreadwiseStore = ThreadwiseGenericTensorSliceCopy_v4r2<ThreadBufferDesc,
                                                                   BlockDstDesc,
@@ -254,7 +258,9 @@ struct BlockwiseGenericTensorSliceCopy_v4
                                                                   DstDataPerWrite,
                                                                   ThreadBufferAddressSpace,
                                                                   DstAddressSpace,
-                                                                  DstInMemOp>;
+                                                                  DstInMemOp,
+                                                                  1,
+                                                                  DstDataStride>;
 
     ThreadwiseLoad mThreadwiseLoad;
     ThreadwiseStore mThreadwiseStore;
