@@ -36,6 +36,7 @@
 #include <miopen/write_file.hpp>
 #include <miopen/env.hpp>
 #include <miopen/comgr.hpp>
+#include <miopen/logger.hpp>
 #include <boost/optional.hpp>
 
 #include <cstring>
@@ -152,6 +153,8 @@ struct HIPOCProgramImpl
     void
     BuildCodeObjectInFile(std::string& params, const std::string& src, const std::string& filename, const std::string& extra_options)
     {
+        MIOPEN_LOG_I("BuildCodeObjectInFile for file: " << filename);
+
         dir.emplace(filename);
         hsaco_file = dir->path / (filename + ".o");
 
@@ -183,6 +186,8 @@ struct HIPOCProgramImpl
                                  const std::string& src,
                                  const std::string& filename)
     {
+        MIOPEN_LOG_I("BuildCodeObjectInMemory for file: " << filename);
+
         if(miopen::EndsWith(filename, ".so"))
         {
             std::size_t sz = src.length();
@@ -211,8 +216,13 @@ struct HIPOCProgramImpl
     {
         std::string filename = is_kernel_str ? "tinygemm.cl" // Fixed name for miopengemm.
                                              : program;
+        // GetKernelSrc will consult miopen_kernels.h for ascii version of 
+        // kernel, therefore result in a failure. However, the mlir version 
+        // of hipbuild does not care about what src is. Replacing it with
+        // an assignment now to be fixed later
         const std::string src =
-            !kernel_src.empty() ? kernel_src : is_kernel_str ? program : GetKernelSrc(program);
+            // !kernel_src.empty() ? kernel_src : is_kernel_str ? program : GetKernelSrc(program);
+            kernel_src;
 
         if(miopen::EndsWith(filename, ".cpp"))
         {

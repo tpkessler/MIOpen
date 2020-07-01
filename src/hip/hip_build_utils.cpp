@@ -106,9 +106,6 @@ boost::filesystem::path HipBuild(boost::optional<TmpDir>& tmp_dir,
         auto inc_src = GetKernelInc(inc_file);
         WriteFile(inc_src, inc_path / inc_file);
     }
-    src += "\nint main() {}\n";
-    WriteFile(src, tmp_dir->path / filename);
-    params += " -Wno-unused-command-line-argument -I.";
     auto input_file = tmp_dir->path / filename;
     auto bin_file = tmp_dir->path / (filename + ".o");
 
@@ -117,19 +114,36 @@ boost::filesystem::path HipBuild(boost::optional<TmpDir>& tmp_dir,
     MIOPEN_LOG_I("invoke MLIR kernel generator.");
     MIOPEN_LOG_I("C++ source: " << mlir_file.string() << ".cpp");
     MIOPEN_LOG_I("C++ header: " << mlir_file.string() << ".hpp");
+    // --p=false to disable MLIR default value population
     tmp_dir->Execute("/opt/rocm/miopen/bin/miopen_mlir_generator.sh",
-                     mlir_file.string() + " " + extra_options);
- 
+                     mlir_file.string() + " " + extra_options + " --p=false");
+
+    // get mlir kernel compilation flags.
+    auto mlir_cflags_file = tmp_dir->path / "gridwise_convolution_implicit_gemm_v4r4_mlir_cflags";
+    MIOPEN_LOG_I("getting MLIR kernel cflags.");
+    // --p=false to disable MLIR default value population
+    tmp_dir->Execute("/opt/rocm/miopen/bin/miopen_mlir_cflags.sh",
+                     mlir_cflags_file.string() + " " + extra_options + " --p=false");
+
+    if (!boost::filesystem::exists(mlir_cflags_file))
+        MIOPEN_THROW(filename + " failed to build due to missing compile-time flags");
+
+    std::string cflags;
+    cflags.reserve(4096);
+    bin_file_to_str(mlir_cflags_file, cflags);
+
+    // skip first line
+    cflags = cflags.substr(cflags.find("\n") + 1);
     // compile
     MIOPEN_LOG_I("input_file: " << input_file.string());
     MIOPEN_LOG_I("output_file: " << bin_file.string());
     MIOPEN_LOG_I("isa: " << dev_name);
-    MIOPEN_LOG_I("params: " << params);
+    MIOPEN_LOG_I("params: " << cflags);
     tmp_dir->Execute("/opt/rocm/miopen/bin/miopen_gridwise_gemm_builder.sh",
                      input_file.string() + " " +
                      bin_file.string() + "  " +
                      dev_name + " " +
-                     params
+                     cflags
                      );
     if(!boost::filesystem::exists(bin_file))
         MIOPEN_THROW(filename + " failed to compile");
