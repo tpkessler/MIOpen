@@ -87,9 +87,16 @@ boost::filesystem::path HipBuild(boost::optional<TmpDir>& tmp_dir,
                                  const std::string& filename,
                                  std::string src,
                                  std::string params,
-                                 const std::string& dev_name)
+                                 const std::string& dev_name,
+                                 const std::string& extra_options)
 {
 #ifdef __linux__
+    MIOPEN_LOG_I("filename: " << filename);
+    MIOPEN_LOG_I("src: " << src);
+    MIOPEN_LOG_I("params: " << params);
+    MIOPEN_LOG_I("dev_name: " << dev_name);
+    MIOPEN_LOG_I("extra_options: " << extra_options);
+
     // write out the include files
     auto inc_list = GetKernelIncList();
     auto inc_path = tmp_dir->path;
@@ -105,6 +112,14 @@ boost::filesystem::path HipBuild(boost::optional<TmpDir>& tmp_dir,
     auto input_file = tmp_dir->path / filename;
     auto bin_file = tmp_dir->path / (filename + ".o");
 
+    // invoke mlir kernel generator.
+    auto mlir_file = tmp_dir->path / "gridwise_convolution_implicit_gemm_v4r4_mlir";
+    MIOPEN_LOG_I("invoke MLIR kernel generator.");
+    MIOPEN_LOG_I("C++ source: " << mlir_file.string() << ".cpp");
+    MIOPEN_LOG_I("C++ header: " << mlir_file.string() << ".hpp");
+    tmp_dir->Execute("/opt/rocm/miopen/bin/miopen_mlir_generator.sh",
+                     mlir_file.string() + " " + extra_options);
+ 
     // compile
     MIOPEN_LOG_I("input_file: " << input_file.string());
     MIOPEN_LOG_I("output_file: " << bin_file.string());

@@ -699,7 +699,8 @@ static inline int RunAndMeasureSolutionBase(const miopen::Handle& profile_h,
                                               k_info.kernel_name,
                                               k_info.l_wk,
                                               k_info.g_wk,
-                                              k_info.comp_options);
+                                              k_info.comp_options,
+                                              0, false, "", k_info.extra_options);
 
             if(ctx.direction.IsBackwardWrW())
             {

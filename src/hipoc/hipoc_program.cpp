@@ -130,10 +130,11 @@ struct HIPOCProgramImpl
                      std::string params,
                      bool is_kernel_str,
                      std::string dev_name,
-                     const std::string& kernel_src)
+                     const std::string& kernel_src,
+                     const std::string& extra_options)
         : program(program_name), device(dev_name)
     {
-        BuildCodeObject(params, is_kernel_str, kernel_src);
+        BuildCodeObject(params, is_kernel_str, kernel_src, extra_options);
         if(!binary.empty())
             module = CreateModuleInMem(binary);
         else
@@ -149,7 +150,7 @@ struct HIPOCProgramImpl
 
 #if !MIOPEN_USE_COMGR
     void
-    BuildCodeObjectInFile(std::string& params, const std::string& src, const std::string& filename)
+    BuildCodeObjectInFile(std::string& params, const std::string& src, const std::string& filename, const std::string& extra_options)
     {
         dir.emplace(filename);
         hsaco_file = dir->path / (filename + ".o");
@@ -165,7 +166,7 @@ struct HIPOCProgramImpl
         }
         else if(miopen::EndsWith(filename, ".cpp"))
         {
-            hsaco_file = HipBuild(dir, filename, src, params, device);
+            hsaco_file = HipBuild(dir, filename, src, params, device, extra_options);
         }
         else
         {
@@ -206,7 +207,7 @@ struct HIPOCProgramImpl
     }
 #endif // MIOPEN_USE_COMGR
 
-    void BuildCodeObject(std::string params, bool is_kernel_str, const std::string& kernel_src)
+    void BuildCodeObject(std::string params, bool is_kernel_str, const std::string& kernel_src, const std::string& extra_options)
     {
         std::string filename = is_kernel_str ? "tinygemm.cl" // Fixed name for miopengemm.
                                              : program;
@@ -232,7 +233,7 @@ struct HIPOCProgramImpl
 #if MIOPEN_USE_COMGR /// \todo Refactor when functionality stabilize.
         BuildCodeObjectInMemory(params, src, filename);
 #else
-        BuildCodeObjectInFile(params, src, filename);
+        BuildCodeObjectInFile(params, src, filename, extra_options);
 #endif
     }
 };
@@ -242,9 +243,10 @@ HIPOCProgram::HIPOCProgram(const std::string& program_name,
                            std::string params,
                            bool is_kernel_str,
                            std::string dev_name,
-                           const std::string& kernel_src)
+                           const std::string& kernel_src,
+                           const std::string& extra_options)
     : impl(std::make_shared<HIPOCProgramImpl>(
-          program_name, params, is_kernel_str, dev_name, kernel_src))
+          program_name, params, is_kernel_str, dev_name, kernel_src, extra_options))
 {
 }
 

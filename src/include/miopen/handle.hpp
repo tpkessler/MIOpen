@@ -97,7 +97,8 @@ struct Handle : miopenHandle
                            const std::string& params,
                            std::size_t cache_index       = 0,
                            bool is_kernel_str            = false,
-                           const std::string& kernel_src = "") const;
+                           const std::string& kernel_src = "",
+                           const std::string& extra_options = "") const;
 
     bool HasKernel(const std::string& algorithm, const std::string& network_config) const;
 
@@ -126,7 +127,8 @@ struct Handle : miopenHandle
     Program LoadProgram(const std::string& program_name,
                         std::string params,
                         bool is_kernel_str,
-                        const std::string& kernel_src) const;
+                        const std::string& kernel_src,
+                        const std::string& extra_options) const;
 
     bool HasProgram(const std::string& program_name, const std::string& params) const;
 

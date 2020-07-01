@@ -48,7 +48,8 @@ struct HIPOCProgram
                  std::string params,
                  bool is_kernel_str,
                  std::string dev_name,
-                 const std::string& kernel_src);
+                 const std::string& kernel_src,
+                 const std::string& extra_options);
     HIPOCProgram(const std::string& program_name, const boost::filesystem::path& hsaco);
     HIPOCProgram(const std::string& program_name, const std::string& hsaco);
     std::shared_ptr<const HIPOCProgramImpl> impl;

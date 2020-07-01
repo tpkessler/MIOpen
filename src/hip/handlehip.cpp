@@ -297,7 +297,8 @@ KernelInvoke Handle::AddKernel(const std::string& algorithm,
                                const std::string& params,
                                std::size_t cache_index,
                                bool is_kernel_str,
-                               const std::string& kernel_src) const
+                               const std::string& kernel_src,
+                               const std::string& extra_options) const
 {
 
     auto obj = this->impl->cache.AddKernel(*this,
@@ -310,7 +311,8 @@ KernelInvoke Handle::AddKernel(const std::string& algorithm,
                                            params,
                                            cache_index,
                                            is_kernel_str,
-                                           kernel_src);
+                                           kernel_src,
+                                           extra_options);
     return this->Run(obj);
 }
 
@@ -363,7 +365,8 @@ KernelInvoke Handle::Run(Kernel k) const
 Program Handle::LoadProgram(const std::string& program_name,
                             std::string params,
                             bool is_kernel_str,
-                            const std::string& kernel_src) const
+                            const std::string& kernel_src,
+                            const std::string& extra_options) const
 {
     this->impl->set_ctx();
     //params += " -mcpu=" + this->GetDeviceName();
@@ -372,7 +375,7 @@ Program Handle::LoadProgram(const std::string& program_name,
     if(hsaco.empty())
     {
         auto p =
-            HIPOCProgram{program_name, params, is_kernel_str, this->GetDeviceName(), kernel_src};
+            HIPOCProgram{program_name, params, is_kernel_str, this->GetDeviceName(), kernel_src, extra_options};
 
 // Save to cache
 #if MIOPEN_ENABLE_SQLITE_KERN_CACHE

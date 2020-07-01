@@ -130,7 +130,8 @@ static inline void AddKernels(const Handle& handle,
                                        k.l_wk,
                                        k.g_wk,
                                        k.comp_options,
-                                       i);
+                                       i, false, "",
+                                       k.extra_options);
         if(kernels != nullptr)
         {
             kernels->push_back(kernel);

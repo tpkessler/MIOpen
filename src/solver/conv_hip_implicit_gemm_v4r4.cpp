@@ -711,6 +711,10 @@ ConvSolution ConvHipImplicitGemmV4R4Fwd::GetSolution(const ConvolutionContext& c
     std::tie(GemmCThreadCopyDstDataPerWrite_GemmN1, std::ignore) =
         config.CalculateGemmCThreadCopyPerformanceParameters(ctx);
 
+    MIOPEN_LOG_I("filter layout: " << ctx.weights_layout);
+    MIOPEN_LOG_I("input layout: " << ctx.in_layout);
+    MIOPEN_LOG_I("output layout: " << ctx.out_layout);
+
     // clang-format off
     construction_parameters.comp_options =
         std::string(" -std=c++14 ") +

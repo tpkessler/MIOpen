@@ -561,7 +561,8 @@ KernelInvoke Handle::Run(Kernel k) const
 Program Handle::LoadProgram(const std::string& program_name,
                             std::string params,
                             bool is_kernel_str,
-                            const std::string& kernel_src) const
+                            const std::string& kernel_src,
+                            const std::string& extra_options)
 {
     auto hsaco = miopen::LoadBinary(
         this->GetDeviceName(), this->GetMaxComputeUnits(), program_name, params, is_kernel_str);

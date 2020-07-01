@@ -74,7 +74,8 @@ class KernelCache
                      std::string params            = "",
                      std::size_t cache_index       = 0,
                      bool is_kernel_miopengemm_str = false,
-                     const std::string& kernel_src = "");
+                     const std::string& kernel_src = "",
+                     const std::string& extra_options = "");
 
     void AddKernel(Key key, Kernel k, std::size_t cache_index);
 
