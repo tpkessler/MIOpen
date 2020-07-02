@@ -109,31 +109,49 @@ boost::filesystem::path HipBuild(boost::optional<TmpDir>& tmp_dir,
     auto input_file = tmp_dir->path / filename;
     auto bin_file = tmp_dir->path / (filename + ".o");
 
-    // invoke mlir kernel generator.
-    auto mlir_file = tmp_dir->path / "gridwise_convolution_implicit_gemm_v4r4_mlir";
-    MIOPEN_LOG_I("invoke MLIR kernel generator.");
-    MIOPEN_LOG_I("C++ source: " << mlir_file.string() << ".cpp");
-    MIOPEN_LOG_I("C++ header: " << mlir_file.string() << ".hpp");
-    // --p=false to disable MLIR default value population
-    tmp_dir->Execute("/opt/rocm/miopen/bin/miopen_mlir_generator.sh",
-                     mlir_file.string() + " " + extra_options + " --p=false");
+    std::string cflags("");
+    // Invoke mlir kernel generator if filename has mlir in it
+    if(filename.find("mlir") != std::string::npos)
+    {
+        // Should not have src content for mlir generated files
+        assert(src.empty());
 
-    // get mlir kernel compilation flags.
-    auto mlir_cflags_file = tmp_dir->path / "gridwise_convolution_implicit_gemm_v4r4_mlir_cflags";
-    MIOPEN_LOG_I("getting MLIR kernel cflags.");
-    // --p=false to disable MLIR default value population
-    tmp_dir->Execute("/opt/rocm/miopen/bin/miopen_mlir_cflags.sh",
-                     mlir_cflags_file.string() + " " + extra_options + " --p=false");
+        // invoke mlir kernel generator.
+        auto mlir_file = tmp_dir->path / input_file.stem();
+        MIOPEN_LOG_I("invoke MLIR kernel generator.");
+        MIOPEN_LOG_I("C++ source: " << mlir_file.string() << ".cpp");
+        MIOPEN_LOG_I("C++ header: " << mlir_file.string() << ".hpp");
+        // --p=false to disable MLIR default value population
+        tmp_dir->Execute("/opt/rocm/miopen/bin/miopen_mlir_generator.sh",
+            mlir_file.string() + " " + extra_options + " --p=false");
 
-    if (!boost::filesystem::exists(mlir_cflags_file))
-        MIOPEN_THROW(filename + " failed to build due to missing compile-time flags");
+        // get mlir kernel compilation flags.
+        auto mlir_cflags_file = mlir_file;
+        mlir_cflags_file += "_cflags";
+        MIOPEN_LOG_I("getting MLIR kernel cflags.");
+        // --p=false to disable MLIR default value population
+        tmp_dir->Execute("/opt/rocm/miopen/bin/miopen_mlir_cflags.sh",
+            mlir_cflags_file.string() + " " + extra_options + " --p=false");
 
-    std::string cflags;
-    cflags.reserve(4096);
-    bin_file_to_str(mlir_cflags_file, cflags);
+        if(!boost::filesystem::exists(mlir_cflags_file))
+            MIOPEN_THROW(filename + " failed to build due to missing compile-time flags");
 
-    // skip first line
-    cflags = cflags.substr(cflags.find("\n") + 1);
+        bin_file_to_str(mlir_cflags_file, cflags);
+
+        // skip first line
+        cflags = cflags.substr(cflags.find("\n") + 1);
+    } else {
+        src += "\nint main() {}\n";
+        WriteFile(src, tmp_dir->path / filename);
+
+        // Get rid of -mcpu=gfx*** because hcc does not directly consume it
+        size_t pos = pos = params.find("-mcpu=gfx");
+        if(pos != std::string::npos){
+            params.erase(pos, sizeof("-mcpu=gfx900"));
+        }
+        cflags = params;
+    }
+
     // compile
     MIOPEN_LOG_I("input_file: " << input_file.string());
     MIOPEN_LOG_I("output_file: " << bin_file.string());

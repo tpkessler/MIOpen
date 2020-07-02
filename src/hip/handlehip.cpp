@@ -331,7 +331,10 @@ Invoker Handle::PrepareInvoker(const InvokerFactory& factory,
                                                         k.l_wk,
                                                         k.g_wk,
                                                         k.comp_options,
-                                                        kernels.size());
+                                                        kernels.size(),
+                                                        false,
+                                                        "",
+                                                        k.extra_options);
         built.push_back(kernel);
     }
     return factory(built);
@@ -369,9 +372,10 @@ Program Handle::LoadProgram(const std::string& program_name,
                             const std::string& extra_options) const
 {
     this->impl->set_ctx();
-    //params += " -mcpu=" + this->GetDeviceName();
+    params += " -mcpu=" + this->GetDeviceName();
+    std::string all_params = params + extra_options;
     auto hsaco = miopen::LoadBinary(
-        this->GetDeviceName(), this->GetMaxComputeUnits(), program_name, params, is_kernel_str);
+        this->GetDeviceName(), this->GetMaxComputeUnits(), program_name, all_params, is_kernel_str);
     if(hsaco.empty())
     {
         auto p =
@@ -385,7 +389,7 @@ Program Handle::LoadProgram(const std::string& program_name,
                            this->GetDeviceName(),
                            this->GetMaxComputeUnits(),
                            program_name,
-                           params,
+                           all_params,
                            is_kernel_str);
 #else
         auto path      = miopen::GetCachePath(false) / boost::filesystem::unique_path();
@@ -393,13 +397,14 @@ Program Handle::LoadProgram(const std::string& program_name,
             miopen::WriteFile(p.GetCodeObjectBlob(), path);
         else
             boost::filesystem::copy_file(p.GetCodeObjectPathname(), path);
-        miopen::SaveBinary(path, this->GetDeviceName(), program_name, params, is_kernel_str);
+        miopen::SaveBinary(path, this->GetDeviceName(), program_name, all_params, is_kernel_str);
 #endif
 
         return p;
     }
     else
     {
+        MIOPEN_LOG_I("program found");
         return HIPOCProgram{program_name, hsaco};
     }
 }

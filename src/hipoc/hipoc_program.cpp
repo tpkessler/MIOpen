@@ -220,9 +220,20 @@ struct HIPOCProgramImpl
         // kernel, therefore result in a failure. However, the mlir version 
         // of hipbuild does not care about what src is. Replacing it with
         // an assignment now to be fixed later
-        const std::string src =
-            // !kernel_src.empty() ? kernel_src : is_kernel_str ? program : GetKernelSrc(program);
-            kernel_src;
+        std::string src;
+        if(!kernel_src.empty())
+        {
+            src = kernel_src;
+        }
+        else if(program.find("mlir") != std::string::npos)
+        {
+            // For MLIR path, leave the kernel_src to be empty.
+            src = kernel_src;
+        }
+        else
+        {
+            src = is_kernel_str ? program : GetKernelSrc(program);
+        }
 
         if(miopen::EndsWith(filename, ".cpp"))
         {

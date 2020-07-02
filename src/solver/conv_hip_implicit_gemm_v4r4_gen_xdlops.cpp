@@ -332,9 +332,10 @@ static inline ConvSolution GetSolutionBase(const ConvolutionContext& ctx,
     // Arguments for mlir-miopen-driver.
     using CI = ConvolutionContextInterpreter;
     construction_parameters.extra_options =
-        std::string("--fil_layout ") + ctx.weights_layout +
-        std::string(" --in_layout ") + ctx.in_layout +
-        std::string(" --out_layout ") + ctx.out_layout +
+        std::string(" --operation conv2d") +
+        std::string(" --fil_layout ") + CI::GetFilterLayout(ctx) +
+        std::string(" --in_layout ") + CI::GetInputLayout(ctx) +
+        std::string(" --out_layout ") + CI::GetOutputLayout(ctx) +
         std::string(" --batchsize ") + std::to_string(CI::GetBatchN(ctx)) +
         std::string(" --in_channels ") + std::to_string(CI::GetInputChannelC(ctx)) +
         std::string(" --out_channels ") + std::to_string(CI::GetOutputChannelK(ctx)) +

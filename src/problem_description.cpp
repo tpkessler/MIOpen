@@ -35,6 +35,8 @@ int ProblemDescription::mloBuildConf_Key(std::string& conf_key) const
     ss << 'x' << PrintDHW('x', spatial_dims, out_depth, out_height, out_width);
     ss << 'x' << batch_sz;
     ss << 'x' << in_layout;
+    ss << 'x' << weights_layout;
+    ss << 'x' << out_layout;
     ss << 'x' << EncodeDataTypesForKey(in_data_type, weights_data_type, out_data_type);
     ss << 'x' << PrintDHW('x', spatial_dims, pad_d, pad_h, pad_w);
     ss << 'x' << PrintDHW('x', spatial_dims, kernel_stride_d, kernel_stride_h, kernel_stride_w);
