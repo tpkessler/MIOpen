@@ -85,32 +85,17 @@ static inline ConvSolution GetSolutionBase(const ConvolutionContext& ctx,
     construction_parameters.g_wk.push_back(gbl_wk1);
     construction_parameters.g_wk.push_back(gbl_wk2);
 
-    if(kernel == ImplicitGemmXdlopsKernel::KernelFwdWrw)
+    if(ctx.direction.IsForward())
     {
-        // clang-format off
-        if(ctx.group_counts > 1)
-        {
-
-            construction_parameters.kernel_file =
-                "gridwise_convolution_implicit_gemm_v4r4_gen_xdlops_gnchw_gkcyx_gnkhw_lds_double_buffer.cpp";
-
-            construction_parameters.kernel_name =
-		"gridwise_convolution_implicit_gemm_v4r4_gen_xdlops_gnchw_gkcyx_gnkhw_lds_double_buffer";
-        }
-        else
-        {
-
-            construction_parameters.kernel_file =
-                "gridwise_convolution_implicit_gemm_v4r4_gen_xdlops_nchw_kcyx_nkhw_lds_double_buffer.cpp";
-
-            construction_parameters.kernel_name =
-		"gridwise_convolution_implicit_gemm_v4r4_gen_xdlops_nchw_kcyx_nkhw_lds_double_buffer";
-        }
-        // clang-format on
+        construction_parameters.kernel_file = "gridwise_convolution_implicit_gemm_v4r4_mlir.cpp";
+        construction_parameters.kernel_name = "gridwise_convolution_implicit_gemm_v4r4_mlir";
     }
     else
     {
-        MIOPEN_THROW("invalid value of 'kernel'");
+        construction_parameters.kernel_file =
+            "gridwise_convolution_backward_weight_implicit_gemm_v4r4_mlir.cpp";
+        construction_parameters.kernel_name =
+            "gridwise_convolution_backward_weight_implicit_gemm_v4r4_mlir";
     }
 
     std::size_t ABlockCopySubLengths_GemmK = GemmKPerBlock / config.WeiBlockCopyClusterLengths_E;
@@ -332,7 +317,10 @@ static inline ConvSolution GetSolutionBase(const ConvolutionContext& ctx,
     // Arguments for mlir-miopen-driver.
     using CI = ConvolutionContextInterpreter;
     construction_parameters.extra_options =
-        std::string(" --operation conv2d") +
+        ctx.direction.IsBackwardWrW() ? std::string(" --operation conv2d_bwd_weight") : std::string(" --operation conv2d");
+
+
+    construction_parameters.extra_options +=
         std::string(" --fil_layout ") + CI::GetFilterLayout(ctx) +
         std::string(" --in_layout ") + CI::GetInputLayout(ctx) +
         std::string(" --out_layout ") + CI::GetOutputLayout(ctx) +
