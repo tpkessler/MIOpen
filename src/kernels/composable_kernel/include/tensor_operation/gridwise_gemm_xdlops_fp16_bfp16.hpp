@@ -914,8 +914,17 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v2
         constexpr index_t b_block_space =
             math::integer_least_multiple(b_g_k_n_kpack_block_desc.GetElementSpace(), max_align);
 
-        __shared__ ABFloat p_a_block[a_block_space];
-        __shared__ ABFloat p_b_block[b_block_space];
+        constexpr index_t wave_size      = 64;
+        constexpr index_t copy_buff_size = (a_block_space + b_block_space) * sizeof(ABFloat);
+        constexpr index_t shfl_buff_size =
+            wave_size * c_k_thread_mtx_desc.GetElementSpace() * sizeof(AccFloat);
+        constexpr index_t lds_buff_size =
+            copy_buff_size > shfl_buff_size ? copy_buff_size : shfl_buff_size;
+
+        __shared__ char lds_buff[lds_buff_size];
+
+        ABFloat* p_a_block = reinterpret_cast<ABFloat*>(lds_buff);
+        ABFloat* p_b_block = p_a_block + a_block_space;
 
         // register allocation for output
         AccFloat p_c_thread[c_k_thread_mtx_desc.GetElementSpace()];
@@ -981,6 +990,39 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v2
 
         // load data from xldop_acc_regs
         blockwise_gemm.XdlopsMatrixCRead(p_c_thread);
+
+// shuffle
+#if 0
+        {
+            typename vector_type<AccFloat, 4>::MemoryType* shfl_buff =
+                reinterpret_cast<typename vector_type<AccFloat, 4>::MemoryType*>(lds_buff);
+
+            typename vector_type<AccFloat, 4>::MemoryType* reg_buff =
+                reinterpret_cast<typename vector_type<AccFloat, 4>::MemoryType*>(p_c_thread);
+
+            constexpr index_t num_waves = BlockSize / wave_size;
+            constexpr index_t reg_size = c_k_thread_mtx_desc.GetElementSpace() / 4;
+
+            const index_t thread_id = get_thread_local_1d_id();
+            const index_t wave_id   = thread_id / wave_size;
+            const index_t lane_id   = thread_id % wave_size;
+
+            for(index_t active_wave = 0; active_wave < num_waves; ++active_wave)
+            {
+                if(wave_id == active_wave)
+                {
+                    for(index_t i = 0; i < reg_size; ++i)
+                    {
+                        shfl_buff[lane_id * reg_size + i] = reg_buff[i];
+                        reg_buff[i] = shfl_buff[(lane_id + 32) % wave_size * reg_size + i];
+                    }
+                }
+
+                block_sync_lds();
+            }
+
+        }
+#endif
 
         // copy output: register to global memory
         {
