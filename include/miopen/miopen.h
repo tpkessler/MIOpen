@@ -770,6 +770,9 @@ miopenGetConvolutionNdDescriptor(miopenConvolutionDescriptor_t convDesc,
 MIOPEN_EXPORT miopenStatus_t miopenSetConvolutionGroupCount(miopenConvolutionDescriptor_t convDesc,
                                                             int groupCount);
 
+MIOPEN_EXPORT miopenStatus_t miopenSetConvolutionForceXDLOPS(miopenConvolutionDescriptor_t convDesc,
+                                                             bool forceXdlops);
+
 /*! @brief Set the output padding to be used in 2-D Transpose convolution
 *
 * This function is optional for initialization of Transpose convolution. If applicable, it must be

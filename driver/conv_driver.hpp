@@ -867,6 +867,12 @@ int ConvDriver<Tgpu, Tref>::SetConvDescriptorFromCmdLineArgs()
         miopenSetTransposeConvNdOutputPadding(convDesc, spatial_dim, trans_output_pads.data());
     }
 
+    if (inflags.GetValueInt("xdlops") == 1) {
+        miopenSetConvolutionForceXDLOPS(convDesc, true);
+    } else {
+        miopenSetConvolutionForceXDLOPS(convDesc, false);
+    }
+
     return miopenStatusSuccess;
 }
 

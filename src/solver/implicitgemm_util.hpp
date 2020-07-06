@@ -437,7 +437,8 @@ inline static bool NextFlag(bool& v)
 
 static inline bool IsXdlopsSupport(const ConvolutionContext& c)
 {
-    if(miopen::IsEnabled(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_XDLOPS_EMULATE{}))
+    if(miopen::IsEnabled(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_XDLOPS_EMULATE{}) ||
+       c.force_xdlops)
         return true;
 
     // disable xdlops kernels by default due to possible failures:

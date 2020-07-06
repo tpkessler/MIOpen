@@ -95,6 +95,7 @@ ProblemDescription::ProblemDescription(const TensorDescriptor& in,
                              ? conv::ProblemDescription{in, weights, out, conv, dir, bias_}
                              : conv::ProblemDescription{out, weights, in, conv, dir, bias_})
 {
+    force_xdlops = conv.force_xdlops;
 }
 
 ProblemDescription::ProblemDescription(conv::ProblemDescription desc)
