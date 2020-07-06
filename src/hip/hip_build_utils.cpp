@@ -140,78 +140,122 @@ boost::filesystem::path HipBuild(boost::optional<TmpDir>& tmp_dir,
 
         // skip first line
         cflags = cflags.substr(cflags.find("\n") + 1);
+        size_t pos = cflags.find("\n");
+        if (pos != std::string::npos){
+          cflags.replace(pos, sizeof("\n"), " ");
+        }
     } else {
         src += "\nint main() {}\n";
         WriteFile(src, tmp_dir->path / filename);
-
-        // Get rid of -mcpu=gfx*** because hcc does not directly consume it
-        size_t pos = pos = params.find("-mcpu=gfx");
-        if(pos != std::string::npos){
-            params.erase(pos, sizeof("-mcpu=gfx900"));
-        }
-        cflags = params;
     }
 
+    auto env = std::string("");
+    if(IsHccCompiler())
+    {
+        params += " -amdgpu-target=" + dev_name;
+        params += " " + GetCoV3Option(ProduceCoV3());
+    }
+    else if(IsHipClangCompiler())
+    {
+        if(params.find("-std=") == std::string::npos)
+            params += " --std=c++14";
+        params += " --cuda-gpu-arch=" + dev_name;
+        params += " --cuda-device-only";
+        params += " -c";
+        params += " -O3 ";
+    }
+
+    params += " -Wno-unused-command-line-argument -I. ";
+    params += MIOPEN_STRINGIZE(HIP_COMPILER_FLAGS);
+    if(IsHccCompiler())
+    {
+        env += std::string("KMOPTLLC=\"-mattr=+enable-ds128 -amdgpu-enable-global-sgpr-addr");
+        if(miopen::HipCompilerVersion() >= external_tool_version_t{2, 8, 0})
+            env += " --amdgpu-spill-vgpr-to-agpr=0";
+        env += '\"';
+    }
+    else if(IsHipClangCompiler())
+    {
+        params += " -mllvm -amdgpu-enable-global-sgpr-addr";
+        params += " -mllvm --amdgpu-spill-vgpr-to-agpr=0";
+    }
+
+#if MIOPEN_BUILD_DEV
+    if(miopen::IsEnabled(MIOPEN_DEBUG_HIP_VERBOSE{}))
+    {
+        params += " -v";
+    }
+
+    if(miopen::IsEnabled(MIOPEN_DEBUG_HIP_DUMP{}))
+    {
+        if(IsHccCompiler())
+        {
+            params += " -gline-tables-only";
+            env += " KMDUMPISA=1";
+            env += " KMDUMPLLVM=1";
+        }
+        else if(IsHipClangCompiler())
+        {
+            params += " -gline-tables-only";
+            params += " -save-temps";
+        }
+    }
+#endif
+
+    params =  cflags + params + " ";
+
     // compile
-    MIOPEN_LOG_I("input_file: " << input_file.string());
-    MIOPEN_LOG_I("output_file: " << bin_file.string());
-    MIOPEN_LOG_I("isa: " << dev_name);
-    MIOPEN_LOG_I("params: " << cflags);
-    tmp_dir->Execute("/opt/rocm/miopen/bin/miopen_gridwise_gemm_builder.sh",
-                     input_file.string() + " " +
-                     bin_file.string() + "  " +
-                     dev_name + " " +
-                     cflags
-                     );
+    tmp_dir->Execute(env + std::string(" ") + MIOPEN_HIP_COMPILER,
+                     params + filename + " -o " + bin_file.string());
     if(!boost::filesystem::exists(bin_file))
         MIOPEN_THROW(filename + " failed to compile");
-//#ifdef EXTRACTKERNEL_BIN
-//    if(IsHccCompiler())
-//    {
-//        // call extract kernel
-//        tmp_dir->Execute(EXTRACTKERNEL_BIN, " -i " + bin_file.string());
-//        auto hsaco =
-//            std::find_if(boost::filesystem::directory_iterator{tmp_dir->path},
-//                         {},
-//                         [](auto entry) { return (entry.path().extension() == ".hsaco"); });
-//
-//        if(hsaco == boost::filesystem::directory_iterator{})
-//        {
-//            MIOPEN_LOG_E("failed to find *.hsaco in " << hsaco->path().string());
-//        }
-//
-//        return hsaco->path();
-//    }
-//    else
-//#endif
-//#ifdef MIOPEN_OFFLOADBUNDLER_BIN
-//        // clang-format off
-//    if(IsHipClangCompiler())
-//    {
-//        // clang-format on
-//
-//        // call clang-offload-bundler
-//        tmp_dir->Execute(MIOPEN_OFFLOADBUNDLER_BIN,
-//                         "--type=o --targets=hip-amdgcn-amd-amdhsa-" + dev_name + " --inputs=" +
-//                             bin_file.string() + " --outputs=" + bin_file.string() +
-//                             ".hsaco --unbundle");
-//
-//        auto hsaco =
-//            std::find_if(boost::filesystem::directory_iterator{tmp_dir->path},
-//                         {},
-//                         [](auto entry) { return (entry.path().extension() == ".hsaco"); });
-//
-//        if(hsaco == boost::filesystem::directory_iterator{})
-//        {
-//            MIOPEN_LOG_E("failed to find *.hsaco in " << hsaco->path().string());
-//        }
-//        return hsaco->path();
-//    }
-//    else
-//#endif
-//    {
+#ifdef EXTRACTKERNEL_BIN
+    if(IsHccCompiler())
+    {
+        // call extract kernel
+        tmp_dir->Execute(EXTRACTKERNEL_BIN, " -i " + bin_file.string());
+        auto hsaco =
+            std::find_if(boost::filesystem::directory_iterator{tmp_dir->path},
+                         {},
+                         [](auto entry) { return (entry.path().extension() == ".hsaco"); });
+
+        if(hsaco == boost::filesystem::directory_iterator{})
+        {
+            MIOPEN_LOG_E("failed to find *.hsaco in " << hsaco->path().string());
+        }
+
+        return hsaco->path();
+    }
+    else
+#endif
+#ifdef MIOPEN_OFFLOADBUNDLER_BIN
+        // clang-format off
+    if(IsHipClangCompiler())
+    {
+        // clang-format on
+
+        // call clang-offload-bundler
+        tmp_dir->Execute(MIOPEN_OFFLOADBUNDLER_BIN,
+                         "--type=o --targets=hip-amdgcn-amd-amdhsa-" + dev_name + " --inputs=" +
+                             bin_file.string() + " --outputs=" + bin_file.string() +
+                             ".hsaco --unbundle");
+
+        auto hsaco =
+            std::find_if(boost::filesystem::directory_iterator{tmp_dir->path},
+                         {},
+                         [](auto entry) { return (entry.path().extension() == ".hsaco"); });
+
+        if(hsaco == boost::filesystem::directory_iterator{})
+        {
+            MIOPEN_LOG_E("failed to find *.hsaco in " << hsaco->path().string());
+        }
+        return hsaco->path();
+    }
+    else
+#endif
+    {
         return bin_file;
-//    }
+    }
 #else
     (void)filename;
     (void)params;

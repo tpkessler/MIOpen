@@ -651,10 +651,10 @@ install(FILES
 
 rocm_install_symlink_subdir(${MIOPEN_INSTALL_DIR})
 
-# Install miopen_gridwise_gemm_builder.sh.
-install(FILES kernels/composable_kernel/bin/miopen_gridwise_gemm_builder.sh
-  PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-  DESTINATION ${MIOPEN_INSTALL_DIR}/bin)
+## Install miopen_gridwise_gemm_builder.sh.
+#install(FILES kernels/composable_kernel/bin/miopen_gridwise_gemm_builder.sh
+#  PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+#  DESTINATION ${MIOPEN_INSTALL_DIR}/bin)
 
 # Install miopen_mlir_generator.sh.
 install(FILES kernels/composable_kernel/bin/miopen_mlir_generator.sh
