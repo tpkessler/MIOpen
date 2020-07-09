@@ -991,17 +991,19 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v2
         // load data from xldop_acc_regs
         blockwise_gemm.XdlopsMatrixCRead(p_c_thread);
 
-// shuffle
-#if 0
+// out-of-place shuffle
+#if 1
         {
-            typename vector_type<AccFloat, 4>::MemoryType* shfl_buff =
-                reinterpret_cast<typename vector_type<AccFloat, 4>::MemoryType*>(lds_buff);
+            constexpr index_t group_size = 4;
+            typename vector_type<AccFloat, group_size>::MemoryType* shfl_buff =
+                reinterpret_cast<typename vector_type<AccFloat, group_size>::MemoryType*>(lds_buff);
 
-            typename vector_type<AccFloat, 4>::MemoryType* reg_buff =
-                reinterpret_cast<typename vector_type<AccFloat, 4>::MemoryType*>(p_c_thread);
+            typename vector_type<AccFloat, group_size>::MemoryType* reg_buff =
+                reinterpret_cast<typename vector_type<AccFloat, group_size>::MemoryType*>(
+                    p_c_thread);
 
-            constexpr index_t num_waves = BlockSize / wave_size;
-            constexpr index_t reg_size = c_k_thread_mtx_desc.GetElementSpace() / 4;
+            constexpr index_t num_waves  = BlockSize / wave_size;
+            constexpr index_t num_groups = c_k_thread_mtx_desc.GetElementSpace() / group_size;
 
             const index_t thread_id = get_thread_local_1d_id();
             const index_t wave_id   = thread_id / wave_size;
@@ -1011,16 +1013,15 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v2
             {
                 if(wave_id == active_wave)
                 {
-                    for(index_t i = 0; i < reg_size; ++i)
+                    for(index_t i = 0; i < num_groups; ++i)
                     {
-                        shfl_buff[lane_id * reg_size + i] = reg_buff[i];
-                        reg_buff[i] = shfl_buff[(lane_id + 32) % wave_size * reg_size + i];
+                        shfl_buff[lane_id * num_groups + i] = reg_buff[i];
+                        reg_buff[i] = shfl_buff[(lane_id + 32) % wave_size * num_groups + i];
                     }
                 }
 
                 block_sync_lds();
             }
-
         }
 #endif
 
