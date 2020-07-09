@@ -756,13 +756,6 @@ ConvSolution ConvHipImplicitGemmBwdDataV1R1::GetSolution(
         ctx.Is3d() ? "gridwise_convolution_backward_data_implicit_gemm_v1r1_ncdhw_kczyx_nkdhw"
                    : "gridwise_convolution_backward_data_implicit_gemm_v1r1_nchw_kcyx_nkhw";
 
-    // Override to mlir generated kernel in non 3d case
-    if (!ctx.Is3d()){
-      construction_parameters.kernel_file = "gridwise_convolution_implicit_gemm_v1r1_mlir.cpp";
-      construction_parameters.kernel_name =
-          "gridwise_convolution_backward_data_implicit_gemm_v1r1_mlir";
-    }
-
     int GemmMLevel0Cluster                      = 0;
     int GemmNLevel0Cluster                      = 0;
     int GemmMLevel1Cluster                      = 0;
@@ -820,7 +813,7 @@ ConvSolution ConvHipImplicitGemmBwdDataV1R1::GetSolution(
     result.workspce_sz = GetWorkspaceSize(ctx);
 
     // clang-format off
-    std::string comp_options = 
+    construction_parameters.comp_options =
         std::string(" -std=c++14 ") +
         std::string(" -DCK_PARAM_PROBLEM_N=") + std::to_string(ConvolutionContextInterpreter::GetBatchN(ctx)) +
         std::string(" -DCK_PARAM_PROBLEM_K=") + std::to_string(ConvolutionContextInterpreter::GetOutputChannelK(ctx)) +
@@ -883,7 +876,7 @@ ConvSolution ConvHipImplicitGemmBwdDataV1R1::GetSolution(
 
     if(ctx.IsFp32())
     {
-        comp_options +=
+        construction_parameters.comp_options +=
             std::string(" -DCK_PARAM_TUNABLE_GEMM_A_BLOCK_COPY_DST_DATA_PER_WRITE_GEMM_M=") +
             std::to_string(GemmABlockCopyDstDataPerWrite_GemmM) +
             std::string(" -DCK_PARAM_TUNABLE_GEMM_B_BLOCK_COPY_DST_DATA_PER_WRITE_GEMM_N=") +
@@ -891,47 +884,13 @@ ConvSolution ConvHipImplicitGemmBwdDataV1R1::GetSolution(
     }
     else
     {
-        comp_options +=
+        construction_parameters.comp_options +=
             std::string(" -DCK_PARAM_KPACK_LENGTH=") + std::to_string(GetEPackLength(ctx, false)) +
             std::string(" -DCK_PARAM_TUNABLE_GEMM_A_BLOCK_COPY_DST_DATA_PER_WRITE_GEMM_KPACK=") +
             std::to_string(GemmABlockCopyDstDataPerWrite_GemmKPACK) +
             std::string(" -DCK_PARAM_TUNABLE_GEMM_B_BLOCK_COPY_DST_DATA_PER_WRITE_GEMM_KPACK=") +
             std::to_string(GemmBBlockCopyDstDataPerWrite_GemmKPACK);
     }
-    MIOPEN_LOG_I("default options: " + comp_options);
-
-    // clang-format off
-    // Arguments for mlir-miopen-driver.
-    using CI = ConvolutionContextInterpreter;
-    construction_parameters.comp_options =
-        std::string(" --operation conv2d_bwd_data ") + 
-        std::string(" --fil_layout ") + CI::GetFilterLayout(ctx) +
-        std::string(" --in_layout ") + CI::GetInputLayout(ctx) +
-        std::string(" --out_layout ") + CI::GetOutputLayout(ctx) +
-        std::string(" --batchsize ") + std::to_string(CI::GetBatchN(ctx)) + 
-        std::string(" --in_channels ") + std::to_string(CI::GetInputChannelC(ctx)) + 
-        std::string(" --out_channels ") + std::to_string(CI::GetOutputChannelK(ctx)) + 
-        std::string(" --in_h ") + std::to_string(CI::GetInputHeightHi(ctx)) + 
-        std::string(" --in_w ") + std::to_string(CI::GetInputWidthWi(ctx)) + 
-        std::string(" --out_h ") + std::to_string(CI::GetOutputHeightHo(ctx)) + 
-        std::string(" --out_w ") + std::to_string(CI::GetOutputWidthWo(ctx)) + 
-        std::string(" --fil_h ") + std::to_string(CI::GetFilterHeightY(ctx)) + 
-        std::string(" --fil_w ") + std::to_string(CI::GetFilterWidthX(ctx)) + 
-        std::string(" --dilation_h ") + std::to_string(CI::GetAdjustedConvolutionDilationH(ctx)) + 
-        std::string(" --dilation_w ") + std::to_string(CI::GetAdjustedConvolutionDilationW(ctx)) +
-        std::string(" --conv_stride_h ") + std::to_string(CI::GetAdjustedConvolutionStrideH(ctx)) +
-        std::string(" --conv_stride_w ") + std::to_string(CI::GetAdjustedConvolutionStrideW(ctx)) +
-        std::string(" --padding_h ") + std::to_string(CI::GetInputLeftPadH(ctx)) +
-        std::string(" --padding_w ") + std::to_string(CI::GetInputLeftPadW(ctx))
-        // TBD handle left/right padding.
-        // std::string(" --padding_h ") + std::string(in_right_pad_h) +
-        // std::string(" --padding_w ") + std::string(in_right_pad_w) +
-        ;
-
-    MIOPEN_LOG_I("extra options: " << construction_parameters.comp_options);
-
-    construction_parameters.comp_options = ctx.general_compile_options;
-    //construction_parameters.comp_options = comp_options;
 
     result.invoker_factory = conv::MakeImplGemmDataInvokerFactory(ctx);
     result.construction_params.push_back(construction_parameters);
