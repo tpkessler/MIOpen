@@ -672,11 +672,12 @@ ConvSolution ConvHipImplicitGemmV4R4WrW::GetSolution(const ConvolutionContext& c
     }
     else
     {
+        // Adopt mlir kernel file and kernel name.
         construction_parameters.kernel_file =
-            "gridwise_convolution_backward_weights_implicit_gemm_v4r4_nchw_kcyx_nkhw.cpp";
+            "gridwise_convolution_backward_weight_implicit_gemm_v4r4_mlir.cpp";
 
         construction_parameters.kernel_name =
-            "gridwise_convolution_backward_weights_implicit_gemm_v4r4_nchw_kcyx_nkhw";
+            "gridwise_convolution_backward_weight_implicit_gemm_v4r4_mlir";
     }
 
     int GemmMLevel0Cluster                    = 0;
@@ -714,8 +715,13 @@ ConvSolution ConvHipImplicitGemmV4R4WrW::GetSolution(const ConvolutionContext& c
     std::tie(GemmCThreadCopyDstDataPerWrite_GemmN1, std::ignore) =
         config.CalculateGemmCThreadCopyPerformanceParameters(ctx);
 
+    MIOPEN_LOG_I("filter layout: " << ctx.weights_layout);
+    MIOPEN_LOG_I("input layout: " << ctx.in_layout);
+    MIOPEN_LOG_I("output layout: " << ctx.out_layout);
+
     // clang-format off
-    construction_parameters.comp_options =
+    //construction_parameters.comp_options =
+    std::string comp_options =
         std::string(" -std=c++14 ") +
         std::string(" -DCK_PARAM_PROBLEM_N=") + std::to_string(ConvolutionContextInterpreter::GetBatchN(ctx)) +
         std::string(" -DCK_PARAM_PROBLEM_C=") + std::to_string(ConvolutionContextInterpreter::GetInputChannelC(ctx)) +
@@ -772,19 +778,36 @@ ConvSolution ConvHipImplicitGemmV4R4WrW::GetSolution(const ConvolutionContext& c
                 std::string(" -DCK_PARAM_PROBLEM_IN_RIGHT_PAD_D=") + std::to_string(ConvolutionContextInterpreter::GetAdjustedInputRightPadD(ctx)) ;
         }
 
-    // clang-format on
+    // Arguments for mlir-miopen-driver.
+    using CI = ConvolutionContextInterpreter;
+    construction_parameters.extra_options =
+        std::string(" --operation conv2d_bwd_weight ") +
+        std::string(" --fil_layout ") + CI::GetFilterLayout(ctx) +
+        std::string(" --in_layout ") + CI::GetInputLayout(ctx) +
+        std::string(" --out_layout ") + CI::GetOutputLayout(ctx) +
+        std::string(" --batchsize ") + std::to_string(CI::GetBatchN(ctx)) +
+        std::string(" --in_channels ") + std::to_string(CI::GetInputChannelC(ctx)) +
+        std::string(" --out_channels ") + std::to_string(CI::GetOutputChannelK(ctx)) +
+        std::string(" --in_h ") + std::to_string(CI::GetInputHeightHi(ctx)) +
+        std::string(" --in_w ") + std::to_string(CI::GetInputWidthWi(ctx)) +
+        std::string(" --out_h ") + std::to_string(CI::GetOutputHeightHo(ctx)) +
+        std::string(" --out_w ") + std::to_string(CI::GetOutputWidthWo(ctx)) +
+        std::string(" --fil_h ") + std::to_string(CI::GetFilterHeightY(ctx)) +
+        std::string(" --fil_w ") + std::to_string(CI::GetFilterWidthX(ctx)) +
+        std::string(" --dilation_h ") + std::to_string(CI::GetAdjustedConvolutionDilationH(ctx)) +
+        std::string(" --dilation_w ") + std::to_string(CI::GetAdjustedConvolutionDilationW(ctx)) +
+        std::string(" --conv_stride_h ") + std::to_string(CI::GetAdjustedConvolutionStrideH(ctx)) +
+        std::string(" --conv_stride_w ") + std::to_string(CI::GetAdjustedConvolutionStrideW(ctx)) +
+        std::string(" --padding_h ") + std::to_string(CI::GetInputLeftPadH(ctx)) +
+        std::string(" --padding_w ") + std::to_string(CI::GetInputLeftPadW(ctx));
 
-    result.construction_params.push_back(construction_parameters);
+        // clang-format on
+        MIOPEN_LOG_I("extra options: " << construction_parameters.extra_options);
 
-    result.invoker_factory = [](const std::vector<Kernel>& kernels) {
-        return [=](const Handle& handle, const boost::any& primitive_params) {
-            const auto invoke_params = boost::any_cast<conv::WrWInvokeParams>(primitive_params);
-            const auto& tensors      = invoke_params.tensors;
-            handle.Run(kernels[0])(tensors.x, tensors.dy, tensors.dw);
-        };
-    };
+        construction_parameters.comp_options = ctx.general_compile_options;
 
-    return result;
+        result.construction_params.push_back(construction_parameters);
+        return result;
 }
 
 } // namespace solver

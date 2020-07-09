@@ -94,21 +94,23 @@ static inline ConvSolution GetSolutionBase(const ConvolutionContext& ctx,
             construction_parameters.kernel_file =
                 "gridwise_convolution_implicit_gemm_v4r4_gen_xdlops_gnchw_gkcyx_gnkhw_lds_double_buffer.cpp";
 
-            construction_parameters.kernel_name = 
+            construction_parameters.kernel_name =
 		"gridwise_convolution_implicit_gemm_v4r4_gen_xdlops_gnchw_gkcyx_gnkhw_lds_double_buffer";
         }
         else
         {
 
             construction_parameters.kernel_file =
-                //"gridwise_convolution_implicit_gemm_v4r4_gen_xdlops_nchw_kcyx_nkhw_lds_double_buffer.cpp";
-                "gridwise_convolution_implicit_gemm_v4r4_mlir.cpp";
+                "gridwise_convolution_implicit_gemm_v4r4_gen_xdlops_nchw_kcyx_nkhw_lds_double_buffer.cpp";
 
-            //construction_parameters.kernel_name = 
-		        //"gridwise_convolution_implicit_gemm_v4r4_gen_xdlops_nchw_kcyx_nkhw_lds_double_buffer";
-            construction_parameters.kernel_name = "gridwise_convolution_implicit_gemm_v4r4_mlir";
+            construction_parameters.kernel_name =
+		"gridwise_convolution_implicit_gemm_v4r4_gen_xdlops_nchw_kcyx_nkhw_lds_double_buffer";
         }
         // clang-format on
+    }
+    else
+    {
+        MIOPEN_THROW("invalid value of 'kernel'");
     }
 
     std::size_t ABlockCopySubLengths_GemmK = GemmKPerBlock / config.WeiBlockCopyClusterLengths_E;
@@ -260,7 +262,7 @@ static inline ConvSolution GetSolutionBase(const ConvolutionContext& ctx,
         wi_padded > (left_pad_w + in_width) ? wi_padded - (left_pad_w + in_width) : 0;
 
     // clang-format off
-    std::string original_options =
+    construction_parameters.comp_options +=
         std::string(" -std=c++14 ") +
         std::string(" -DCK_PARAM_PROBLEM_DIRECTION=") + std::to_string(static_cast<int>(direction)) +
         std::string(" -DCK_PARAM_PROBLEM_N=") + std::to_string(ctx.batch_sz) +
@@ -297,7 +299,7 @@ static inline ConvSolution GetSolutionBase(const ConvolutionContext& ctx,
 
     if(ctx.IsFp32())
     {
-        original_options +=
+        construction_parameters.comp_options +=
             std::string(" -DCK_PARAM_TUNABLE_GEMM_B_BLOCK_COPY_DST_DATA_PER_WRITE_GEMM_N=") +
             std::to_string(BBlockCopyDstDataPerWrite_GemmN) +
             std::string(" -DCK_PARAM_TUNABLE_GEMM_A_BLOCK_COPY_DST_DATA_PER_WRITE_GEMM_M=") +
@@ -307,7 +309,7 @@ static inline ConvSolution GetSolutionBase(const ConvolutionContext& ctx,
     }
     else
     {
-        original_options +=
+        construction_parameters.comp_options +=
             std::string(" -DCK_PARAM_TUNABLE_GEMM_B_BLOCK_COPY_DST_DATA_PER_WRITE_GEMM_KPACK=") +
             std::to_string(BBlockCopyDstDataPerWrite_GemmKPACK) +
             std::string(" -DCK_PARAM_TUNABLE_GEMM_A_BLOCK_COPY_DST_DATA_PER_WRITE_GEMM_KPACK=") +
@@ -315,52 +317,20 @@ static inline ConvSolution GetSolutionBase(const ConvolutionContext& ctx,
 
         if(ctx.direction.IsBackwardWrW() || ctx.group_counts > 1)
         {
-            original_options +=
+            construction_parameters.comp_options +=
                 std::string(" -DCK_PARAM_TUNABLE_GEMM_A_BLOCK_COPY_SRC_DATA_PER_READ_GEMM_K=") +
                 std::to_string(ABlockCopySrcDataPerRead_GemmK);
         }
         else // only fwd non-group case
         {
-            original_options +=
+            construction_parameters.comp_options +=
                 std::string(" -DCK_PARAM_TUNABLE_GEMM_A_BLOCK_COPY_SRC_DATA_PER_READ_GEMM_KPACK=") +
                 std::to_string(ABlockCopySrcDataPerRead_GemmKPACK);
         }
     }
 
-    // Arguments for mlir-miopen-driver.
-    using CI = ConvolutionContextInterpreter;
-    construction_parameters.extra_options = IsXdlopsSupport(ctx) ? " -xdlops" : "";
-    construction_parameters.extra_options +=
-        ctx.direction.IsBackwardWrW() ? std::string(" --operation conv2d_bwd_weight") : std::string(" --operation conv2d");
-
-
-    construction_parameters.extra_options +=
-        std::string(" --fil_layout ") + CI::GetFilterLayout(ctx) +
-        std::string(" --in_layout ") + CI::GetInputLayout(ctx) +
-        std::string(" --out_layout ") + CI::GetOutputLayout(ctx) +
-        std::string(" --batchsize ") + std::to_string(CI::GetBatchN(ctx)) +
-        std::string(" --in_channels ") + std::to_string(CI::GetInputChannelC(ctx)) +
-        std::string(" --out_channels ") + std::to_string(CI::GetOutputChannelK(ctx)) +
-        std::string(" --in_h ") + std::to_string(CI::GetInputHeightHi(ctx)) +
-        std::string(" --in_w ") + std::to_string(CI::GetInputWidthWi(ctx)) +
-        std::string(" --out_h ") + std::to_string(CI::GetOutputHeightHo(ctx)) +
-        std::string(" --out_w ") + std::to_string(CI::GetOutputWidthWo(ctx)) +
-        std::string(" --fil_h ") + std::to_string(CI::GetFilterHeightY(ctx)) +
-        std::string(" --fil_w ") + std::to_string(CI::GetFilterWidthX(ctx)) +
-        std::string(" --dilation_h ") + std::to_string(CI::GetAdjustedConvolutionDilationH(ctx)) +
-        std::string(" --dilation_w ") + std::to_string(CI::GetAdjustedConvolutionDilationW(ctx)) +
-        std::string(" --conv_stride_h ") + std::to_string(CI::GetAdjustedConvolutionStrideH(ctx)) +
-        std::string(" --conv_stride_w ") + std::to_string(CI::GetAdjustedConvolutionStrideW(ctx)) +
-        std::string(" --padding_h ") + std::to_string(CI::GetInputLeftPadH(ctx)) +
-        std::string(" --padding_w ") + std::to_string(CI::GetInputLeftPadW(ctx))
-        // TBD handle left/right padding.
-        //std::string(" --padding_h ") + std::string(in_right_pad_h) +
-        //std::string(" --padding_w ") + std::string(in_right_pad_w) +
-      ;
-
-    MIOPEN_LOG_I("extra options: " << construction_parameters.extra_options);
-
-    construction_parameters.comp_options = ctx.general_compile_options;
+    result.construction_params.push_back(construction_parameters);
+    const auto& dwDesc = ctx.conv_problem.GetWeights();
 
     if(ctx.direction.IsForward() || ctx.direction.IsBackwardData())
     {
