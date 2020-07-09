@@ -131,11 +131,10 @@ struct HIPOCProgramImpl
                      std::string params,
                      bool is_kernel_str,
                      std::string dev_name,
-                     const std::string& kernel_src,
-                     const std::string& extra_options)
+                     const std::string& kernel_src)
         : program(program_name), device(dev_name)
     {
-        BuildCodeObject(params, is_kernel_str, kernel_src, extra_options);
+        BuildCodeObject(params, is_kernel_str, kernel_src);
         if(!binary.empty())
             module = CreateModuleInMem(binary);
         else
@@ -151,7 +150,7 @@ struct HIPOCProgramImpl
 
 #if !MIOPEN_USE_COMGR
     void
-    BuildCodeObjectInFile(std::string& params, const std::string& src, const std::string& filename, const std::string& extra_options)
+    BuildCodeObjectInFile(std::string& params, const std::string& src, const std::string& filename)
     {
         MIOPEN_LOG_I("BuildCodeObjectInFile for file: " << filename);
 
@@ -169,7 +168,7 @@ struct HIPOCProgramImpl
         }
         else if(miopen::EndsWith(filename, ".cpp"))
         {
-            hsaco_file = HipBuild(dir, filename, src, params, device, extra_options);
+            hsaco_file = HipBuild(dir, filename, src, params, device);
         }
         else
         {
@@ -212,7 +211,7 @@ struct HIPOCProgramImpl
     }
 #endif // MIOPEN_USE_COMGR
 
-    void BuildCodeObject(std::string params, bool is_kernel_str, const std::string& kernel_src, const std::string& extra_options)
+    void BuildCodeObject(std::string params, bool is_kernel_str, const std::string& kernel_src)
     {
         std::string filename = is_kernel_str ? "tinygemm.cl" // Fixed name for miopengemm.
                                              : program;
@@ -235,7 +234,8 @@ struct HIPOCProgramImpl
             src = is_kernel_str ? program : GetKernelSrc(program);
         }
 
-        if(miopen::EndsWith(filename, ".cpp"))
+        if(program.find("mlir") != std::string::npos) {}
+        else if(miopen::EndsWith(filename, ".cpp"))
         {
 #if MIOPEN_BUILD_DEV
             params += " -Werror" + HipKernelWarningsString();
@@ -254,7 +254,7 @@ struct HIPOCProgramImpl
 #if MIOPEN_USE_COMGR /// \todo Refactor when functionality stabilize.
         BuildCodeObjectInMemory(params, src, filename);
 #else
-        BuildCodeObjectInFile(params, src, filename, extra_options);
+        BuildCodeObjectInFile(params, src, filename);
 #endif
     }
 };
@@ -264,10 +264,9 @@ HIPOCProgram::HIPOCProgram(const std::string& program_name,
                            std::string params,
                            bool is_kernel_str,
                            std::string dev_name,
-                           const std::string& kernel_src,
-                           const std::string& extra_options)
+                           const std::string& kernel_src)
     : impl(std::make_shared<HIPOCProgramImpl>(
-          program_name, params, is_kernel_str, dev_name, kernel_src, extra_options))
+          program_name, params, is_kernel_str, dev_name, kernel_src))
 {
 }
 

@@ -48,7 +48,6 @@ struct KernelInfo
     std::string kernel_file;
     std::string kernel_name;
     friend std::ostream& operator<<(std::ostream& os, const KernelInfo& k);
-    std::string extra_options;
 };
 
 std::vector<Program> PrecompileKernels(const Handle& h, const std::vector<KernelInfo>& kernels);

@@ -87,15 +87,13 @@ boost::filesystem::path HipBuild(boost::optional<TmpDir>& tmp_dir,
                                  const std::string& filename,
                                  std::string src,
                                  std::string params,
-                                 const std::string& dev_name,
-                                 const std::string& extra_options)
+                                 const std::string& dev_name)
 {
 #ifdef __linux__
     MIOPEN_LOG_I("filename: " << filename);
     MIOPEN_LOG_I("src: " << src);
     MIOPEN_LOG_I("params: " << params);
     MIOPEN_LOG_I("dev_name: " << dev_name);
-    MIOPEN_LOG_I("extra_options: " << extra_options);
 
     // write out the include files
     auto inc_list = GetKernelIncList();
@@ -109,7 +107,6 @@ boost::filesystem::path HipBuild(boost::optional<TmpDir>& tmp_dir,
     auto input_file = tmp_dir->path / filename;
     auto bin_file = tmp_dir->path / (filename + ".o");
 
-    std::string cflags("");
     // Invoke mlir kernel generator if filename has mlir in it
     if(filename.find("mlir") != std::string::npos)
     {
@@ -123,7 +120,7 @@ boost::filesystem::path HipBuild(boost::optional<TmpDir>& tmp_dir,
         MIOPEN_LOG_I("C++ header: " << mlir_file.string() << ".hpp");
         // --p=false to disable MLIR default value population
         tmp_dir->Execute("/opt/rocm/miopen/bin/miopen_mlir_generator.sh",
-            mlir_file.string() + " " + extra_options + " --p=false");
+                         mlir_file.string() + " " + params + " --p=false");
 
         // get mlir kernel compilation flags.
         auto mlir_cflags_file = mlir_file;
@@ -131,11 +128,12 @@ boost::filesystem::path HipBuild(boost::optional<TmpDir>& tmp_dir,
         MIOPEN_LOG_I("getting MLIR kernel cflags.");
         // --p=false to disable MLIR default value population
         tmp_dir->Execute("/opt/rocm/miopen/bin/miopen_mlir_cflags.sh",
-            mlir_cflags_file.string() + " " + extra_options + " --p=false");
+                         mlir_cflags_file.string() + " " + params + " --p=false");
 
         if(!boost::filesystem::exists(mlir_cflags_file))
             MIOPEN_THROW(filename + " failed to build due to missing compile-time flags");
 
+        std::string cflags("");
         bin_file_to_str(mlir_cflags_file, cflags);
 
         // skip first line
@@ -144,6 +142,8 @@ boost::filesystem::path HipBuild(boost::optional<TmpDir>& tmp_dir,
         if (pos != std::string::npos){
           cflags.replace(pos, sizeof("\n"), " ");
         }
+
+        params = cflags;
     } else {
         src += "\nint main() {}\n";
         WriteFile(src, tmp_dir->path / filename);
@@ -202,7 +202,7 @@ boost::filesystem::path HipBuild(boost::optional<TmpDir>& tmp_dir,
     }
 #endif
 
-    params =  cflags + params + " ";
+    params = params + " ";
 
     // compile
     tmp_dir->Execute(env + std::string(" ") + MIOPEN_HIP_COMPILER,

@@ -184,8 +184,7 @@ Kernel KernelCache::AddKernel(const Handle& h,
                               std::string params,
                               std::size_t cache_index,
                               bool is_kernel_miopengemm_str,
-                              const std::string& kernel_src,
-                              const std::string& extra_options)
+                              const std::string& kernel_src)
 {
     ProcessParams(params);
 
@@ -195,7 +194,7 @@ Kernel KernelCache::AddKernel(const Handle& h,
 
     Program program;
 
-    auto program_it = program_map.find(std::make_pair(program_name, params + extra_options));
+    auto program_it = program_map.find(std::make_pair(program_name, params));
     if(program_it != program_map.end())
     {
         program = program_it->second;
@@ -216,8 +215,8 @@ Kernel KernelCache::AddKernel(const Handle& h,
                                       vgd,
                                       params);
         }
-        program = h.LoadProgram(program_name, params, is_kernel_miopengemm_str, kernel_src, extra_options);
-        program_map[std::make_pair(program_name, params + extra_options)] = program;
+        program = h.LoadProgram(program_name, params, is_kernel_miopengemm_str, kernel_src);
+        program_map[std::make_pair(program_name, params)] = program;
     }
     Kernel kernel{program, kernel_name, vld, vgd};
     if(!network_config.empty() && !algorithm.empty())

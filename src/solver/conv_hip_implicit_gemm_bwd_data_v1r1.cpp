@@ -903,7 +903,7 @@ ConvSolution ConvHipImplicitGemmBwdDataV1R1::GetSolution(
     // clang-format off
     // Arguments for mlir-miopen-driver.
     using CI = ConvolutionContextInterpreter;
-    construction_parameters.extra_options =
+    construction_parameters.comp_options =
         std::string(" --operation conv2d_bwd_data ") + 
         std::string(" --fil_layout ") + CI::GetFilterLayout(ctx) +
         std::string(" --in_layout ") + CI::GetInputLayout(ctx) +
@@ -928,7 +928,7 @@ ConvSolution ConvHipImplicitGemmBwdDataV1R1::GetSolution(
         // std::string(" --padding_w ") + std::string(in_right_pad_w) +
         ;
 
-    MIOPEN_LOG_I("extra options: " << construction_parameters.extra_options);
+    MIOPEN_LOG_I("extra options: " << construction_parameters.comp_options);
 
     construction_parameters.comp_options = ctx.general_compile_options;
     //construction_parameters.comp_options = comp_options;

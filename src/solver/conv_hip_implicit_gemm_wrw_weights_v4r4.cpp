@@ -780,7 +780,7 @@ ConvSolution ConvHipImplicitGemmV4R4WrW::GetSolution(const ConvolutionContext& c
 
     // Arguments for mlir-miopen-driver.
     using CI = ConvolutionContextInterpreter;
-    construction_parameters.extra_options =
+    construction_parameters.comp_options =
         std::string(" --operation conv2d_bwd_weight ") +
         std::string(" --fil_layout ") + CI::GetFilterLayout(ctx) +
         std::string(" --in_layout ") + CI::GetInputLayout(ctx) +
@@ -801,13 +801,13 @@ ConvSolution ConvHipImplicitGemmV4R4WrW::GetSolution(const ConvolutionContext& c
         std::string(" --padding_h ") + std::to_string(CI::GetInputLeftPadH(ctx)) +
         std::string(" --padding_w ") + std::to_string(CI::GetInputLeftPadW(ctx));
 
-        // clang-format on
-        MIOPEN_LOG_I("extra options: " << construction_parameters.extra_options);
+    // clang-format on
+    MIOPEN_LOG_I("extra options: " << construction_parameters.comp_options);
 
-        construction_parameters.comp_options = ctx.general_compile_options;
+    construction_parameters.comp_options = ctx.general_compile_options;
 
-        result.construction_params.push_back(construction_parameters);
-        return result;
+    result.construction_params.push_back(construction_parameters);
+    return result;
 }
 
 } // namespace solver

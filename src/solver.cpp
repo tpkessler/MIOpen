@@ -59,7 +59,7 @@ std::vector<Program> PrecompileKernels(const Handle& h, const std::vector<Kernel
             max_threads{Value(MIOPEN_COMPILE_PARALLEL_LEVEL{}, 20)},
             [&](auto i) {
                 const KernelInfo& k = kernels[i];
-                programs[i]         = h.LoadProgram(k.kernel_file, k.comp_options, false, "", k.extra_options);
+                programs[i]         = h.LoadProgram(k.kernel_file, k.comp_options, false, "");
             });
     return programs;
 }
@@ -74,7 +74,7 @@ void PrecompileSolutions(const Handle& h, const std::vector<ConvSolution>& sols)
             continue;
         for(auto&& kernel : sol.construction_params)
         {
-            if(h.HasProgram(kernel.kernel_file, kernel.comp_options + kernel.extra_options))
+            if(h.HasProgram(kernel.kernel_file, kernel.comp_options))
                 continue;
             kernels.push_back(kernel);
         }
@@ -87,7 +87,7 @@ void PrecompileSolutions(const Handle& h, const std::vector<ConvSolution>& sols)
     for(std::size_t i = 0; i < programs.size(); i++)
     {
         const KernelInfo& k = kernels[i];
-        h.AddProgram(programs[i], k.kernel_file, k.comp_options + k.extra_options);
+        h.AddProgram(programs[i], k.kernel_file, k.comp_options);
     }
 }
 

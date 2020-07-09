@@ -751,23 +751,21 @@ ConvSolution ConvHipImplicitGemmMlir::GetSolution(const ConvolutionContext& ctx,
 
     // Arguments for mlir-miopen-driver.
     using CI = ConvolutionContextInterpreter;
-    construction_parameters.extra_options =
-    //construction_parameters.comp_options =
-        std::string(" --operation ") + operation +
-        std::string(" --fil_layout ") + CI::GetFilterLayout(ctx) +
-        std::string(" --in_layout ") + CI::GetInputLayout(ctx) +
-        std::string(" --out_layout ") + CI::GetOutputLayout(ctx) +
-        std::string(" --batchsize ") + std::to_string(CI::GetBatchN(ctx)) +
-        std::string(" --in_channels ") + std::to_string(CI::GetInputChannelC(ctx)) +
-        std::string(" --out_channels ") + std::to_string(CI::GetOutputChannelK(ctx)) +
-        std::string(" --in_h ") + std::to_string(CI::GetInputHeightHi(ctx)) +
-        std::string(" --in_w ") + std::to_string(CI::GetInputWidthWi(ctx)) +
-        std::string(" --out_h ") + std::to_string(CI::GetOutputHeightHo(ctx)) +
-        std::string(" --out_w ") + std::to_string(CI::GetOutputWidthWo(ctx)) +
-        std::string(" --fil_h ") + std::to_string(CI::GetFilterHeightY(ctx)) +
-        std::string(" --fil_w ") + std::to_string(CI::GetFilterWidthX(ctx)) +
-        std::string(" --dilation_h ") + std::to_string(CI::GetAdjustedConvolutionDilationH(ctx)) +
-        std::string(" --dilation_w ") + std::to_string(CI::GetAdjustedConvolutionDilationW(ctx)) +
+    construction_parameters.comp_options =
+        std::string(" --operation ") + operation + std::string(" --fil_layout ") +
+        CI::GetFilterLayout(ctx) + std::string(" --in_layout ") + CI::GetInputLayout(ctx) +
+        std::string(" --out_layout ") + CI::GetOutputLayout(ctx) + std::string(" --batchsize ") +
+        std::to_string(CI::GetBatchN(ctx)) + std::string(" --in_channels ") +
+        std::to_string(CI::GetInputChannelC(ctx)) + std::string(" --out_channels ") +
+        std::to_string(CI::GetOutputChannelK(ctx)) + std::string(" --in_h ") +
+        std::to_string(CI::GetInputHeightHi(ctx)) + std::string(" --in_w ") +
+        std::to_string(CI::GetInputWidthWi(ctx)) + std::string(" --out_h ") +
+        std::to_string(CI::GetOutputHeightHo(ctx)) + std::string(" --out_w ") +
+        std::to_string(CI::GetOutputWidthWo(ctx)) + std::string(" --fil_h ") +
+        std::to_string(CI::GetFilterHeightY(ctx)) + std::string(" --fil_w ") +
+        std::to_string(CI::GetFilterWidthX(ctx)) + std::string(" --dilation_h ") +
+        std::to_string(CI::GetAdjustedConvolutionDilationH(ctx)) + std::string(" --dilation_w ") +
+        std::to_string(CI::GetAdjustedConvolutionDilationW(ctx)) +
         std::string(" --conv_stride_h ") + std::to_string(CI::GetAdjustedConvolutionStrideH(ctx)) +
         std::string(" --conv_stride_w ") + std::to_string(CI::GetAdjustedConvolutionStrideW(ctx)) +
         std::string(" --padding_h ") + std::to_string(CI::GetInputLeftPadH(ctx)) +
@@ -778,7 +776,7 @@ ConvSolution ConvHipImplicitGemmMlir::GetSolution(const ConvolutionContext& ctx,
         ;
     // clang-format on
 
-    MIOPEN_LOG_I("extra options: " << construction_parameters.extra_options);
+    MIOPEN_LOG_I("comp options: " << construction_parameters.comp_options);
 
     // construction_parameters.comp_options = ctx.general_compile_options;
 
