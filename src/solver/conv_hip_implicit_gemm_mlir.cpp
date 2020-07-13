@@ -24,6 +24,7 @@
  *
  *******************************************************************************/
 #include <miopen/conv/invokers/impl_gemm.hpp>
+#include <miopen/conv/wrw_invoke_params.hpp>
 #include <miopen/solver.hpp>
 #include <miopen/handle.hpp>
 #include <miopen/generic_search.hpp>
@@ -718,7 +719,17 @@ ConvSolution ConvHipImplicitGemmMlir::GetSolution(const ConvolutionContext& ctx,
 
     assert(config.IsValid(ctx));
 
-    // Adopt mlir kernel file and kernel name.
+    int grid_size = 0;
+
+    std::tie(grid_size, std::ignore) = config.CalculateGridSize(ctx);
+
+    construction_parameters.l_wk.push_back(config.BlockSize);
+    construction_parameters.l_wk.push_back(1);
+    construction_parameters.l_wk.push_back(1);
+
+    construction_parameters.g_wk.push_back(config.BlockSize * grid_size);
+    construction_parameters.g_wk.push_back(1);
+    construction_parameters.g_wk.push_back(1);
 
     std::string version("");
     std::string direction("");
@@ -780,7 +791,20 @@ ConvSolution ConvHipImplicitGemmMlir::GetSolution(const ConvolutionContext& ctx,
 
     // construction_parameters.comp_options = ctx.general_compile_options;
 
-    result.invoker_factory = conv::MakeImplGemmDataInvokerFactory(ctx);
+    if(!ctx.direction.IsBackwardWrW())
+    {
+        result.invoker_factory = conv::MakeImplGemmDataInvokerFactory(ctx);
+    }
+    else
+    {
+        result.invoker_factory = [](const std::vector<Kernel>& kernels) {
+            return [=](const Handle& handle, const boost::any& primitive_params) {
+                const auto invoke_params = boost::any_cast<conv::WrWInvokeParams>(primitive_params);
+                const auto& tensors      = invoke_params.tensors;
+                handle.Run(kernels[0])(tensors.x, tensors.dy, tensors.dw);
+            };
+        };
+    }
     result.construction_params.push_back(construction_parameters);
     return result;
 }
