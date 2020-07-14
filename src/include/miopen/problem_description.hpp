@@ -55,7 +55,7 @@ SetDescFromMLDesc(int spatial_dims, TTo& to, const TensorDescriptor& tensor, con
 
     std::tie(ns, cs, hs, ws) = miopen::tien<4>(tensor.GetStrides(), 0);
 
-    (to.*method)(tensor.GetLayout(), tensor.GetType(), n, c, d, h, w, ns, cs, hs, ws);
+    (to.*method)("NCHW", tensor.GetType(), n, c, d, h, w, ns, cs, hs, ws);
 
     return tensor.GetElementSpace();
 }
@@ -236,10 +236,9 @@ struct ProblemDescription
     {
         batch_sz     = batch;
         int data_len = GetTypeSize(data_type);
-        size_t size  = batch * channels * depth * height * width * data_len;
-        //size_t size  = (layout == "NCHW")
-        //                  ? batch * channels * depth * height * width * data_len
-        //                  : batch * batch_stride * channel_stride * stride * w_stride * data_len;
+        size_t size  = (layout == "NCHW")
+                          ? batch * channels * depth * height * width * data_len
+                          : batch * batch_stride * channel_stride * stride * w_stride * data_len;
 
         out_width          = width;
         out_height         = height;
@@ -272,10 +271,9 @@ struct ProblemDescription
     {
         batch_sz     = batch;
         int data_len = GetTypeSize(data_type);
-        size_t size  = batch * channels * depth * height * width * data_len;
-        //size_t size  = (layout == "NCHW")
-        //                  ? batch * channels * depth * height * width * data_len
-        //                  : batch * batch_stride * channel_stride * stride * w_stride * data_len;
+        size_t size  = (layout == "NCHW")
+                          ? batch * channels * depth * height * width * data_len
+                          : batch * batch_stride * channel_stride * stride * w_stride * data_len;
 
         in_width          = width;
         in_height         = height;

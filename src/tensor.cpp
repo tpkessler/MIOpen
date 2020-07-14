@@ -33,10 +33,10 @@
 
 namespace miopen {
 
-TensorDescriptor::TensorDescriptor() : packed(true), layout("NCHW") {}
+TensorDescriptor::TensorDescriptor() : packed(true) {}
 
 TensorDescriptor::TensorDescriptor(miopenDataType_t t, std::initializer_list<std::size_t> plens)
-    : lens(plens), packed(true), type(t), layout("NCHW")
+    : lens(plens), packed(true), type(t)
 {
     this->CalculateStrides();
 }
@@ -44,13 +44,13 @@ TensorDescriptor::TensorDescriptor(miopenDataType_t t, std::initializer_list<std
 TensorDescriptor::TensorDescriptor(miopenDataType_t t,
                                    std::initializer_list<std::size_t> plens,
                                    std::initializer_list<std::size_t> pstrides)
-    : lens(plens), strides(pstrides), type(t), layout("NCHW")
+    : lens(plens), strides(pstrides), type(t)
 {
     packed = (this->GetElementSize() == this->GetElementSpace());
 }
 
 TensorDescriptor::TensorDescriptor(miopenDataType_t t, const int* plens, int size)
-    : lens(plens, plens + size), packed(true), type(t), layout("NCHW")
+    : lens(plens, plens + size), packed(true), type(t)
 {
     if(!std::all_of(plens, plens + size, [](int x) { return x >= 0; }))
         MIOPEN_THROW("Invalid length. Length must be greater than 0.");
@@ -60,7 +60,7 @@ TensorDescriptor::TensorDescriptor(miopenDataType_t t,
                                    const int* plens,
                                    const int* pstrides,
                                    int size)
-    : lens(plens, plens + size), strides(pstrides, pstrides + size), type(t), layout("NCHW")
+    : lens(plens, plens + size), strides(pstrides, pstrides + size), type(t)
 {
     if(!std::all_of(plens, plens + size, [](int x) { return x >= 0; }))
         MIOPEN_THROW("Invalid length. Length must be greater than 0.");
@@ -72,7 +72,7 @@ TensorDescriptor::TensorDescriptor(miopenDataType_t t,
 TensorDescriptor::TensorDescriptor(miopenDataType_t t,
                                    std::vector<std::size_t> lens_in,
                                    std::vector<std::size_t> strides_in)
-    : lens(std::move(lens_in)), strides(std::move(strides_in)), type(t), layout("NCHW")
+    : lens(std::move(lens_in)), strides(std::move(strides_in)), type(t)
 {
     packed = (this->GetElementSize() == this->GetElementSpace());
 }

@@ -105,7 +105,6 @@ boost::filesystem::path HipBuild(boost::optional<TmpDir>& tmp_dir,
         WriteFile(inc_src, inc_path / inc_file);
     }
     auto input_file = tmp_dir->path / filename;
-    auto bin_file = tmp_dir->path / (filename + ".o");
 
     // Invoke mlir kernel generator if filename has mlir in it
     if(filename.find("mlir") != std::string::npos)
@@ -202,7 +201,8 @@ boost::filesystem::path HipBuild(boost::optional<TmpDir>& tmp_dir,
     }
 #endif
 
-    params = params + " ";
+    params += " ";
+    auto bin_file = tmp_dir->path / (filename + ".o");
 
     // compile
     tmp_dir->Execute(env + std::string(" ") + MIOPEN_HIP_COMPILER,

@@ -130,14 +130,14 @@ struct TensorDescriptor : miopenTensorDescriptor
 
     template <class Range>
     TensorDescriptor(miopenDataType_t t, const Range& plens)
-        : lens(plens.begin(), plens.end()), packed(true), type(t), layout("NCHW")
+        : lens(plens.begin(), plens.end()), packed(true), type(t)
     {
         this->CalculateStrides();
     }
 
     template <class Range1, class Range2, class = decltype(std::declval<Range1>().begin())>
     TensorDescriptor(miopenDataType_t t, const Range1& plens, const Range2& pstrides)
-        : lens(plens.begin(), plens.end()), strides(pstrides.begin(), pstrides.end()), type(t), layout("NCHW")
+        : lens(plens.begin(), plens.end()), strides(pstrides.begin(), pstrides.end()), type(t)
     {
         packed = (this->GetElementSize() == this->GetElementSpace());
     }
