@@ -189,10 +189,12 @@ ConvolutionDescriptor::FindDataDirectSolutions(Handle& handle,
     if(miopen::IsDisabled(MIOPEN_DEBUG_CONV_DIRECT{}))
         return {};
 
-    const auto dir    = isForward ? conv::Direction::Forward : conv::Direction::BackwardData;
-    auto ctx          = ConvolutionContext{xDesc, wDesc, yDesc, *this, dir};
-    ctx.do_search     = exhaustiveSearch;
-    ctx.save_srch_req = true;
+    const auto dir = isForward ? conv::Direction::Forward : conv::Direction::BackwardData;
+    auto ctx       = ConvolutionContext{xDesc, wDesc, yDesc, *this, dir};
+    ctx.skip_solutions_that_take_long_time_to_build_and_have_narrow_coverage =
+        miopen::FindMode(ctx).IsFastHybrid();
+    ctx.do_search               = exhaustiveSearch;
+    ctx.save_srch_req           = true;
     ctx.general_compile_options = "";
     ctx.SetStream(&handle);
     ctx.SetBufs(bufs);
@@ -223,10 +225,13 @@ ConvolutionDescriptor::FindDataImplicitGemmSolutions(Handle& handle,
     if(miopen::IsDisabled(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM{}))
         return {};
 
-    const auto dir    = isForward ? conv::Direction::Forward : conv::Direction::BackwardData;
-    auto ctx          = ConvolutionContext{xDesc, wDesc, yDesc, *this, dir};
-    ctx.do_search     = exhaustiveSearch;
-    ctx.save_srch_req = true;
+    const auto dir = isForward ? conv::Direction::Forward : conv::Direction::BackwardData;
+    auto ctx       = ConvolutionContext{xDesc, wDesc, yDesc, *this, dir};
+
+    ctx.skip_solutions_that_take_long_time_to_build_and_have_narrow_coverage =
+        miopen::FindMode(ctx).IsFastHybrid();
+    ctx.do_search               = exhaustiveSearch;
+    ctx.save_srch_req           = true;
     ctx.general_compile_options = "";
     ctx.SetStream(&handle);
     ctx.SetBufs(bufs);
@@ -789,6 +794,8 @@ void ConvolutionDescriptor::FindConvFwdAlgorithm(Handle& handle,
     }
     else
     {
+        ctx.skip_solutions_that_take_long_time_to_build_and_have_narrow_coverage =
+            miopen::FindMode(ctx).IsFastHybrid();
         perf_db = UserFindDbRecord::TryLoad(handle, problem, [&](DbRecord& record) {
             DirConvFindCore(handle,
                             xDesc,
@@ -2146,6 +2153,8 @@ void ConvolutionDescriptor::FindConvBwdDataAlgorithm(Handle& handle,
                 ConvolutionUserBuffers bufs(workSpace, workSpaceSize);
                 bufs.SetBwd(dx, w, dy);
                 auto ctx = ConvolutionContext{problem};
+                ctx.skip_solutions_that_take_long_time_to_build_and_have_narrow_coverage =
+                    miopen::FindMode(ctx).IsFastHybrid();
                 ctx.SetBufs(bufs);
                 ctx.SetStream(&handle);
                 ctx.DetectRocm();
@@ -2420,14 +2429,13 @@ void ConvolutionDescriptor::FindConvBwdDataAlgorithm(Handle& handle,
                     time_gemm += in_n * time_col2im;
 
                     if(gemm_status == miopenStatusSuccess)
-                        record.SetValues(
-                            "miopenConvolutionBwdDataAlgoGEMM",
-                            FindDbData{
-                                "gemm",
-                                time_gemm,
-                                BackwardDataGetWorkSpaceSizeGEMM(wDesc, dyDesc) * group_count,
-                                kcache_key,
-                            });
+                        record.SetValues("miopenConvolutionBwdDataAlgoGEMM",
+                                         FindDbData{
+                                             "gemm",
+                                             time_gemm,
+                                             BackwardDataGetWorkSpaceSizeGEMM(wDesc, dyDesc),
+                                             kcache_key,
+                                         });
                 }
             }
 #endif
@@ -3086,16 +3094,16 @@ inline void EvaluateWinograd3x3MultipassWrW(Handle& handle,
     BuffInfo
         in_buff_info(
             GetSwappedNCLayout(GetMemLayout_t(ctx.in_layout)),
-            N, C, H, W, 1,
+            N, C, H, W,
             GetTypeSize(ctx.in_data_type)),
         out_buff_info(
             GetSwappedNCLayout(GetMemLayout_t(ctx.out_layout)),
-            N, K, out_H, out_W, 1,
+            N, K, out_H, out_W,
             GetTypeSize(ctx.out_data_type)),
         weights_buff_info(
             // weights_layout unsupported ... GetSwappedNCLayout(GetMemLayout_t(ctx.weights_layout))
             GetSwappedNCLayout(MemLayout_t::NCHW),
-            K, C, R, S, 1,
+            K, C, R, S,
             GetTypeSize(ctx.weights_data_type));
 
     int wino_xform_h =
@@ -3106,21 +3114,21 @@ inline void EvaluateWinograd3x3MultipassWrW(Handle& handle,
         // cppcheck-suppress unreadVariable
         wino_in(N,K,C,out_H,out_W,R,S,
             MemLayout_t::HWNC,
-            1,GetTypeSize(ctx.in_data_type),
+            GetTypeSize(ctx.in_data_type),
             ConvWinoBuffType::Input,
             wino_xform_h,
             wino_xform_w),
         // cppcheck-suppress unreadVariable
         wino_out(N,K,C,out_H,out_W,R,S,
             MemLayout_t::HWNC,
-            1,GetTypeSize(ctx.out_data_type),
+            GetTypeSize(ctx.out_data_type),
             ConvWinoBuffType::Output,
             wino_xform_h,
             wino_xform_w),
         // cppcheck-suppress unreadVariable
         wino_wei(N,K,C,out_H,out_W,R,S,
             MemLayout_t::HWNC,
-            1,GetTypeSize(ctx.weights_data_type),
+            GetTypeSize(ctx.weights_data_type),
             ConvWinoBuffType::Weight,
             wino_xform_h,
             wino_xform_w);
@@ -3183,7 +3191,7 @@ inline void EvaluateWinograd3x3MultipassWrW(Handle& handle,
              // and GEMM
         {
             const bool time_precision = (!IsDisabled(MIOPEN_CONV_PRECISE_ROCBLAS_TIMING{}));
-            int m = N, n = K, k = wino_in.wino_c;
+            int m = N, n = K, k = wino_in.buff_info.size.c;
             int lda = k, ldb = k, ldc = n;
             int batch_count       = wino_xform_h * wino_xform_w;
             long long int strideA = m * k * 1LL, strideB = k * n * 1LL, strideC = m * n * 1LL;
@@ -3511,6 +3519,8 @@ void ConvolutionDescriptor::FindConvBwdWeightsAlgorithm(Handle& handle,
             bufs.SetWrW(x, dw, dy);
             auto ctx =
                 ConvolutionContext{xDesc, dwDesc, dyDesc, *this, conv::Direction::BackwardWeights};
+            ctx.skip_solutions_that_take_long_time_to_build_and_have_narrow_coverage =
+                miopen::FindMode(ctx).IsFastHybrid();
             ctx.do_search = exhaustiveSearch;
             ctx.SetStream(&handle);
             ctx.SetBufs(bufs);
@@ -3635,7 +3645,6 @@ void ConvolutionDescriptor::FindConvBwdWeightsAlgorithm(Handle& handle,
                                     C,
                                     H,
                                     W,
-                                    1,
                                     group_cnt,
                                     GetTypeSize(ctx.in_data_type)),
                                     o_buf(GetGroupConvLayout(
@@ -3645,7 +3654,6 @@ void ConvolutionDescriptor::FindConvBwdWeightsAlgorithm(Handle& handle,
                                           K,
                                           out_H,
                                           out_W,
-                                          1,
                                           group_cnt,
                                           GetTypeSize(ctx.out_data_type)),
                                     f_buf(GetGroupConvLayout(GetSwappedNCLayout(MemLayout_t::NCHW),
@@ -3654,7 +3662,6 @@ void ConvolutionDescriptor::FindConvBwdWeightsAlgorithm(Handle& handle,
                                           C,
                                           R,
                                           S,
-                                          1,
                                           group_cnt,
                                           GetTypeSize(ctx.weights_data_type));
 
@@ -4228,7 +4235,6 @@ void ConvolutionDescriptor::BackwardWeightsWinograd(Handle& handle,
                 C,
                 H,
                 W,
-                1,
                 group_cnt,
                 GetTypeSize(ctx.in_data_type)),
                 // cppcheck-suppress unreadVariable
@@ -4237,7 +4243,6 @@ void ConvolutionDescriptor::BackwardWeightsWinograd(Handle& handle,
                       K,
                       out_H,
                       out_W,
-                      1,
                       group_cnt,
                       GetTypeSize(ctx.out_data_type)),
                 // cppcheck-suppress unreadVariable
@@ -4246,7 +4251,6 @@ void ConvolutionDescriptor::BackwardWeightsWinograd(Handle& handle,
                       C,
                       R,
                       S,
-                      1,
                       group_cnt,
                       GetTypeSize(ctx.weights_data_type));
 
