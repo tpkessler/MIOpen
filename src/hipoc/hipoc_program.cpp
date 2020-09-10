@@ -15,7 +15,7 @@
  * copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * IMPLIED, INCnLnUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
@@ -45,6 +45,7 @@
 #include <unistd.h>
 
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_OPENCL_ENFORCE_COV3)
+MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEVICE_ARCH)
 
 #define MIOPEN_WORKAROUND_SWDEV_225285 1
 
@@ -122,8 +123,17 @@ struct HIPOCProgramImpl
     }
 
     HIPOCProgramImpl(const std::string& program_name, const std::string& blob)
-        : program(program_name), module(CreateModuleInMem(blob))
+        : program(program_name)
     {
+        TmpDir tmp_dir("miopen");
+        auto file_path =
+            tmp_dir.path / boost::filesystem::unique_path("miopen-%%%%-%%%%-%%%%-%%%%");
+        WriteFile(blob, file_path);
+        const char* const arch = miopen::GetStringEnv(MIOPEN_DEVICE_ARCH{});
+        if(arch == nullptr)
+        {
+        this->module = CreateModule(file_path);
+        }
     }
 
     HIPOCProgramImpl(const std::string& program_name,
@@ -134,10 +144,16 @@ struct HIPOCProgramImpl
         : program(program_name), device(dev_name)
     {
         BuildCodeObject(params, is_kernel_str, kernel_src);
-        if(!binary.empty())
+        if(!binary.empty()){
             module = CreateModuleInMem(binary);
-        else
-            module = CreateModule(hsaco_file);
+        }
+        else{
+            const char* const arch = miopen::GetStringEnv(MIOPEN_DEVICE_ARCH{});
+            if(arch == nullptr)
+            {
+                module = CreateModule(hsaco_file);
+            }
+        }
     }
 
     std::string program;

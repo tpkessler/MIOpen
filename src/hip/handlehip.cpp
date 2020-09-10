@@ -55,6 +55,7 @@
 #include <chrono>
 #include <thread>
 
+#define MIOPEN_WORKAROUND_ROCM_COMPILER_SUPPORT_ISSUE_30 MIOPEN_USE_COMGR
 #define MIOPEN_WORKAROUND_ROCM_COMPILER_SUPPORT_ISSUE_30 (MIOPEN_USE_COMGR && BUILD_SHARED_LIBS)
 
 namespace miopen {
@@ -473,6 +474,11 @@ std::size_t Handle::GetGlobalMemorySize() const
 std::size_t Handle::GetMaxComputeUnits() const
 {
     int result;
+    const char* const num_cu = miopen::GetStringEnv(MIOPEN_DEVICE_CU{});
+    if(num_cu != nullptr && strlen(num_cu) > 0)
+    {
+        return boost::lexical_cast<std::size_t>(num_cu);
+    }
     auto status =
         hipDeviceGetAttribute(&result, hipDeviceAttributeMultiprocessorCount, this->impl->device);
     if(status != hipSuccess)
@@ -517,6 +523,11 @@ std::size_t Handle::GetMaxMemoryAllocSize()
 
 std::string Handle::GetDeviceName() const
 {
+    const char* const arch = miopen::GetStringEnv(MIOPEN_DEVICE_ARCH{});
+    if(arch != nullptr && strlen(arch) > 0)
+    {
+        return arch;
+    }
     hipDeviceProp_t props{};
     hipGetDeviceProperties(&props, this->impl->device);
     std::string n("gfx" + std::to_string(props.gcnArch));
