@@ -33,7 +33,6 @@
 #include <hip/hip_ext.h>
 #include <hip/hip_runtime.h>
 
-
 namespace miopen {
 
 void HIPOCKernelInvoke::run(void* args, std::size_t size) const
@@ -61,7 +60,7 @@ void HIPOCKernelInvoke::run(void* args, std::size_t size) const
     const char* const arch = miopen::GetStringEnv(MIOPEN_DEVICE_ARCH{});
     if(arch != nullptr && strlen(arch) > 0)
     {
-        MIOPEN_THROW("Escaping launching kernel");
+        MIOPEN_THROW("MIOPEN_DEVICE_ARCH used, escaping launching kernel");
     }
 
     MIOPEN_HANDLE_LOCK

@@ -15,7 +15,7 @@
  * copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCnLnUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
@@ -132,7 +132,7 @@ struct HIPOCProgramImpl
         const char* const arch = miopen::GetStringEnv(MIOPEN_DEVICE_ARCH{});
         if(arch == nullptr)
         {
-        this->module = CreateModule(file_path);
+            this->module = CreateModule(file_path);
         }
     }
 
@@ -144,10 +144,12 @@ struct HIPOCProgramImpl
         : program(program_name), device(dev_name)
     {
         BuildCodeObject(params, is_kernel_str, kernel_src);
-        if(!binary.empty()){
+        if(!binary.empty())
+        {
             module = CreateModuleInMem(binary);
         }
-        else{
+        else
+        {
             const char* const arch = miopen::GetStringEnv(MIOPEN_DEVICE_ARCH{});
             if(arch == nullptr)
             {
