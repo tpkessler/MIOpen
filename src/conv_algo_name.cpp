@@ -194,6 +194,7 @@ static_assert(miopenConvolutionAlgoFlexgemm ==
               "");
 static_assert(miopenConvolutionAlgoFlexgemm ==
                   static_cast<miopenConvAlgorithm_t>(miopenConvolutionBwdDataAlgoFlexgemm),
+              "");
 
 static_assert(miopenConvolutionAlgoCellfft ==
                   static_cast<miopenConvAlgorithm_t>(miopenConvolutionFwdAlgoCellfft),
