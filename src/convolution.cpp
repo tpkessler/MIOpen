@@ -52,6 +52,7 @@ MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_DIRECT)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_WINOGRAD)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_GEMM)
+MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_FLEXGEMM)
 
 // Workaround for issue 1430.
 // Vega20 fails to access GPU memory larger than the return value of GetMaxMemoryAllocSize() of
@@ -472,6 +473,8 @@ std::size_t ConvolutionDescriptor::ForwardGetWorkSpaceSize(Handle& handle,
 
     const size_t implicit_gemm_workspace = ForwardBackwardGetWorkSpaceSizeImplicitGemm(ctx);
 
+    const size_t flexgemm_workspace = ForwardBackwardGetWorkSpaceSizeFlexgemm(ctx);
+
     size_t workspace_size_gemm = 0;
 #if MIOPEN_USE_GEMM
     if(!miopen::IsDisabled(MIOPEN_DEBUG_CONV_GEMM{}))
@@ -495,8 +498,11 @@ std::size_t ConvolutionDescriptor::ForwardGetWorkSpaceSize(Handle& handle,
             /// \todo WORKAROUND for issue 1430
             if(gemm_trans > MAX_MEM_ALLOC_SZ /* handle.GetMaxMemoryAllocSize() */)
                 gemm_trans = 0;
-            return std::max(
-                {gemm_trans, direct_workspace, implicit_gemm_workspace, workspace_size_winograd});
+            return std::max({gemm_trans,
+                             direct_workspace,
+                             implicit_gemm_workspace,
+                             workspace_size_winograd,
+                             flexgemm_workspace});
         }
 
         if(miopen::any_of(GetConvDilations(), [](auto v) { return v > 1; }))
@@ -504,7 +510,8 @@ std::size_t ConvolutionDescriptor::ForwardGetWorkSpaceSize(Handle& handle,
             return std::max({workspace_size_gemm,
                              direct_workspace,
                              implicit_gemm_workspace,
-                             workspace_size_winograd});
+                             workspace_size_winograd,
+                             flexgemm_workspace});
         }
     }
 #endif
@@ -522,8 +529,8 @@ std::size_t ConvolutionDescriptor::ForwardGetWorkSpaceSize(Handle& handle,
                                             workspace_size_gemm,
                                             direct_workspace,
                                             implicit_gemm_workspace,
-                                            workspace_size_winograd});
-
+                                            workspace_size_winograd,
+                                            flexgemm_workspace});
     MIOPEN_LOG_I2(workspace_size);
     return workspace_size;
 }
@@ -573,11 +580,13 @@ ConvolutionDescriptor::BackwardDataGetWorkSpaceSize(Handle& handle,
 
     const size_t implicit_gemm_workspace = ForwardBackwardGetWorkSpaceSizeImplicitGemm(ctx);
 
+    const size_t flexgemm_workspace = ForwardBackwardGetWorkSpaceSizeFlexgemm(ctx);
+
     size_t workspace_size_gemm = 0;
 
 #if MIOPEN_USE_GEMM
-    size_t tmp_max_workspace =
-        std::max({direct_workspace, implicit_gemm_workspace, workspace_size_winograd});
+    size_t tmp_max_workspace = std::max(
+        {direct_workspace, implicit_gemm_workspace, workspace_size_winograd, flexgemm_workspace});
     if(!miopen::IsDisabled(MIOPEN_DEBUG_CONV_GEMM{}))
     {
         workspace_size_gemm = BackwardDataGetWorkSpaceSizeGEMM(wDesc, dyDesc);
@@ -620,7 +629,8 @@ ConvolutionDescriptor::BackwardDataGetWorkSpaceSize(Handle& handle,
                                             workspace_size_gemm,
                                             direct_workspace,
                                             implicit_gemm_workspace,
-                                            workspace_size_winograd});
+                                            workspace_size_winograd,
+                                            flexgemm_workspace});
     MIOPEN_LOG_I2(workspace_size);
     return workspace_size;
 }
@@ -707,6 +717,35 @@ ConvolutionDescriptor::BackwardWeightsGetWorkSpaceSizeGEMM(const TensorDescripto
     }
 
     return gemm_size;
+}
+
+std::size_t ConvolutionDescriptor::ForwardBackwardGetWorkSpaceSizeFlexgemm(
+    const miopen::ConvolutionContext& ctx) const
+{
+    if(miopen::IsDisabled(MIOPEN_DEBUG_CONV_FLEXGEMM{}))
+    {
+        return 0;
+    }
+
+    try
+    {
+        const auto ss  = FindAllFlexgemmSolutions(ctx, {});
+        std::size_t sz = 0;
+        for(const auto& solution : ss)
+        {
+            if(sz < solution.workspce_sz)
+            {
+                MIOPEN_LOG_I2(sz << " < " << solution.workspce_sz);
+                sz = solution.workspce_sz;
+            }
+        }
+        return sz;
+    }
+    catch(const miopen::Exception& ex)
+    {
+        MIOPEN_LOG_WE(ex.what());
+        return 0;
+    }
 }
 
 std::size_t ConvolutionDescriptor::ForwardBackwardGetWorkSpaceSizeImplicitGemm(

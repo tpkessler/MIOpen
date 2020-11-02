@@ -69,6 +69,7 @@ MIOPEN_DECLARE_ENV_VAR(MIOPEN_CONV_PRECISE_ROCBLAS_TIMING)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_FFT)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEVICE_ARCH)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_IMMED_FALLBACK)
+MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_FLEXGEMM)
 
 #if MIOPEN_USE_GEMM
 #ifdef CPPCHECK
@@ -247,6 +248,43 @@ ConvolutionDescriptor::FindDataImplicitGemmSolutions(Handle& handle,
     try
     {
         return FindAllImplicitGemmSolutions(ctx, invoke_ctx);
+    }
+    catch(miopen::Exception& ex)
+    {
+        MIOPEN_LOG_WE(ex.what());
+        return {};
+    }
+}
+
+std::vector<miopen::solver::ConvSolution>
+ConvolutionDescriptor::FindFlexgemmSolutions(Handle& handle,
+                                             const TensorDescriptor& xDesc,
+                                             const TensorDescriptor& wDesc,
+                                             const TensorDescriptor& yDesc,
+                                             bool exhaustiveSearch,
+                                             bool isForward,
+                                             const ConvolutionUserBuffers& bufs,
+                                             const miopen::AnyInvokeParams& invoke_ctx) const
+{
+
+    if(miopen::IsDisabled(MIOPEN_DEBUG_CONV_FLEXGEMM{}))
+        return {};
+    const auto dir = isForward ? conv::Direction::Forward : conv::Direction::BackwardData;
+    auto ctx       = ConvolutionContext{xDesc, wDesc, yDesc, *this, dir};
+
+    ctx.skip_solutions_that_take_long_time_to_build_and_have_narrow_coverage =
+        miopen::FindMode(ctx).IsFastHybrid();
+    ctx.do_search               = exhaustiveSearch;
+    ctx.save_srch_req           = true;
+    ctx.general_compile_options = "";
+    ctx.SetStream(&handle);
+    ctx.SetBufs(bufs);
+    ctx.DetectRocm();
+    ctx.SetupFloats();
+
+    try
+    {
+        return FindAllFlexgemmSolutions(ctx, invoke_ctx);
     }
     catch(miopen::Exception& ex)
     {
@@ -702,6 +740,18 @@ static void DirConvFindCore(Handle& handle,
         EvaluateInvokers(handle, all, algorithm_name, network_config, invoke_ctx, record);
     }
 
+    // Flexgemm algo
+    if(!use_winograd_only)
+    {
+        ConvolutionUserBuffers bufs(workSpace, workSpaceSize);
+        bufs.SetFwd(x, w, y);
+        const auto all = conv.FindFlexgemmSolutions(
+            handle, xDesc, wDesc, yDesc, exhaustiveSearch, true, bufs, invoke_ctx);
+        PrecompileSolutions(handle, all);
+        const auto algorithm_name = AlgorithmName{"miopenConvolutionFwdAlgoFlexgemm"};
+        EvaluateInvokers(handle, all, algorithm_name, network_config, invoke_ctx, record);
+    }
+
     // FFT algo
     if(!use_winograd_only && conv.GetSpatialDimension() == 2 &&
        miopen::all_of(conv.GetConvDilations(), [](auto v) { return v == 1; }) &&
@@ -950,6 +1000,7 @@ void ConvolutionDescriptor::ConvolutionForward(Handle& handle,
         case miopenConvolutionFwdAlgoDirect:
         case miopenConvolutionFwdAlgoWinograd:
         case miopenConvolutionFwdAlgoImplicitGEMM:
+        case miopenConvolutionFwdAlgoFlexgemm:
             MIOPEN_THROW("No invoker was registered for convolution forward. Was find executed?");
 
         case miopenConvolutionFwdAlgoGEMM:
@@ -1586,6 +1637,8 @@ static inline bool IsAlgorithmDisabled(const miopenConvAlgorithm_t algo)
         return miopen::IsDisabled(MIOPEN_DEBUG_CONV_WINOGRAD{});
     case miopenConvolutionAlgoImplicitGEMM:
         return miopen::IsDisabled(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM{});
+    case miopenConvolutionAlgoFlexgemm:
+        return miopen::IsDisabled(MIOPEN_DEBUG_CONV_FLEXGEMM{});
     default: // Disable future algos by default to enforce explicit handling:
         return true;
     } // clang-format on
@@ -2201,6 +2254,18 @@ void ConvolutionDescriptor::FindConvBwdDataAlgorithm(Handle& handle,
                 EvaluateInvokers(handle, all, algorithm_name, network_config, invoke_ctx, record);
             }
 
+            // Flexgemm algo
+            if(!use_winograd_only)
+            {
+                ConvolutionUserBuffers bufs(workSpace, workSpaceSize);
+                bufs.SetBwd(dx, w, dy);
+                const auto all = this->FindFlexgemmSolutions(
+                    handle, dxDesc, wDesc, dyDesc, exhaustiveSearch, false, bufs, invoke_ctx);
+                PrecompileSolutions(handle, all);
+                const auto algorithm_name = AlgorithmName{"miopenConvolutionBwdDataAlgoFlexgemm"};
+                EvaluateInvokers(handle, all, algorithm_name, network_config, invoke_ctx, record);
+            }
+
             if(GetSpatialDimension() == 2 && GetConvDilations()[0] == 1 &&
                GetConvDilations()[1] == 1 && group_count == 1 && !use_winograd_only)
             {
@@ -2547,6 +2612,7 @@ void ConvolutionDescriptor::ConvolutionBackwardData(Handle& handle,
         case miopenConvolutionBwdDataAlgoDirect:
         case miopenConvolutionBwdDataAlgoWinograd:
         case miopenConvolutionBwdDataAlgoImplicitGEMM:
+        case miopenConvolutionBwdDataAlgoFlexgemm:
             MIOPEN_THROW("No invoker was registered for convolution backward. Was find executed?");
 
         case miopenConvolutionBwdDataAlgoGEMM:

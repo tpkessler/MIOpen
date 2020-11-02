@@ -118,6 +118,9 @@ struct ConvolutionDescriptor : miopenConvolutionDescriptor
     std::size_t
     ForwardBackwardGetWorkSpaceSizeImplicitGemm(const miopen::ConvolutionContext& ctx) const;
 
+    std::size_t
+    ForwardBackwardGetWorkSpaceSizeFlexgemm(const miopen::ConvolutionContext& ctx) const;
+
     std::size_t ForwardBackwardDataGetWorkSpaceSizeWinograd(
         const miopen::ConvolutionContext& ctx,
         const miopen::AnyInvokeParams& invoke_ctx = {}) const;
@@ -222,6 +225,16 @@ struct ConvolutionDescriptor : miopenConvolutionDescriptor
                                   bool isForward,
                                   const ConvolutionUserBuffers& bufs,
                                   const AnyInvokeParams& invoke_ctx) const;
+
+    std::vector<miopen::solver::ConvSolution>
+    FindFlexgemmSolutions(Handle& handle,
+                          const TensorDescriptor& xDesc,
+                          const TensorDescriptor& wDesc,
+                          const TensorDescriptor& yDesc,
+                          bool exhaustiveSearch,
+                          bool isForward,
+                          const ConvolutionUserBuffers& bufs,
+                          const AnyInvokeParams& invoke_ctx) const;
 
     void ConvolutionForward(Handle& handle,
                             const void* alpha,
