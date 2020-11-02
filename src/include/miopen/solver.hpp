@@ -1887,6 +1887,13 @@ struct ConvFlexgemm : SolverBase<ConvolutionContext>
     ConvSolution GetSolution(const ConvolutionContext& ctx) const;
 };
 
+struct ConvCellfft : SolverBase<ConvolutionContext>
+{
+    bool IsApplicable(const ConvolutionContext&) const;
+    size_t GetWorkspaceSize(const ConvolutionContext&) const;
+    ConvSolution GetSolution(const ConvolutionContext&) const;
+};
+
 struct PerformanceImplicitGemmWrwV4R4Xdlops : Serializable<PerformanceImplicitGemmWrwV4R4Xdlops>
 {
     int GemmMPerBlock;

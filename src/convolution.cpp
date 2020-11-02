@@ -53,6 +53,7 @@ MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_WINOGRAD)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_GEMM)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_FLEXGEMM)
+MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_CELLFFT)
 
 // Workaround for issue 1430.
 // Vega20 fails to access GPU memory larger than the return value of GetMaxMemoryAllocSize() of
@@ -475,6 +476,8 @@ std::size_t ConvolutionDescriptor::ForwardGetWorkSpaceSize(Handle& handle,
 
     const size_t flexgemm_workspace = ForwardBackwardGetWorkSpaceSizeFlexgemm(ctx);
 
+    const size_t cellfft_workspace = GetWorkspaceSizeCellfft(ctx);
+
     size_t workspace_size_gemm = 0;
 #if MIOPEN_USE_GEMM
     if(!miopen::IsDisabled(MIOPEN_DEBUG_CONV_GEMM{}))
@@ -502,7 +505,8 @@ std::size_t ConvolutionDescriptor::ForwardGetWorkSpaceSize(Handle& handle,
                              direct_workspace,
                              implicit_gemm_workspace,
                              workspace_size_winograd,
-                             flexgemm_workspace});
+                             flexgemm_workspace,
+                             cellfft_workspace});
         }
 
         if(miopen::any_of(GetConvDilations(), [](auto v) { return v > 1; }))
@@ -511,7 +515,8 @@ std::size_t ConvolutionDescriptor::ForwardGetWorkSpaceSize(Handle& handle,
                              direct_workspace,
                              implicit_gemm_workspace,
                              workspace_size_winograd,
-                             flexgemm_workspace});
+                             flexgemm_workspace,
+                             cellfft_workspace});
         }
     }
 #endif
@@ -530,7 +535,8 @@ std::size_t ConvolutionDescriptor::ForwardGetWorkSpaceSize(Handle& handle,
                                             direct_workspace,
                                             implicit_gemm_workspace,
                                             workspace_size_winograd,
-                                            flexgemm_workspace});
+                                            flexgemm_workspace,
+                                            cellfft_workspace});
     MIOPEN_LOG_I2(workspace_size);
     return workspace_size;
 }
@@ -582,11 +588,17 @@ ConvolutionDescriptor::BackwardDataGetWorkSpaceSize(Handle& handle,
 
     const size_t flexgemm_workspace = ForwardBackwardGetWorkSpaceSizeFlexgemm(ctx);
 
+    const size_t cellfft_workspace = GetWorkspaceSizeCellfft(ctx);
+
     size_t workspace_size_gemm = 0;
 
 #if MIOPEN_USE_GEMM
-    size_t tmp_max_workspace = std::max(
-        {direct_workspace, implicit_gemm_workspace, workspace_size_winograd, flexgemm_workspace});
+    size_t tmp_max_workspace = std::max({direct_workspace,
+                                        implicit_gemm_workspace,
+                                        workspace_size_winograd,
+                                        flexgemm_workspace,
+                                        cellfft_workspace});
+
     if(!miopen::IsDisabled(MIOPEN_DEBUG_CONV_GEMM{}))
     {
         workspace_size_gemm = BackwardDataGetWorkSpaceSizeGEMM(wDesc, dyDesc);
@@ -630,7 +642,8 @@ ConvolutionDescriptor::BackwardDataGetWorkSpaceSize(Handle& handle,
                                             direct_workspace,
                                             implicit_gemm_workspace,
                                             workspace_size_winograd,
-                                            flexgemm_workspace});
+                                            flexgemm_workspace,
+                                            cellfft_workspace});
     MIOPEN_LOG_I2(workspace_size);
     return workspace_size;
 }
@@ -808,6 +821,35 @@ std::size_t ConvolutionDescriptor::ForwardBackwardDataGetWorkSpaceSizeDirect(
     }
 }
 
+std::size_t
+ConvolutionDescriptor::GetWorkspaceSizeCellfft(const miopen::ConvolutionContext& ctx) const
+{
+    if(miopen::IsDisabled(MIOPEN_DEBUG_CONV_CELLFFT{}))
+    {
+        return 0;
+    }
+
+    try
+    {
+        const auto ss  = FindCellfftSolution(ctx, {});
+        std::size_t sz = 0;
+        for(const auto& sol : ss)
+        {
+            if(sz < sol.workspce_sz)
+            {
+                MIOPEN_LOG_I2(sz << " < " << sol.workspce_sz);
+                sz = sol.workspce_sz;
+            }
+        }
+        return sz;
+    }
+    catch(const miopen::Exception& ex)
+    {
+        MIOPEN_LOG_WE(ex.what());
+        return 0;
+    }
+}
+
 std::size_t ConvolutionDescriptor::ForwardBackwardDataGetWorkSpaceSizeWinograd(
     const miopen::ConvolutionContext& ctx, const miopen::AnyInvokeParams& invoke_ctx) const
 {
@@ -834,6 +876,7 @@ std::size_t ConvolutionDescriptor::ForwardBackwardDataGetWorkSpaceSizeWinograd(
         return 0;
     }
 }
+
 std::size_t ConvolutionDescriptor::BackwardWeightsGetWorkSpaceSizeDirect(
     const miopen::ConvolutionContext& ctx) const
 {
@@ -919,6 +962,33 @@ std::size_t ConvolutionDescriptor::BackwardWeightsGetWorkSpaceSizeImplicitGemm(
     }
 }
 
+std::size_t ConvolutionDescriptor::BackwardWeightsGetWorkSpaceSizeCellfft(
+    const miopen::ConvolutionContext& ctx) const
+{
+    if(miopen::IsDisabled(MIOPEN_DEBUG_CONV_CELLFFT{}))
+        return 0;
+
+    try
+    {
+        const auto ss  = FindCellfftSolution(ctx, {});
+        std::size_t sz = 0;
+        for(const auto& sol : ss)
+        {
+            if(sz < sol.workspce_sz)
+            {
+                MIOPEN_LOG_I2(sz << " < " << sol.workspce_sz);
+                sz = sol.workspce_sz;
+            }
+        }
+        return sz;
+    }
+    catch(const miopen::Exception& ex)
+    {
+        MIOPEN_LOG_WE(ex.what());
+        return 0;
+    }
+}
+
 std::size_t
 ConvolutionDescriptor::BackwardWeightsGetWorkSpaceSize(Handle& handle,
                                                        const TensorDescriptor& dyDesc,
@@ -965,6 +1035,7 @@ ConvolutionDescriptor::BackwardWeightsGetWorkSpaceSize(Handle& handle,
     const size_t workspace_size = std::max({BackwardWeightsGetWorkSpaceSizeImplicitGemm(ctx),
                                             BackwardWeightsGetWorkSpaceSizeWinograd(ctx),
                                             BackwardWeightsGetWorkSpaceSizeDirect(ctx),
+                                            BackwardWeightsGetWorkSpaceSizeCellfft(ctx),
                                             workspace_size_gemm});
     MIOPEN_LOG_I2(workspace_size);
     return workspace_size;

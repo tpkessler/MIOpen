@@ -920,6 +920,7 @@ typedef enum {
     miopenConvolutionFwdAlgoFFT          = 2, /*!< Fast Fourier Transform indirect convolutions */
     miopenConvolutionFwdAlgoWinograd     = 3, /*!< Winograd indirect convolutions */
     miopenConvolutionFwdAlgoImplicitGEMM = 5, /*!< Implicit GEMM convolutions, fp32 only */
+    miopenConvolutionFwdAlgoCellfft      = 6, /*!< cellfft convolutions, fp32 only */
     miopenConvolutionFwdAlgoFlexgemm     = 7, /*!< Flexgemm convolutions, fp32 only */
 } miopenConvFwdAlgorithm_t;
 
@@ -931,6 +932,7 @@ typedef enum {
     miopenConvolutionBwdWeightsAlgoDirect       = 1, /*!< Direct convolution algorithm */
     miopenConvolutionBwdWeightsAlgoWinograd     = 3, /*!< Winograd convolutions */
     miopenConvolutionBwdWeightsAlgoImplicitGEMM = 5, /*!< Implicit GEMM convolutions */
+    miopenConvolutionBwdWeightsAlgoCellfft      = 6, /*!< cellfft convolutions, fp32 only */
 } miopenConvBwdWeightsAlgorithm_t;
 
 /*! @enum miopenConvBwdDataAlgorithm_t
@@ -944,6 +946,7 @@ typedef enum {
     miopenTransposeBwdDataAlgoGEMM =
         4, /*!< Deprecated Transpose GEMM variant legacy, ToBe Removed */
     miopenConvolutionBwdDataAlgoImplicitGEMM = 5, /*!< Implicit GEMM convolutions, fp32 only */
+    miopenConvolutionBwdDataAlgoCellfft      = 6, /*!< cellfft convolutions, fp32 only */
     miopenConvolutionBwdDataAlgoFlexgemm     = 7, /*!< Flexgemm convolutions, fp32 only */
 } miopenConvBwdDataAlgorithm_t;
 
@@ -956,6 +959,7 @@ typedef enum {
     miopenConvolutionAlgoFFT          = 2, /*!< Fast Fourier Transform indirect convolutions */
     miopenConvolutionAlgoWinograd     = 3, /*!< Winograd indirect convolutions */
     miopenConvolutionAlgoImplicitGEMM = 5, /*!< Implicit GEMM convolutions, fp32 only */
+    miopenConvolutionAlgoCellfft      = 6, /*!< cellfft convolutions, fp32 only */
     miopenConvolutionAlgoFlexgemm     = 7, /*!< Flexgemm convolutions, fp32 only */
 } miopenConvAlgorithm_t;
 

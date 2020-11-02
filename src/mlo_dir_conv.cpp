@@ -209,9 +209,15 @@ static auto GetBwdWrW2DSolvers()
                                            miopen::solver::ConvOclBwdWrW1x1>{};
 }
 
+
 static auto GetFlexgemmSolvers()
 {
     return miopen::solver::SolverContainer<miopen::solver::ConvFlexgemm>{};
+}
+
+static auto GetCellfftSolvers()
+{
+    return miopen::solver::SolverContainer<miopen::solver::ConvCellfft>{};
 }
 
 std::vector<miopen::solver::ConvSolution>
@@ -287,6 +293,13 @@ FindAllFlexgemmSolutions(const miopen::ConvolutionContext& ctx,
                          const miopen::AnyInvokeParams& invoke_ctx)
 {
     return GetFlexgemmSolvers().SearchForAllSolutions(ctx, GetDb(ctx), invoke_ctx);
+}
+
+std::vector<miopen::solver::ConvSolution>
+FindCellfftSolution(const miopen::ConvolutionContext& ctx,
+                    const miopen::AnyInvokeParams& invoke_ctx)
+{
+    return GetCellfftSolvers().SearchForAllSolutions(ctx, GetDb(ctx), invoke_ctx);
 }
 
 void miopen::ConvolutionContext::SetupFloats()

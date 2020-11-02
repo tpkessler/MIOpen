@@ -308,6 +308,7 @@ class ConvDriver : public Driver
     bool is_wrw_igemm    = false;
     bool is_fwd_igemm    = false;
     bool is_bwd_igemm    = false;
+    bool is_bww_cellfft  = false;
     bool time_enabled    = false;
     bool wall_enabled    = false;
     bool warmup_enabled  = false;
@@ -2302,6 +2303,7 @@ int ConvDriver<Tgpu, Tref>::RunBackwardWrwGpuFind()
     const auto ws_size = perf_results_weights[0].memory;
     is_wrw_winograd    = (algo == miopenConvolutionBwdWeightsAlgoWinograd);
     is_wrw_igemm       = (algo == miopenConvolutionBwdWeightsAlgoImplicitGEMM);
+    is_bww_cellfft     = (algo == miopenConvolutionBwdWeightsAlgoCellfft);
 
     ResizeWorkspaceDev(ctx, ws_size);
     wall.start(wall_enabled);
@@ -2720,6 +2722,7 @@ int ConvDriver<Tgpu, Tref>::RunBackwardWrwGpuImmed()
 
     is_wrw_winograd = (selected->algorithm == miopenConvolutionAlgoWinograd);
     is_wrw_igemm    = (selected->algorithm == miopenConvolutionAlgoImplicitGEMM);
+    is_bww_cellfft  = (selected->algorithm == miopenConvolutionAlgoCellfft);
     dwei_dev->FromGPU(GetStream(), dwei.data());
     return rc;
 }
@@ -3024,6 +3027,11 @@ int ConvDriver<Tgpu, Tref>::VerifyBackward()
 #endif
             else if(std::is_same<Tgpu, float16>::value)
                 tolerance *= 5;
+        }
+        else if(is_bww_cellfft)
+        {
+            if(std::is_same<Tgpu, float>::value)
+                tolerance *= 10;
         }
 
         auto error_weights = is_wrw_run_failed ? std::numeric_limits<double>::max()

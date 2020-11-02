@@ -65,11 +65,11 @@ MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_GEMM)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_DIRECT)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_WINOGRAD)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM)
-MIOPEN_DECLARE_ENV_VAR(MIOPEN_CONV_PRECISE_ROCBLAS_TIMING)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_FFT)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEVICE_ARCH)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_IMMED_FALLBACK)
 MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_FLEXGEMM)
+MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_CONV_CELLFFT)
 
 #if MIOPEN_USE_GEMM
 #ifdef CPPCHECK
@@ -281,10 +281,46 @@ ConvolutionDescriptor::FindFlexgemmSolutions(Handle& handle,
     ctx.SetBufs(bufs);
     ctx.DetectRocm();
     ctx.SetupFloats();
-
+	
     try
     {
         return FindAllFlexgemmSolutions(ctx, invoke_ctx);
+    }
+    catch(miopen::Exception& ex)
+    {
+        MIOPEN_LOG_WE(ex.what());
+        return {};
+    }
+}
+
+std::vector<miopen::solver::ConvSolution>
+ConvolutionDescriptor::FindCellfftSolutions(Handle& handle,
+                                            const TensorDescriptor& xDesc,
+                                            const TensorDescriptor& wDesc,
+                                            const TensorDescriptor& yDesc,
+                                            bool exhaustiveSearch,
+                                            bool isForward,
+                                            const ConvolutionUserBuffers& bufs,
+                                            const AnyInvokeParams& invoke_ctx) const
+{
+    if(miopen::IsDisabled(MIOPEN_DEBUG_CONV_CELLFFT{}))
+        return {};
+    const auto dir = isForward ? conv::Direction::Forward : conv::Direction::BackwardData;
+    auto ctx       = ConvolutionContext{xDesc, wDesc, yDesc, *this, dir};
+    ctx.skip_solutions_that_take_long_time_to_build_and_have_narrow_coverage =
+        miopen::FindMode(ctx).IsFastHybrid();
+    ctx.use_dynamic_solutions_only = miopen::FindMode(ctx).IsDynamicHybrid();
+    ctx.do_search                  = exhaustiveSearch;
+    ctx.save_srch_req              = true;
+    ctx.general_compile_options    = "";
+    ctx.SetStream(&handle);
+    ctx.SetBufs(bufs);
+    ctx.DetectRocm();
+    ctx.SetupFloats();
+
+    try
+    {
+        return FindCellfftSolution(ctx, invoke_ctx);
     }
     catch(miopen::Exception& ex)
     {
@@ -752,6 +788,19 @@ static void DirConvFindCore(Handle& handle,
         EvaluateInvokers(handle, all, algorithm_name, network_config, invoke_ctx, record);
     }
 
+
+    // cellfft algo
+    if(!use_winograd_only)
+    {
+        ConvolutionUserBuffers bufs(workSpace, workSpaceSize);
+        bufs.SetFwd(x, w, y);
+        const auto all = conv.FindCellfftSolutions(
+            handle, xDesc, wDesc, yDesc, exhaustiveSearch, true, bufs, invoke_ctx);
+        PrecompileSolutions(handle, all);
+        const auto algorithm_name = AlgorithmName{"miopenConvolutionFwdAlgoCellfft"};
+        EvaluateInvokers(handle, all, algorithm_name, network_config, invoke_ctx, record);
+    }
+
     // FFT algo
     if(!use_winograd_only && conv.GetSpatialDimension() == 2 &&
        miopen::all_of(conv.GetConvDilations(), [](auto v) { return v == 1; }) &&
@@ -1001,6 +1050,7 @@ void ConvolutionDescriptor::ConvolutionForward(Handle& handle,
         case miopenConvolutionFwdAlgoWinograd:
         case miopenConvolutionFwdAlgoImplicitGEMM:
         case miopenConvolutionFwdAlgoFlexgemm:
+        case miopenConvolutionFwdAlgoCellfft:
             MIOPEN_THROW("No invoker was registered for convolution forward. Was find executed?");
 
         case miopenConvolutionFwdAlgoGEMM:
@@ -1639,6 +1689,8 @@ static inline bool IsAlgorithmDisabled(const miopenConvAlgorithm_t algo)
         return miopen::IsDisabled(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM{});
     case miopenConvolutionAlgoFlexgemm:
         return miopen::IsDisabled(MIOPEN_DEBUG_CONV_FLEXGEMM{});
+    case miopenConvolutionAlgoCellfft:
+        return miopen::IsDisabled(MIOPEN_DEBUG_CONV_CELLFFT{});
     default: // Disable future algos by default to enforce explicit handling:
         return true;
     } // clang-format on
@@ -2266,6 +2318,18 @@ void ConvolutionDescriptor::FindConvBwdDataAlgorithm(Handle& handle,
                 EvaluateInvokers(handle, all, algorithm_name, network_config, invoke_ctx, record);
             }
 
+            // Cellfft algo
+            if(!use_winograd_only)
+            {
+                ConvolutionUserBuffers bufs(workSpace, workSpaceSize);
+                bufs.SetBwd(dx, w, dy);
+                const auto all = this->FindCellfftSolutions(
+                    handle, dxDesc, wDesc, dyDesc, exhaustiveSearch, false, bufs, invoke_ctx);
+                PrecompileSolutions(handle, all);
+                const auto algorithm_name = AlgorithmName{"miopenConvolutionBwdDataAlgoCellfft"};
+                EvaluateInvokers(handle, all, algorithm_name, network_config, invoke_ctx, record);
+            }
+
             if(GetSpatialDimension() == 2 && GetConvDilations()[0] == 1 &&
                GetConvDilations()[1] == 1 && group_count == 1 && !use_winograd_only)
             {
@@ -2613,6 +2677,7 @@ void ConvolutionDescriptor::ConvolutionBackwardData(Handle& handle,
         case miopenConvolutionBwdDataAlgoWinograd:
         case miopenConvolutionBwdDataAlgoImplicitGEMM:
         case miopenConvolutionBwdDataAlgoFlexgemm:
+        case miopenConvolutionBwdDataAlgoCellfft:
             MIOPEN_THROW("No invoker was registered for convolution backward. Was find executed?");
 
         case miopenConvolutionBwdDataAlgoGEMM:
@@ -3368,6 +3433,14 @@ void ConvolutionDescriptor::FindConvBwdWeightsAlgorithm(Handle& handle,
                 const auto algorithm_name =
                     AlgorithmName{"miopenConvolutionBwdWeightsAlgoImplicitGEMM"};
                 EvaluateInvokers(handle, all, algorithm_name, network_config, invoke_ctx, record);
+            }
+
+            // cellfft
+            if(!miopen::IsDisabled(MIOPEN_DEBUG_CONV_CELLFFT{}))
+            {
+                const auto all  = FindCellfftSolution(ctx, invoke_ctx);
+                const auto algo = AlgorithmName{"miopenConvolutionBwdWeightsAlgoCellfft"};
+                EvaluateInvokers(handle, all, algo, network_config, invoke_ctx, record);
             }
         });
     }

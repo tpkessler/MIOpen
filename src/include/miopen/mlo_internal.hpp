@@ -259,6 +259,10 @@ std::vector<miopen::solver::ConvSolution>
 FindAllFlexgemmSolutions(const miopen::ConvolutionContext& ctx,
                          const miopen::AnyInvokeParams& invoke_ctx);
 
+std::vector<miopen::solver::ConvSolution>
+FindCellfftSolution(const miopen::ConvolutionContext& ctx,
+                    const miopen::AnyInvokeParams& invoke_ctx);
+
 struct mlo_construct_base
 {
     mlo_construct_base(miopen::conv::Direction dir, bool do_bias = false) : _search_params(dir)

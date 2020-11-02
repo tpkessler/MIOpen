@@ -238,6 +238,7 @@ set( MIOpen_Source
     solver/conv_hip_implicit_gemm_wrw_v4r4_xdlops_padded_gemm.cpp
     solver/conv_asm_implicit_gemm_gtc_fwd.cpp
     solver/conv_asm_implicit_gemm_gtc_bwd.cpp
+    solver/conv_cellfft.cpp
     solver/conv_flexgemm.cpp
     )
 
@@ -411,6 +412,8 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         kernels/MIOpenDropout.cl
         kernels/xform_data.s
         kernels/xform_filter.s
+        kernels/cellfft_gfx900.s
+        kernels/cellfft_gfx906.s
         kernels/xform_bidirect_winograd_data.s
         kernels/xform_bidirect_winograd_filter.s
         kernels/xform_bidirect_winograd_out.s
