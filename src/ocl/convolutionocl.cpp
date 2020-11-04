@@ -255,6 +255,49 @@ ConvolutionDescriptor::FindDataImplicitGemmSolutions(Handle& handle,
     }
 }
 
+template<class InvokeParams, class F>
+float InvokeParamsCheckNumerics(Handle& handle, InvokeParams invoke_ctx, F f);
+
+template<typename  F>
+float InvokeParamsCheckNumerics(Handle& handle, conv::DataInvokeParams invoke_ctx, F f)
+{
+    float elapsed = -1.0;
+    if(!miopen::CheckNumericsEnabled())
+    {
+        f();
+        elapsed =  handle.GetKernelTime();
+    }
+    else
+    {
+        miopen::checkNumericsInput(handle, invoke_ctx.tensors.inDesc, invoke_ctx.tensors.in);
+        miopen::checkNumericsInput(handle, invoke_ctx.tensors.wDesc, invoke_ctx.tensors.w);
+        f();
+        elapsed = handle.GetKernelTime();
+        miopen::checkNumericsOutput(handle, invoke_ctx.tensors.outDesc, invoke_ctx.tensors.out);
+    }
+    return elapsed;
+}
+
+template<typename  F>
+float InvokeParamsCheckNumerics(Handle& handle, conv::WrWInvokeParams invoke_ctx, F f)
+{
+    float elapsed = -1.0;
+    if(!miopen::CheckNumericsEnabled())
+    {
+        f();
+        elapsed =  handle.GetKernelTime();
+    }
+    else
+    {
+        miopen::checkNumericsInput(handle, invoke_ctx.tensors.dyDesc, invoke_ctx.tensors.dy);
+        miopen::checkNumericsInput(handle, invoke_ctx.tensors.xDesc, invoke_ctx.tensors.x);
+        f();
+        elapsed = handle.GetKernelTime();
+        miopen::checkNumericsOutput(handle, invoke_ctx.tensors.dwDesc, invoke_ctx.tensors.dw);
+    }
+    return elapsed;
+}
+
 template <class InvokeParams>
 static void EvaluateInvokers(Handle& handle,
                              const std::vector<solver::ConvSolution>& solutions,
@@ -301,8 +344,10 @@ static void EvaluateInvokers(Handle& handle,
             MIOPEN_THROW("Invoker is not provided by solver " + sol.solver_id);
 
         const auto invoker = handle.PrepareInvoker(*sol.invoker_factory, sol.construction_params);
-        invoker(handle, invoke_ctx);
-        const auto elapsed = handle.GetKernelTime();
+        float elapsed = -1.0;
+        elapsed = InvokeParamsCheckNumerics(handle, invoke_ctx, [&]() {
+            invoker(handle, invoke_ctx);
+        });
 
         MIOPEN_LOG_I(sol << ": " << elapsed << (elapsed < best ? " < " : " >= ") << best);
         if(elapsed < best)
