@@ -890,7 +890,8 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v2
             MWavePerBlock,
             NWavePerBlock,
             1,
-            1>{};
+            1,
+            2>{};
 
         constexpr index_t a_block_space =
             math::integer_least_multiple(a_g_k_m_kpack_block_desc.GetElementSpace(), max_align);
@@ -937,7 +938,8 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v2
                 reinterpret_cast<const typename vector_type<ABFloat, KPack>::MemoryType*>(
                     p_b_block);
 
-            c_thread_vec = blockwise_gemm.Run(p_a_block_vec, p_b_block_vec, c_thread_vec);
+            c_thread_vec = blockwise_gemm.Run(p_a_block_vec, p_b_block_vec, c_thread_vec, 0);
+            c_thread_vec = blockwise_gemm.Run(p_a_block_vec, p_b_block_vec, c_thread_vec, 1);
 
             block_sync_lds();
 
@@ -958,7 +960,8 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v2
                 reinterpret_cast<const typename vector_type<ABFloat, KPack>::MemoryType*>(
                     p_b_block);
 
-            c_thread_vec = blockwise_gemm.Run(p_a_block_vec, p_b_block_vec, c_thread_vec);
+            c_thread_vec = blockwise_gemm.Run(p_a_block_vec, p_b_block_vec, c_thread_vec, 0);
+            c_thread_vec = blockwise_gemm.Run(p_a_block_vec, p_b_block_vec, c_thread_vec, 1);
         }
 
         // copy output: register to global memory

@@ -18,7 +18,8 @@ template <index_t BlockSize,
           index_t GemmMWaves,
           index_t GemmNWaves,
           index_t GemmDataPerReadA, // \todo unused parameter, remove
-          index_t GemmDataPerReadB  // \todo unused parameter, remove
+          index_t GemmDataPerReadB,  // \todo unused parameter, remove
+          index_t NumSegments = 1
           >
 struct BlockwiseGemmBlockABlockBThreadCTransANormalBNormalC_xdlops
 {
@@ -36,7 +37,7 @@ struct BlockwiseGemmBlockABlockBThreadCTransANormalBNormalC_xdlops
     static constexpr index_t NPerXdlops = (GemmNPerWave > 64) ? 64 : GemmNPerWave;
 
     static constexpr auto XdlopsGemm =
-        XdlopsGemm_t<Float, MPerXdlops, NPerXdlops, GemmDataPerReadA, GemmDataPerReadB>{};
+        XdlopsGemm_t<Float, MPerXdlops, NPerXdlops, GemmDataPerReadA, GemmDataPerReadB, NumSegments>{};
 #else
 
 #if CK_USE_AMD_XDLOPS_INLINE_ASM
@@ -44,7 +45,7 @@ struct BlockwiseGemmBlockABlockBThreadCTransANormalBNormalC_xdlops
     static_assert(false, "Does not support inline asm for vector type c")
 #else
     static constexpr auto XdlopsGemm =
-        XdlopsGemm_t<Float, GemmMPerWave, GemmNPerWave, GemmDataPerReadA, GemmDataPerReadB>{};
+        XdlopsGemm_t<Float, GemmMPerWave, GemmNPerWave, GemmDataPerReadA, GemmDataPerReadB, NumSegments>{};
 #endif
 
 #endif
@@ -105,12 +106,15 @@ struct BlockwiseGemmBlockABlockBThreadCTransANormalBNormalC_xdlops
 
         constexpr index_t M = BlockMatrixA::NCol(); // A is transposed
         constexpr index_t N = BlockMatrixB::NCol();
+        constexpr index_t K = BlockMatrixA::NCol();
 
         static_assert(GemmMPerWave * GemmMWaves == M, "GemmMWaves * GemmMPerWave != M");
         static_assert(GemmNPerWave * GemmNWaves == N, "GemmNWaves * GemmNPerWave != N");
 
         static_assert(BlockSize == GemmMWaves * GemmNWaves * WaveSize,
                       "BlockSize != GemmMWaves * GemmNWaves * WaveSize\n");
+
+        static_assert(K % NumSegments == 0, "K cannot be divided by NumSegments!");
 
         const index_t waveId   = get_thread_local_1d_id() / WaveSize;
         const index_t waveId_m = waveId / GemmNWaves;
@@ -130,12 +134,13 @@ struct BlockwiseGemmBlockABlockBThreadCTransANormalBNormalC_xdlops
         template <index_t M, index_t N, index_t K, class FloatA, class FloatB, class FloatC>
         __device__ static FloatC Run(const FloatA* __restrict__ p_a_block,
                                      const FloatB* __restrict__ p_b_block,
-                                     FloatC p_c_thread)
+                                     FloatC p_c_thread,
+                                     const index_t segment_id)
         {
             p_c_thread.s.x.l =
                 XdlopsGemm.template Run<M, N, K>(p_a_block, p_b_block, p_c_thread.s.x.l);
-            p_c_thread.s.y.l = XdlopsGemm.template Run<M, N, K>(
-                p_a_block + MPerXdlops, p_b_block, p_c_thread.s.y.l);
+            p_c_thread.s.y.l = XdlopsGemm.template RunSegment<M, N, K>(
+                p_a_block + MPerXdlops, p_b_block, p_c_thread.s.y.l, segment_id);
 
             return p_c_thread;
         }
@@ -147,12 +152,13 @@ struct BlockwiseGemmBlockABlockBThreadCTransANormalBNormalC_xdlops
         template <index_t M, index_t N, index_t K, class FloatA, class FloatB, class FloatC>
         __device__ static FloatC Run(const FloatA* __restrict__ p_a_block,
                                      const FloatB* __restrict__ p_b_block,
-                                     FloatC p_c_thread)
+                                     FloatC p_c_thread,
+                                     const index_t segment_id)
         {
             p_c_thread.s.x.l =
                 XdlopsGemm.template Run<M, N, K>(p_a_block, p_b_block, p_c_thread.s.x.l);
-            p_c_thread.s.y.l = XdlopsGemm.template Run<M, N, K>(
-                p_a_block, p_b_block + NPerXdlops, p_c_thread.s.y.l);
+            p_c_thread.s.y.l = XdlopsGemm.template RunSegment<M, N, K>(
+                p_a_block, p_b_block + NPerXdlops, p_c_thread.s.y.l, segment_id);
 
             return p_c_thread;
         }
@@ -164,9 +170,10 @@ struct BlockwiseGemmBlockABlockBThreadCTransANormalBNormalC_xdlops
         template <index_t M, index_t N, index_t K, class FloatA, class FloatB, class FloatC>
         __device__ static FloatC Run(const FloatA* __restrict__ p_a_block,
                                      const FloatB* __restrict__ p_b_block,
-                                     FloatC p_c_thread)
+                                     FloatC p_c_thread,
+                                     const index_t segment_id)
         {
-            return XdlopsGemm.template Run<M, N, K>(p_a_block, p_b_block, p_c_thread);
+            return XdlopsGemm.template RunSegment<M, N, K>(p_a_block, p_b_block, p_c_thread, segment_id);
         }
     };
 #endif
@@ -174,7 +181,8 @@ struct BlockwiseGemmBlockABlockBThreadCTransANormalBNormalC_xdlops
     template <class FloatA, class FloatB, class FloatC>
     __device__ FloatC Run(const FloatA* __restrict__ p_a_block,
                           const FloatB* __restrict__ p_b_block,
-                          FloatC p_c_thread) const
+                          FloatC p_c_thread,
+                          const index_t segment_id = 0) const
 
     {
         constexpr index_t M = BlockMatrixA::NCol(); // A is transposed
@@ -183,10 +191,10 @@ struct BlockwiseGemmBlockABlockBThreadCTransANormalBNormalC_xdlops
 
 #if CK_WORKAROUND_SWDEV_241664
         return WithMNRepeats<MRepeats, NRepeats>::template Run<M, N, K>(
-            &p_a_block[mMyWaveOffsetA], &p_b_block[mMyWaveOffsetB], p_c_thread);
+            &p_a_block[mMyWaveOffsetA], &p_b_block[mMyWaveOffsetB], p_c_thread, segment_id);
 #else
-        return XdlopsGemm.template Run<M, N, K>(
-            &p_a_block[mMyWaveOffsetA], &p_b_block[mMyWaveOffsetB], p_c_thread);
+        return XdlopsGemm.template RunSegment<M, N, K>(
+            &p_a_block[mMyWaveOffsetA], &p_b_block[mMyWaveOffsetB], p_c_thread, segment_id);
 #endif
     }
 
