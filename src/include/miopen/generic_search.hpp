@@ -353,7 +353,7 @@ auto GenericSearch(const Solver s, const Context& context, const AnyInvokeParams
         compile_and_run = c_and_r;
     }
 
-    for(const auto& current_config : all_configs)
+    if(!IsEnabled(MIOPEN_DEBUG_COMPILE_ONLY{}))
     {
         float elapsed_time = 0.0f;
         int ret            = 0;
