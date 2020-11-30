@@ -69,11 +69,11 @@ struct ThreadwiseGenericTensorSliceCopy_v5
         mDstSliceOrigin = dst_slice_origin;
     }
 
-    template <typename DstData, typename SrcData>
+    template <typename SrcData, index_t SrcDataPerAccess>
     struct vector_data_load;
 
     template <>
-    struct vector_data_load<float4, float>
+    struct vector_data_load<float, 4>
     {
         template <typename SrcCoord>
         __device__ static float4 run(const float* p_src, const SrcCoord src_coord_begin)
@@ -89,11 +89,11 @@ struct ThreadwiseGenericTensorSliceCopy_v5
         }
     };
 
-    template <typename DstData, typename SrcData>
+    template <typename DstData, index_t DstDataPerAccess, typename BuffData>
     struct vector_data_store;
 
     template <>
-    struct vector_data_store<float, float4>
+    struct vector_data_store<float, 1, float4>
     {
         template <typename DstCoord>
         __device__ static void
@@ -121,11 +121,11 @@ struct ThreadwiseGenericTensorSliceCopy_v5
         }
     };
 
-    template <typename DstData, typename SrcData>
+    template <typename DstData, index_t DstDataPerAccess, typename SrcData>
     struct convert_data;
 
     template <>
-    struct convert_data<float4, float4>
+    struct convert_data<float, 1, float4>
     {
         __device__ static float4 run(float4 src_data) { return src_data; }
     };
@@ -225,12 +225,14 @@ struct ThreadwiseGenericTensorSliceCopy_v5
 #endif
 
                 const auto src_coord = mSrcSliceOrigin + long_vector_data_begin_id;
-                auto src_buff        = vector_data_load<float4, float>::run(p_src, src_coord);
+                auto src_buff = vector_data_load<SrcData, SrcDataPerRead>::run(p_src, src_coord);
 
-                auto dst_buff = convert_data<float4, float4>::run(src_buff);
+                auto dst_buff =
+                    convert_data<DstData, DstDataPerWrite, decltype(src_buff)>::run(src_buff);
 
                 const auto dst_coord = mDstSliceOrigin + long_vector_data_begin_id;
-                vector_data_store<float, float4>::run(p_dst, src_buff, dst_coord);
+                vector_data_store<DstData, DstDataPerWrite, decltype(dst_buff)>::run(
+                    p_dst, src_buff, dst_coord);
             });
     }
 
