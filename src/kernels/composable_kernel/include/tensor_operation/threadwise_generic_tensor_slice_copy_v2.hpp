@@ -69,11 +69,11 @@ struct ThreadwiseGenericTensorSliceCopy_v5
         mDstSliceOrigin = dst_slice_origin;
     }
 
-    template <typename SrcData, index_t SrcDataPerAccess>
+    template <typename SrcData, index_t SrcDataPerAccess, index_t VectorSize>
     struct vector_data_load;
 
     template <>
-    struct vector_data_load<float, 4>
+    struct vector_data_load<float, 4, 4>
     {
         template <typename SrcCoord>
         __device__ static float4 run(const float* p_src, const SrcCoord src_coord_begin)
@@ -89,15 +89,15 @@ struct ThreadwiseGenericTensorSliceCopy_v5
         }
     };
 
-    template <typename DstData, index_t DstDataPerAccess, typename BuffData>
+    template <typename DstData, index_t DstDataPerAccess, index_t VectorSize>
     struct vector_data_store;
 
     template <>
-    struct vector_data_store<float, 1, float4>
+    struct vector_data_store<float, 1, 4>
     {
         template <typename DstCoord>
         __device__ static void
-        run(float* p_dst, const float4 src_data, const DstCoord dst_coord_begin)
+        run(float* p_dst, const float1x4_t src_data, const DstCoord dst_coord_begin)
         {
             constexpr auto vector_access_dim = Number<SrcDstVectorReadWriteDim>{};
 
@@ -105,19 +105,19 @@ struct ThreadwiseGenericTensorSliceCopy_v5
 
             scalar_id(vector_access_dim) = 0;
             auto dst_coord               = dst_coord_begin + scalar_id;
-            store_data<float, float>(src_data.x, p_dst, dst_coord.GetOffset());
+            store_data<float, float>(src_data.l.s.x, p_dst, dst_coord.GetOffset());
 
             scalar_id(vector_access_dim) = 1;
             dst_coord                    = dst_coord_begin + scalar_id;
-            store_data<float, float>(src_data.y, p_dst, dst_coord.GetOffset());
+            store_data<float, float>(src_data.l.s.y, p_dst, dst_coord.GetOffset());
 
             scalar_id(vector_access_dim) = 2;
             dst_coord                    = dst_coord_begin + scalar_id;
-            store_data<float, float>(src_data.z, p_dst, dst_coord.GetOffset());
+            store_data<float, float>(src_data.l.s.z, p_dst, dst_coord.GetOffset());
 
             scalar_id(vector_access_dim) = 3;
             dst_coord                    = dst_coord_begin + scalar_id;
-            store_data<float, float>(src_data.w, p_dst, dst_coord.GetOffset());
+            store_data<float, float>(src_data.l.s.w, p_dst, dst_coord.GetOffset());
         }
     };
 
@@ -127,7 +127,17 @@ struct ThreadwiseGenericTensorSliceCopy_v5
     template <>
     struct convert_data<float, 1, float4>
     {
-        __device__ static float4 run(float4 src_data) { return src_data; }
+        __device__ static float1x4_t run(float4 src_data)
+        {
+            float1x4_t r;
+
+            r.l.s.x = src_data.x;
+            r.l.s.y = src_data.y;
+            r.l.s.z = src_data.z;
+            r.l.s.w = src_data.w;
+
+            return r;
+        }
     };
 
     template <typename SrcData, typename DstData>
@@ -147,13 +157,13 @@ struct ThreadwiseGenericTensorSliceCopy_v5
         constexpr auto long_vector_access_lengths = SliceLengths::Modify(
             vector_access_dim, SliceLengths::Get(vector_access_dim) / long_vector_size);
 
-        ford<decltype(long_vector_access_lengths), SrcDstDimAccessOrder>{}(
-            [&](auto long_vector_access_id) {
+        ford<decltype(long_vector_access_lengths), SrcDstDimAccessOrder>{}([&](
+            auto long_vector_access_id) {
 
-                // data id w.r.t slicing-window
-                auto long_vector_data_begin_id = long_vector_access_id;
-                long_vector_data_begin_id(vector_access_dim) =
-                    long_vector_size * long_vector_access_id[vector_access_dim];
+            // data id w.r.t slicing-window
+            auto long_vector_data_begin_id = long_vector_access_id;
+            long_vector_data_begin_id(vector_access_dim) =
+                long_vector_size * long_vector_access_id[vector_access_dim];
 
 #if 0
             // buffer to hold a src long-vector
@@ -224,16 +234,17 @@ struct ThreadwiseGenericTensorSliceCopy_v5
             }
 #endif
 
-                const auto src_coord = mSrcSliceOrigin + long_vector_data_begin_id;
-                auto src_buff = vector_data_load<SrcData, SrcDataPerRead>::run(p_src, src_coord);
+            const auto src_coord = mSrcSliceOrigin + long_vector_data_begin_id;
+            auto src_buff =
+                vector_data_load<SrcData, SrcDataPerRead, long_vector_size>::run(p_src, src_coord);
 
-                auto dst_buff =
-                    convert_data<DstData, DstDataPerWrite, decltype(src_buff)>::run(src_buff);
+            auto dst_buff =
+                convert_data<DstData, DstDataPerWrite, decltype(src_buff)>::run(src_buff);
 
-                const auto dst_coord = mDstSliceOrigin + long_vector_data_begin_id;
-                vector_data_store<DstData, DstDataPerWrite, decltype(dst_buff)>::run(
-                    p_dst, src_buff, dst_coord);
-            });
+            const auto dst_coord = mDstSliceOrigin + long_vector_data_begin_id;
+            vector_data_store<DstData, DstDataPerWrite, long_vector_size>::run(
+                p_dst, dst_buff, dst_coord);
+        });
     }
 
     // Modify Length to 1, if Mask is set to false
