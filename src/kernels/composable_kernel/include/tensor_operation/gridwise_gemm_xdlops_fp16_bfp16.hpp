@@ -6,6 +6,7 @@
 #include "tensor_descriptor_helper.hpp"
 #include "ConstantMatrixDescriptor.hpp"
 #include "blockwise_generic_tensor_slice_copy.hpp"
+#include "blockwise_generic_tensor_slice_copy_v2.hpp"
 #include "threadwise_generic_tensor_slice_copy.hpp"
 #include "blockwise_gemm_xdlops.hpp"
 
@@ -849,7 +850,7 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v2
             Sequence<1, KPerBlock, NPerBlock, KPack>{}, Number<max_align>{});
 
         // input blockwise copy
-        auto b_blockwise_copy = BlockwiseGenericTensorSliceCopy_v4<
+        auto b_blockwise_copy = BlockwiseGenericTensorSliceCopy_v5<
             BlockSize,
             decltype(b_g_k_n_kpack_global_desc),
             decltype(b_g_k_n_kpack_block_desc),

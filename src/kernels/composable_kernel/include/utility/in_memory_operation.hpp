@@ -172,5 +172,17 @@ __device__ void transfer_data(const T* p_src, index_t src_offset, T* p_dst, inde
     }
 }
 
+template <typename DstData, typename SrcData>
+__device__ DstData load_data(const SrcData* p_src, index_t src_offset)
+{
+    return *reinterpret_cast<const DstData*>(&p_src[src_offset]);
+}
+
+template <typename DstData, typename SrcData>
+__device__ void store_data(const SrcData src_data, DstData* p_dst, index_t dst_offset)
+{
+    p_dst[dst_offset] = src_data;
+}
+
 } // namespace ck
 #endif
