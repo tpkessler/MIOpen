@@ -171,18 +171,18 @@ struct BlockwiseGenericTensorSliceCopy_v5
                                                                SrcDataStride,
                                                                1>;
 
-    using ThreadwiseStore = ThreadwiseGenericTensorSliceCopy_v4r2<ThreadBufferDesc,
-                                                                  BlockDstDesc,
-                                                                  ThreadSliceLengths,
-                                                                  DstDimAccessOrder,
-                                                                  DstVectorWriteDim,
-                                                                  1,
-                                                                  DstDataPerWrite,
-                                                                  ThreadBufferAddressSpace,
-                                                                  DstAddressSpace,
-                                                                  DstInMemOp,
-                                                                  1,
-                                                                  DstDataStride>;
+    using ThreadwiseStore = ThreadwiseGenericTensorSliceCopy_v5<ThreadBufferDesc,
+                                                                BlockDstDesc,
+                                                                ThreadSliceLengths,
+                                                                DstDimAccessOrder,
+                                                                DstVectorWriteDim,
+                                                                1,
+                                                                DstDataPerWrite,
+                                                                ThreadBufferAddressSpace,
+                                                                DstAddressSpace,
+                                                                DstInMemOp,
+                                                                1,
+                                                                DstDataStride>;
 
     static constexpr auto mThreadClusterDesc =
         make_cluster_descriptor(ThreadClusterLengths{}, ThreadClusterArrangeOrder{});

@@ -36,6 +36,19 @@ struct float1x4_t
     } l;
 };
 
+struct float1x2_t
+{
+    union VecType
+    {
+        struct
+        {
+            float x;
+            float y;
+        } s;
+        float n[2];
+    } l;
+};
+
 struct c_vec32_4_t
 {
     union VecType
