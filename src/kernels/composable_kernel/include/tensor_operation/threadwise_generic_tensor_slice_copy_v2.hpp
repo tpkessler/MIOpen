@@ -194,6 +194,23 @@ struct ThreadwiseGenericTensorSliceCopy_v5
         }
     };
 
+    template <>
+    struct vector_data_store<float, 4, 4>
+    {
+        template <typename DstCoord>
+        __device__ static void
+        run(float* p_dst, const float4 src_data, const DstCoord dst_coord_begin)
+        {
+            constexpr auto vector_access_dim = Number<SrcDstVectorReadWriteDim>{};
+
+            auto scalar_id = make_zero_array<index_t, nDim>();
+
+            scalar_id(vector_access_dim) = 0;
+            auto dst_coord               = dst_coord_begin + scalar_id;
+            store_data<float, float4>(src_data, p_dst, dst_coord.GetOffset());
+        }
+    };
+
     template <typename DstData, index_t DstDataPerAccess, typename SrcData>
     struct convert_data;
 
@@ -208,6 +225,22 @@ struct ThreadwiseGenericTensorSliceCopy_v5
             r.l.s.y = src_data.y;
             r.l.s.z = src_data.z;
             r.l.s.w = src_data.w;
+
+            return r;
+        }
+    };
+
+    template <>
+    struct convert_data<float, 4, float1x4_t>
+    {
+        __device__ static float4 run(float1x4_t src_data)
+        {
+            float4 r;
+
+            r.x = src_data.l.s.x;
+            r.y = src_data.l.s.y;
+            r.z = src_data.l.s.z;
+            r.w = src_data.l.s.w;
 
             return r;
         }
