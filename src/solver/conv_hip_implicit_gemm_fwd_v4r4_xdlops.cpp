@@ -951,6 +951,20 @@ ConvSolution ConvHipImplicitGemmForwardV4R4Xdlops::GetSolution(
         ctx.general_compile_options;
     // clang-format on
 
+    auto GemmBBlockCopyThreadSliceLengths_GemmK =
+        config.GemmKPerBlock / GemmBBlockCopyClusterLengths_GemmK;
+    auto GemmBBlockCopyThreadSliceLengths_GemmN =
+        config.GemmNPerBlock / GemmBBlockCopyClusterLengths_GemmN;
+    auto GemmBBlockCopyThreadSliceLengths_GemmKPack =
+        config.GemmKPack / GemmBBlockCopyClusterLengths_GemmKPack;
+
+    std::cerr << "GemmBBlockCopyThreadSliceLengths_GemmK = "
+              << GemmBBlockCopyThreadSliceLengths_GemmK
+              << " GemmBBlockCopyThreadSliceLengths_GemmN = "
+              << GemmBBlockCopyThreadSliceLengths_GemmN
+              << " GemmBBlockCopyThreadSliceLengths_GemmKPack = "
+              << GemmBBlockCopyThreadSliceLengths_GemmKPack << std::endl;
+
     std::cerr << construction_parameters.comp_options << std::endl;
 
     result.invoker_factory = conv::MakeImplGemmDataInvokerFactory(ctx);

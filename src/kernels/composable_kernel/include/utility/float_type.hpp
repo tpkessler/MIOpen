@@ -21,32 +21,32 @@ typedef ushort ushort2_t __attribute__((ext_vector_type(2)));
 typedef ushort ushort4_t __attribute__((ext_vector_type(4)));
 typedef ushort ushort8_t __attribute__((ext_vector_type(8)));
 
-struct float1x4_t
+struct float_vec4_t
 {
     union VecType
     {
         struct
         {
-            float x;
-            float y;
-            float z;
-            float w;
-        } s;
-        float n[4];
-    } l;
+            float e0;
+            float e1;
+            float e2;
+            float e3;
+        } s1;
+        float4_t s4;
+    } v;
 };
 
-struct float1x2_t
+struct float_vec2_t
 {
     union VecType
     {
         struct
         {
-            float x;
-            float y;
-        } s;
-        float n[2];
-    } l;
+            float e0;
+            float e1;
+        } s1;
+        float2_t s2;
+    } v;
 };
 
 struct c_vec32_4_t

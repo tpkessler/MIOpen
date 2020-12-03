@@ -76,7 +76,7 @@ struct ThreadwiseGenericTensorSliceCopy_v5
     struct vector_data_load<float, 4, 4>
     {
         template <typename SrcCoord>
-        __device__ static float4 run(const float* p_src, const SrcCoord src_coord_begin)
+        __device__ static float_vec4_t run(const float* p_src, const SrcCoord src_coord_begin)
         {
             constexpr auto vector_access_dim = Number<SrcDstVectorReadWriteDim>{};
 
@@ -85,7 +85,11 @@ struct ThreadwiseGenericTensorSliceCopy_v5
             scalar_id(vector_access_dim) = 0;
             auto src_coord               = src_coord_begin + scalar_id;
 
-            return load_data<float4, float>(p_src, src_coord.GetOffset());
+            float_vec4_t r;
+
+            r.v.s4 = load_data<float4_t, float>(p_src, src_coord.GetOffset());
+
+            return r;
         }
     };
 
@@ -93,29 +97,29 @@ struct ThreadwiseGenericTensorSliceCopy_v5
     struct vector_data_load<float, 1, 4>
     {
         template <typename SrcCoord>
-        __device__ static float1x4_t run(const float* p_src, const SrcCoord src_coord_begin)
+        __device__ static float_vec4_t run(const float* p_src, const SrcCoord src_coord_begin)
         {
             constexpr auto vector_access_dim = Number<SrcDstVectorReadWriteDim>{};
 
             auto scalar_id = make_zero_array<index_t, nDim>();
 
-            float1x4_t r;
+            float_vec4_t r;
 
             scalar_id(vector_access_dim) = 0;
             auto src_coord               = src_coord_begin + scalar_id;
-            r.l.s.x                      = load_data<float, float>(p_src, src_coord.GetOffset());
+            r.v.s1.e0                    = load_data<float, float>(p_src, src_coord.GetOffset());
 
             scalar_id(vector_access_dim) = 1;
             src_coord                    = src_coord_begin + scalar_id;
-            r.l.s.y                      = load_data<float, float>(p_src, src_coord.GetOffset());
+            r.v.s1.e1                    = load_data<float, float>(p_src, src_coord.GetOffset());
 
             scalar_id(vector_access_dim) = 2;
             src_coord                    = src_coord_begin + scalar_id;
-            r.l.s.z                      = load_data<float, float>(p_src, src_coord.GetOffset());
+            r.v.s1.e2                    = load_data<float, float>(p_src, src_coord.GetOffset());
 
             scalar_id(vector_access_dim) = 3;
             src_coord                    = src_coord_begin + scalar_id;
-            r.l.s.w                      = load_data<float, float>(p_src, src_coord.GetOffset());
+            r.v.s1.e3                    = load_data<float, float>(p_src, src_coord.GetOffset());
 
             return r;
         }
@@ -125,21 +129,21 @@ struct ThreadwiseGenericTensorSliceCopy_v5
     struct vector_data_load<float, 1, 2>
     {
         template <typename SrcCoord>
-        __device__ static float1x2_t run(const float* p_src, const SrcCoord src_coord_begin)
+        __device__ static float_vec2_t run(const float* p_src, const SrcCoord src_coord_begin)
         {
             constexpr auto vector_access_dim = Number<SrcDstVectorReadWriteDim>{};
 
             auto scalar_id = make_zero_array<index_t, nDim>();
 
-            float1x2_t r;
+            float_vec2_t r;
 
             scalar_id(vector_access_dim) = 0;
             auto src_coord               = src_coord_begin + scalar_id;
-            r.l.s.x                      = load_data<float, float>(p_src, src_coord.GetOffset());
+            r.v.s1.e0                    = load_data<float, float>(p_src, src_coord.GetOffset());
 
             scalar_id(vector_access_dim) = 1;
             src_coord                    = src_coord_begin + scalar_id;
-            r.l.s.y                      = load_data<float, float>(p_src, src_coord.GetOffset());
+            r.v.s1.e1                    = load_data<float, float>(p_src, src_coord.GetOffset());
 
             return r;
         }
@@ -153,7 +157,7 @@ struct ThreadwiseGenericTensorSliceCopy_v5
     {
         template <typename DstCoord>
         __device__ static void
-        run(float* p_dst, const float1x4_t src_data, const DstCoord dst_coord_begin)
+        run(float* p_dst, const float_vec4_t src_data, const DstCoord dst_coord_begin)
         {
             constexpr auto vector_access_dim = Number<SrcDstVectorReadWriteDim>{};
 
@@ -161,19 +165,19 @@ struct ThreadwiseGenericTensorSliceCopy_v5
 
             scalar_id(vector_access_dim) = 0;
             auto dst_coord               = dst_coord_begin + scalar_id;
-            store_data<float, float>(src_data.l.s.x, p_dst, dst_coord.GetOffset());
+            store_data<float, float>(src_data.v.s1.e0, p_dst, dst_coord.GetOffset());
 
             scalar_id(vector_access_dim) = 1;
             dst_coord                    = dst_coord_begin + scalar_id;
-            store_data<float, float>(src_data.l.s.y, p_dst, dst_coord.GetOffset());
+            store_data<float, float>(src_data.v.s1.e1, p_dst, dst_coord.GetOffset());
 
             scalar_id(vector_access_dim) = 2;
             dst_coord                    = dst_coord_begin + scalar_id;
-            store_data<float, float>(src_data.l.s.z, p_dst, dst_coord.GetOffset());
+            store_data<float, float>(src_data.v.s1.e2, p_dst, dst_coord.GetOffset());
 
             scalar_id(vector_access_dim) = 3;
             dst_coord                    = dst_coord_begin + scalar_id;
-            store_data<float, float>(src_data.l.s.w, p_dst, dst_coord.GetOffset());
+            store_data<float, float>(src_data.v.s1.e3, p_dst, dst_coord.GetOffset());
         }
     };
 
@@ -182,7 +186,7 @@ struct ThreadwiseGenericTensorSliceCopy_v5
     {
         template <typename DstCoord>
         __device__ static void
-        run(float* p_dst, const float2 src_data, const DstCoord dst_coord_begin)
+        run(float* p_dst, const float_vec2_t src_data, const DstCoord dst_coord_begin)
         {
             constexpr auto vector_access_dim = Number<SrcDstVectorReadWriteDim>{};
 
@@ -190,7 +194,7 @@ struct ThreadwiseGenericTensorSliceCopy_v5
 
             scalar_id(vector_access_dim) = 0;
             auto dst_coord               = dst_coord_begin + scalar_id;
-            store_data<float, float2>(src_data, p_dst, dst_coord.GetOffset());
+            store_data<float, float2_t>(src_data.v.s2, p_dst, dst_coord.GetOffset());
         }
     };
 
@@ -199,7 +203,7 @@ struct ThreadwiseGenericTensorSliceCopy_v5
     {
         template <typename DstCoord>
         __device__ static void
-        run(float* p_dst, const float4 src_data, const DstCoord dst_coord_begin)
+        run(float* p_dst, const float_vec4_t src_data, const DstCoord dst_coord_begin)
         {
             constexpr auto vector_access_dim = Number<SrcDstVectorReadWriteDim>{};
 
@@ -207,58 +211,12 @@ struct ThreadwiseGenericTensorSliceCopy_v5
 
             scalar_id(vector_access_dim) = 0;
             auto dst_coord               = dst_coord_begin + scalar_id;
-            store_data<float, float4>(src_data, p_dst, dst_coord.GetOffset());
+            store_data<float, float4_t>(src_data.v.s4, p_dst, dst_coord.GetOffset());
         }
     };
 
     template <typename DstData, index_t DstDataPerAccess, typename SrcData>
     struct convert_data;
-
-    template <>
-    struct convert_data<float, 1, float4>
-    {
-        __device__ static float1x4_t run(float4 src_data)
-        {
-            float1x4_t r;
-
-            r.l.s.x = src_data.x;
-            r.l.s.y = src_data.y;
-            r.l.s.z = src_data.z;
-            r.l.s.w = src_data.w;
-
-            return r;
-        }
-    };
-
-    template <>
-    struct convert_data<float, 4, float1x4_t>
-    {
-        __device__ static float4 run(float1x4_t src_data)
-        {
-            float4 r;
-
-            r.x = src_data.l.s.x;
-            r.y = src_data.l.s.y;
-            r.z = src_data.l.s.z;
-            r.w = src_data.l.s.w;
-
-            return r;
-        }
-    };
-
-    template <>
-    struct convert_data<float, 2, float1x2_t>
-    {
-        __device__ static float2 run(float1x2_t src_data)
-        {
-            float2 r;
-
-            r.x = src_data.l.s.x;
-            r.y = src_data.l.s.y;
-
-            return r;
-        }
-    };
 
     template <typename SrcData, typename DstData>
     __device__ void Run(const SrcData* p_src,
@@ -283,85 +241,79 @@ struct ThreadwiseGenericTensorSliceCopy_v5
             long_vector_data_begin_id(vector_access_dim) =
                 long_vector_size * long_vector_access_id[vector_access_dim];
 
-#if 0
-            // buffer to hold a src long-vector
-            SrcData p_src_long_vector[long_vector_size];
+            const auto src_coord = mSrcSliceOrigin + long_vector_data_begin_id;
+            auto src_buff =
+                vector_data_load<SrcData, SrcDataPerRead, long_vector_size>::run(p_src, src_coord);
 
-            // zero out buffer
-            for(index_t i = 0; i < long_vector_size; ++i)
-            {
-                p_src_long_vector[i] = src_out_of_bound_value;
-            }
+            const auto dst_coord = mDstSliceOrigin + long_vector_data_begin_id;
+            vector_data_store<DstData, DstDataPerWrite, long_vector_size>::run(
+                p_dst, src_buff, dst_coord);
+        });
+    }
 
-            // load data from src to the long-vector buffer
-            for(index_t i = 0; i < long_vector_size / src_data_per_access; ++i)
-            {
-                auto scalar_id               = make_zero_array<index_t, nDim>();
-                scalar_id(vector_access_dim) = i * src_data_per_access;
+    template <typename SrcData, typename DstData>
+    __device__ void Load(const SrcData* p_src,
+                         DstData* p_dst,
+                         SrcData src_out_of_bound_value = type_convert<SrcData>{}(0.0f)) const
+    {
+        constexpr auto vector_access_dim = Number<SrcDstVectorReadWriteDim>{};
 
-                const index_t buffer_offset = i * src_data_per_access;
+        constexpr auto src_data_per_access = Number<SrcDataPerRead>{};
+        constexpr auto dst_data_per_access = Number<DstDataPerWrite>{};
 
-                const auto src_coord = mSrcSliceOrigin + (long_vector_data_begin_id + scalar_id);
+        constexpr auto long_vector_size = Number<math::lcm(SrcDataPerRead, DstDataPerWrite)>{};
 
-                // Check src data's valid mapping situation, only check the first data in this src
-                //   vector. It's user's responsiblity to make sure all data in the src vector
-                //   has the valid/invalid mapping situation
-                if(src_coord.IsOffsetValidAssumingUpperIndexIsValid())
-                {
-                    p_src_buff = load_data<SrcData, float4>(p_src, src_coord.GetOffset());
-                }
-            }
+        constexpr auto long_vector_access_lengths = SliceLengths::Modify(
+            vector_access_dim, SliceLengths::Get(vector_access_dim) / long_vector_size);
 
-            // SrcData to DstData conversion
-            DstData p_dst_long_vector[long_vector_size];
+        ford<decltype(long_vector_access_lengths), SrcDstDimAccessOrder>{}([&](
+            auto long_vector_access_id) {
 
-            for(index_t i = 0; i < long_vector_size; ++i)
-            {
-                p_dst_long_vector[i] = type_convert<DstData>{}(p_src_long_vector[i]);
-            }
-
-	    p_dst_long_vector[0] = p_src_buff.x;
-	    p_dst_long_vector[1] = p_src_buff.y;
-	    p_dst_long_vector[2] = p_src_buff.z;
-	    p_dst_long_vector[3] = p_src_buff.w;
-
-            // store data from the long-vector buffer to dst
-            for(index_t i = 0; i < long_vector_size / dst_data_per_access; ++i)
-            {
-                auto scalar_id               = make_zero_array<index_t, nDim>();
-                scalar_id(vector_access_dim) = i * dst_data_per_access;
-
-                const index_t buffer_offset = i * dst_data_per_access;
-
-                const auto dst_coord = mDstSliceOrigin + (long_vector_data_begin_id + scalar_id);
-
-                // Check dst data's valid mapping situation, only check the first data in this dst
-                //   vector. It's user's responsiblity to make sure all data in the dst vector
-                //   has the valid/invalid mapping situation
-                if(dst_coord.IsOffsetValidAssumingUpperIndexIsValid())
-                {
-		    transfer_data<DstData,
-                                  DstDataPerWrite,
-                                  AddressSpace::Vgpr,
-                                  DstAddressSpace,
-                                  DstInMemOp,
-                                  1,
-                                  DstDataStride>(
-                        p_dst_long_vector, buffer_offset, p_dst, dst_coord.GetOffset());
-                }
-            }
-#endif
+            // data id w.r.t slicing-window
+            auto long_vector_data_begin_id = long_vector_access_id;
+            long_vector_data_begin_id(vector_access_dim) =
+                long_vector_size * long_vector_access_id[vector_access_dim];
 
             const auto src_coord = mSrcSliceOrigin + long_vector_data_begin_id;
             auto src_buff =
                 vector_data_load<SrcData, SrcDataPerRead, long_vector_size>::run(p_src, src_coord);
 
-            auto dst_buff =
-                convert_data<DstData, DstDataPerWrite, decltype(src_buff)>::run(src_buff);
+            const auto dst_coord = mDstSliceOrigin + long_vector_data_begin_id;
+            vector_data_store<DstData, DstDataPerWrite, long_vector_size>::run(
+                p_dst, src_buff, dst_coord);
+        });
+    }
+
+    template <typename SrcData, typename DstData>
+    __device__ void Store(const SrcData* p_src,
+                          DstData* p_dst,
+                          SrcData src_out_of_bound_value = type_convert<SrcData>{}(0.0f)) const
+    {
+        constexpr auto vector_access_dim = Number<SrcDstVectorReadWriteDim>{};
+
+        constexpr auto src_data_per_access = Number<SrcDataPerRead>{};
+        constexpr auto dst_data_per_access = Number<DstDataPerWrite>{};
+
+        constexpr auto long_vector_size = Number<math::lcm(SrcDataPerRead, DstDataPerWrite)>{};
+
+        constexpr auto long_vector_access_lengths = SliceLengths::Modify(
+            vector_access_dim, SliceLengths::Get(vector_access_dim) / long_vector_size);
+
+        ford<decltype(long_vector_access_lengths), SrcDstDimAccessOrder>{}([&](
+            auto long_vector_access_id) {
+
+            // data id w.r.t slicing-window
+            auto long_vector_data_begin_id = long_vector_access_id;
+            long_vector_data_begin_id(vector_access_dim) =
+                long_vector_size * long_vector_access_id[vector_access_dim];
+
+            const auto src_coord = mSrcSliceOrigin + long_vector_data_begin_id;
+            auto src_buff =
+                vector_data_load<SrcData, SrcDataPerRead, long_vector_size>::run(p_src, src_coord);
 
             const auto dst_coord = mDstSliceOrigin + long_vector_data_begin_id;
             vector_data_store<DstData, DstDataPerWrite, long_vector_size>::run(
-                p_dst, dst_buff, dst_coord);
+                p_dst, src_buff, dst_coord);
         });
     }
 

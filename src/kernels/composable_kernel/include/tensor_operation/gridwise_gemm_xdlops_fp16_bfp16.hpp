@@ -826,7 +826,7 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v2
         constexpr auto a_g_k_m_kpack_block_desc = make_native_tensor_descriptor_aligned(
             Sequence<1, KPerBlock, MPerBlock, KPack>{}, Number<max_align>{});
 
-        auto a_blockwise_copy = BlockwiseGenericTensorSliceCopy_v5<
+        auto a_blockwise_copy = BlockwiseGenericTensorSliceCopy_v4<
             BlockSize,
             decltype(a_g_k_m_kpack_global_desc),
             decltype(a_g_k_m_kpack_block_desc),

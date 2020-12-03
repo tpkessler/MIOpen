@@ -90,7 +90,7 @@ struct BlockwiseGenericTensorSliceCopy_v5
         if(BlockSize == mThreadClusterDesc.GetElementSize() or
            get_thread_local_1d_id() < mThreadClusterDesc.GetElementSize())
         {
-            mThreadwiseLoad.Run(p_block_src, p_thread_buffer, src_out_of_bound_value);
+            mThreadwiseLoad.Load(p_block_src, p_thread_buffer, src_out_of_bound_value);
         }
     }
 
@@ -103,7 +103,7 @@ struct BlockwiseGenericTensorSliceCopy_v5
         if(BlockSize == mThreadClusterDesc.GetElementSize() or
            get_thread_local_1d_id() < mThreadClusterDesc.GetElementSize())
         {
-            mThreadwiseStore.Run(p_thread_buffer, p_block_dst, src_out_of_bound_value);
+            mThreadwiseStore.Store(p_thread_buffer, p_block_dst, src_out_of_bound_value);
         }
     }
 
@@ -120,6 +120,8 @@ struct BlockwiseGenericTensorSliceCopy_v5
                       "Behavior may be different");
 
         BlockSrcData p_thread_buffer[GetThreadBufferSize()];
+
+        static_assert(GetThreadBufferSize() == 8, "");
 
         if(BlockSize == mThreadClusterDesc.GetElementSize() or
            get_thread_local_1d_id() < mThreadClusterDesc.GetElementSize())
