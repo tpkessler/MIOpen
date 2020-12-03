@@ -21,32 +21,132 @@ typedef ushort ushort2_t __attribute__((ext_vector_type(2)));
 typedef ushort ushort4_t __attribute__((ext_vector_type(4)));
 typedef ushort ushort8_t __attribute__((ext_vector_type(8)));
 
-struct float_vec4_t
+union float_vec4_t
 {
-    union VecType
+    struct
     {
-        struct
-        {
-            float e0;
-            float e1;
-            float e2;
-            float e3;
-        } s1;
-        float4_t s4;
-    } v;
+        float e0;
+        float e1;
+        float e2;
+        float e3;
+    } s1;
+    float4_t s4;
+
+    template <typename T, index_t i>
+    __host__ __device__ T get() const;
+
+    template <>
+    __host__ __device__ float4_t get<float4_t, 0>() const
+    {
+        return s4;
+    }
+
+    template <>
+    __host__ __device__ float get<float, 0>() const
+    {
+        return s1.e0;
+    }
+
+    template <>
+    __host__ __device__ float get<float, 1>() const
+    {
+        return s1.e1;
+    }
+    template <>
+    __host__ __device__ float get<float, 2>() const
+    {
+        return s1.e2;
+    }
+    template <>
+    __host__ __device__ float get<float, 3>() const
+    {
+        return s1.e3;
+    }
+
+    template <typename T, index_t i>
+    __host__ __device__ void set(const T val);
+
+    template <>
+    __host__ __device__ void set<float4_t, 0>(const float4_t val)
+    {
+        s4 = val;
+    }
+
+    template <>
+    __host__ __device__ void set<float, 0>(const float val)
+    {
+        s1.e0 = val;
+    }
+
+    template <>
+    __host__ __device__ void set<float, 1>(const float val)
+    {
+        s1.e1 = val;
+    }
+
+    template <>
+    __host__ __device__ void set<float, 2>(const float val)
+    {
+        s1.e2 = val;
+    }
+
+    template <>
+    __host__ __device__ void set<float, 3>(const float val)
+    {
+        s1.e3 = val;
+    }
 };
 
-struct float_vec2_t
+union float_vec2_t
 {
-    union VecType
+    struct
     {
-        struct
-        {
-            float e0;
-            float e1;
-        } s1;
-        float2_t s2;
-    } v;
+        float e0;
+        float e1;
+    } s1;
+    float2_t s2;
+
+    template <typename T, index_t i>
+    __host__ __device__ T get() const;
+
+    template <>
+    __host__ __device__ float get<float, 0>() const
+    {
+        return s1.e0;
+    }
+
+    template <>
+    __host__ __device__ float get<float, 1>() const
+    {
+        return s1.e1;
+    }
+
+    template <>
+    __host__ __device__ float2_t get<float2_t, 0>() const
+    {
+        return s2;
+    }
+
+    template <typename T, index_t i>
+    __host__ __device__ void set(const T val);
+
+    template <>
+    __host__ __device__ void set<float2_t, 0>(const float2_t val)
+    {
+        s2 = val;
+    }
+
+    template <>
+    __host__ __device__ void set<float, 0>(const float val)
+    {
+        s1.e0 = val;
+    }
+
+    template <>
+    __host__ __device__ void set<float, 1>(const float val)
+    {
+        s1.e1 = val;
+    }
 };
 
 struct c_vec32_4_t
