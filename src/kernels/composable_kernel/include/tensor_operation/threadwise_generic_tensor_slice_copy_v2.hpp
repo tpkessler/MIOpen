@@ -87,7 +87,7 @@ struct ThreadwiseGenericTensorSliceCopy_v5
 
             float_vec4_t r;
 
-            r.set<float4_t, 0>(load_data<float4_t, float>(p_src, src_coord.GetOffset()));
+            r.s4 = load_data<float4_t, float>(p_src, src_coord.GetOffset());
 
             return r;
         }
@@ -107,19 +107,19 @@ struct ThreadwiseGenericTensorSliceCopy_v5
 
             scalar_id(vector_access_dim) = 0;
             auto src_coord               = src_coord_begin + scalar_id;
-            r.set<float, 0>(load_data<float, float>(p_src, src_coord.GetOffset()));
+            r.s1(Number<0>{})            = load_data<float, float>(p_src, src_coord.GetOffset());
 
             scalar_id(vector_access_dim) = 1;
             src_coord                    = src_coord_begin + scalar_id;
-            r.set<float, 1>(load_data<float, float>(p_src, src_coord.GetOffset()));
+            r.s1(Number<1>{})            = load_data<float, float>(p_src, src_coord.GetOffset());
 
             scalar_id(vector_access_dim) = 2;
             src_coord                    = src_coord_begin + scalar_id;
-            r.set<float, 2>(load_data<float, float>(p_src, src_coord.GetOffset()));
+            r.s1(Number<2>{})            = load_data<float, float>(p_src, src_coord.GetOffset());
 
             scalar_id(vector_access_dim) = 3;
             src_coord                    = src_coord_begin + scalar_id;
-            r.set<float, 3>(load_data<float, float>(p_src, src_coord.GetOffset()));
+            r.s1(Number<3>{})            = load_data<float, float>(p_src, src_coord.GetOffset());
 
             return r;
         }
@@ -139,11 +139,11 @@ struct ThreadwiseGenericTensorSliceCopy_v5
 
             scalar_id(vector_access_dim) = 0;
             auto src_coord               = src_coord_begin + scalar_id;
-            r.set<float, 0>(load_data<float, float>(p_src, src_coord.GetOffset()));
+            r.s1(Number<0>{})            = load_data<float, float>(p_src, src_coord.GetOffset());
 
             scalar_id(vector_access_dim) = 1;
             src_coord                    = src_coord_begin + scalar_id;
-            r.set<float, 1>(load_data<float, float>(p_src, src_coord.GetOffset()));
+            r.s1(Number<1>{})            = load_data<float, float>(p_src, src_coord.GetOffset());
 
             return r;
         }
@@ -165,19 +165,19 @@ struct ThreadwiseGenericTensorSliceCopy_v5
 
             scalar_id(vector_access_dim) = 0;
             auto dst_coord               = dst_coord_begin + scalar_id;
-            store_data<float, float>(src_data.get<float, 0>(), p_dst, dst_coord.GetOffset());
+            store_data<float, float>(src_data.s1[Number<0>{}], p_dst, dst_coord.GetOffset());
 
             scalar_id(vector_access_dim) = 1;
             dst_coord                    = dst_coord_begin + scalar_id;
-            store_data<float, float>(src_data.get<float, 1>(), p_dst, dst_coord.GetOffset());
+            store_data<float, float>(src_data.s1[Number<1>{}], p_dst, dst_coord.GetOffset());
 
             scalar_id(vector_access_dim) = 2;
             dst_coord                    = dst_coord_begin + scalar_id;
-            store_data<float, float>(src_data.get<float, 2>(), p_dst, dst_coord.GetOffset());
+            store_data<float, float>(src_data.s1[Number<2>{}], p_dst, dst_coord.GetOffset());
 
             scalar_id(vector_access_dim) = 3;
             dst_coord                    = dst_coord_begin + scalar_id;
-            store_data<float, float>(src_data.get<float, 3>(), p_dst, dst_coord.GetOffset());
+            store_data<float, float>(src_data.s1[Number<3>{}], p_dst, dst_coord.GetOffset());
         }
     };
 
@@ -194,7 +194,7 @@ struct ThreadwiseGenericTensorSliceCopy_v5
 
             scalar_id(vector_access_dim) = 0;
             auto dst_coord               = dst_coord_begin + scalar_id;
-            store_data<float, float2_t>(src_data.get<float2_t, 0>(), p_dst, dst_coord.GetOffset());
+            store_data<float, float2_t>(src_data.s2, p_dst, dst_coord.GetOffset());
         }
     };
 
@@ -211,7 +211,7 @@ struct ThreadwiseGenericTensorSliceCopy_v5
 
             scalar_id(vector_access_dim) = 0;
             auto dst_coord               = dst_coord_begin + scalar_id;
-            store_data<float, float4_t>(src_data.get<float4_t, 0>(), p_dst, dst_coord.GetOffset());
+            store_data<float, float4_t>(src_data.s4, p_dst, dst_coord.GetOffset());
         }
     };
 
@@ -266,7 +266,7 @@ struct ThreadwiseGenericTensorSliceCopy_v5
         constexpr auto long_vector_access_lengths = SliceLengths::Modify(
             vector_access_dim, SliceLengths::Get(vector_access_dim) / long_vector_size);
 
-        //static_ford<decltype(long_vector_access_lengths), SrcDstDimAccessOrder>{}([&](
+        // static_ford<decltype(long_vector_access_lengths), SrcDstDimAccessOrder>{}([&](
         ford<decltype(long_vector_access_lengths), SrcDstDimAccessOrder>{}([&](
             auto long_vector_access_id) {
 
