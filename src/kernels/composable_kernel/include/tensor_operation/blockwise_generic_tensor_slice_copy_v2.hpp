@@ -81,37 +81,34 @@ struct BlockwiseGenericTensorSliceCopy_v5
         return ThreadBufferDesc::GetElementSpace();
     }
 
-    template <typename BlockSrcData, typename ThreadBufferData>
-    __device__ void RunLoadThreadBuffer(
-        const BlockSrcData* p_block_src,
-        ThreadBufferData* p_thread_buffer,
-        BlockSrcData src_out_of_bound_value = type_convert<BlockSrcData>{}(0.0f)) const
+    template <typename BlockSrcData>
+    __device__ void
+    RunLoadThreadBuffer(const BlockSrcData* p_block_src,
+                        BlockSrcData src_out_of_bound_value = type_convert<BlockSrcData>{}(0.0f))
     {
         if(BlockSize == mThreadClusterDesc.GetElementSize() or
            get_thread_local_1d_id() < mThreadClusterDesc.GetElementSize())
         {
-            mThreadwiseLoad.Load(p_block_src, p_thread_buffer, src_out_of_bound_value);
+            mThreadwiseLoad.Load(p_block_src, src_out_of_bound_value);
         }
     }
 
-    template <typename ThreadBufferData, typename BlockDstData>
-    __device__ void RunStoreThreadBuffer(
-        const ThreadBufferData* p_thread_buffer,
-        BlockDstData* p_block_dst,
-        ThreadBufferData src_out_of_bound_value = type_convert<ThreadBufferData>{}(0.0f)) const
+    template <typename BlockDstData>
+    __device__ void
+    RunStoreThreadBuffer(BlockDstData* p_block_dst,
+                         BlockDstData src_out_of_bound_value = type_convert<BlockDstData>{}(0.0f))
     {
         if(BlockSize == mThreadClusterDesc.GetElementSize() or
            get_thread_local_1d_id() < mThreadClusterDesc.GetElementSize())
         {
-            mThreadwiseStore.Store(p_thread_buffer, p_block_dst, src_out_of_bound_value);
+            mThreadwiseStore.Store(p_block_dst, src_out_of_bound_value);
         }
     }
 
     template <typename BlockSrcData, typename BlockDstData>
-    __device__ void
-    Run(const BlockSrcData* p_block_src,
-        BlockDstData* p_block_dst,
-        BlockSrcData src_out_of_bound_value = type_convert<BlockSrcData>{}(0.0f)) const
+    __device__ void Run(const BlockSrcData* p_block_src,
+                        BlockDstData* p_block_dst,
+                        BlockSrcData src_out_of_bound_value = type_convert<BlockSrcData>{}(0.0f))
     {
         static_assert(ThreadBufferAddressSpace == AddressSpace::Vgpr,
                       "wrong! This function use vgpr as its thread "
@@ -119,17 +116,15 @@ struct BlockwiseGenericTensorSliceCopy_v5
                       "to use ThreadBufferAddressSpace as their thread buffer, which is not vgpr. "
                       "Behavior may be different");
 
-        BlockSrcData p_thread_buffer[GetThreadBufferSize()];
-
         static_assert(GetThreadBufferSize() == 8, "");
 
         if(BlockSize == mThreadClusterDesc.GetElementSize() or
            get_thread_local_1d_id() < mThreadClusterDesc.GetElementSize())
         {
-            RunLoadThreadBuffer(p_block_src, p_thread_buffer, src_out_of_bound_value);
+            RunLoadThreadBuffer(p_block_src, src_out_of_bound_value);
 
             // if there is type conversion, it's done during store
-            RunStoreThreadBuffer(p_thread_buffer, p_block_dst, src_out_of_bound_value);
+            RunStoreThreadBuffer(p_block_dst, src_out_of_bound_value);
         }
     }
 

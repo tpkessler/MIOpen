@@ -9,6 +9,7 @@ namespace ck {
 // float
 typedef float float2_t __attribute__((ext_vector_type(2)));
 typedef float float4_t __attribute__((ext_vector_type(4)));
+typedef float float8_t __attribute__((ext_vector_type(8)));
 typedef float float16_t __attribute__((ext_vector_type(16)));
 typedef float float32_t __attribute__((ext_vector_type(32)));
 
@@ -23,16 +24,27 @@ typedef ushort ushort2_t __attribute__((ext_vector_type(2)));
 typedef ushort ushort4_t __attribute__((ext_vector_type(4)));
 typedef ushort ushort8_t __attribute__((ext_vector_type(8)));
 
-union float_vec4_t
-{
-    Tuple<float, float, float, float> s1{};
-    float4_t s4;
-};
-
 union float_vec2_t
 {
-    Tuple<float, float> s1{};
+    Tuple<float, float> s1;
     float2_t s2;
+    __host__ __device__ constexpr float_vec2_t() {}
+};
+
+union float_vec4_t
+{
+    Tuple<float, float, float, float> s1;
+    float4_t s4;
+    __host__ __device__ constexpr float_vec4_t() {}
+};
+
+union float_vec8_t
+{
+    Tuple<float, float, float, float, float, float, float, float> s1;
+    Tuple<float_vec2_t, float_vec2_t, float_vec2_t, float_vec2_t> s2;
+    Tuple<float_vec4_t, float_vec4_t> s4;
+    float8_t s8;
+    __host__ __device__ constexpr float_vec8_t() {}
 };
 
 struct c_vec32_4_t
