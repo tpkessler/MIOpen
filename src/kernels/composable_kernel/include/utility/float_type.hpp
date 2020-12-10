@@ -44,6 +44,7 @@ union float_vec8_t
     Tuple<float_vec2_t, float_vec2_t, float_vec2_t, float_vec2_t> s2;
     Tuple<float_vec4_t, float_vec4_t> s4;
     float8_t s8;
+    float n[8];
     __host__ __device__ constexpr float_vec8_t() {}
 };
 

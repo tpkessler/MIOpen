@@ -247,21 +247,21 @@ struct ThreadwiseGenericTensorSliceCopy_v5
         constexpr auto long_vector_access_lengths = SliceLengths::Modify(
             vector_access_dim, SliceLengths::Get(vector_access_dim) / long_vector_size);
 
-        static_ford<decltype(long_vector_access_lengths), SrcDstDimAccessOrder>{}([&](
+        ford<decltype(long_vector_access_lengths), SrcDstDimAccessOrder>{}([&](
             auto long_vector_access_id) {
 
-            constexpr auto long_vector_data_begin_id = long_vector_access_id.Modify(
-                Number<vector_access_dim>{},
-                Number<long_vector_size * long_vector_access_id[vector_access_dim]>{});
+            // data id w.r.t slicing-window
+            auto long_vector_data_begin_id = long_vector_access_id;
+            long_vector_data_begin_id(vector_access_dim) =
+                long_vector_size * long_vector_access_id[vector_access_dim];
 
-            const auto src_coord = mSrcSliceOrigin + to_array(long_vector_data_begin_id);
+            const auto src_coord = mSrcSliceOrigin + long_vector_data_begin_id;
             auto src_buff =
                 vector_data_load<SrcData, SrcDataPerRead, long_vector_size>::run(p_src, src_coord);
 
-            constexpr auto reg_offset =
-                ThreadBufferDesc::CalculateOffset(long_vector_data_begin_id) / long_vector_size;
-
-            ThreadBuffer.s4(Number<reg_offset>{}) = src_buff;
+            const auto dst_coord = mDstSliceOrigin + long_vector_data_begin_id;
+            vector_data_store<SrcData, DstDataPerWrite, long_vector_size>::run(
+                ThreadBuffer.n, src_buff, dst_coord);
         });
     }
 
@@ -279,6 +279,82 @@ struct ThreadwiseGenericTensorSliceCopy_v5
         constexpr auto long_vector_access_lengths = SliceLengths::Modify(
             vector_access_dim, SliceLengths::Get(vector_access_dim) / long_vector_size);
 
+        ford<decltype(long_vector_access_lengths), SrcDstDimAccessOrder>{}(
+            [&](auto long_vector_access_id) {
+
+                // data id w.r.t slicing-window
+                auto long_vector_data_begin_id = long_vector_access_id;
+                long_vector_data_begin_id(vector_access_dim) =
+                    long_vector_size * long_vector_access_id[vector_access_dim];
+
+                const auto src_coord = mSrcSliceOrigin + long_vector_data_begin_id;
+                auto src_buff = vector_data_load<DstData, SrcDataPerRead, long_vector_size>::run(
+                    ThreadBuffer.n, src_coord);
+
+                const auto dst_coord = mDstSliceOrigin + long_vector_data_begin_id;
+                vector_data_store<DstData, DstDataPerWrite, long_vector_size>::run(
+                    p_dst, src_buff, dst_coord);
+            });
+    }
+
+#if 0
+    template <typename SrcData>
+    __device__ void Load(const SrcData* p_src,
+                         SrcData src_out_of_bound_value = type_convert<SrcData>{}(0.0f))
+    {
+        constexpr auto vector_access_dim = Number<SrcDstVectorReadWriteDim>{};
+
+        constexpr auto src_data_per_access = Number<SrcDataPerRead>{};
+        constexpr auto dst_data_per_access = Number<DstDataPerWrite>{};
+
+        constexpr auto long_vector_size = Number<math::lcm(SrcDataPerRead, DstDataPerWrite)>{};
+
+        constexpr auto long_vector_access_lengths = SliceLengths::Modify(
+            vector_access_dim, SliceLengths::Get(vector_access_dim) / long_vector_size);
+
+        constexpr auto seq_size = reduce_on_sequence(
+            long_vector_access_lengths, math::multiplies<index_t>{}, Number<1>{});
+        static_assert(seq_size == 2 && long_vector_size == 4, "");
+
+        static_ford<decltype(long_vector_access_lengths), SrcDstDimAccessOrder>{}([&](
+            auto long_vector_access_id) {
+
+            constexpr auto long_vector_data_begin_id = long_vector_access_id.Modify(
+                Number<vector_access_dim>{},
+                Number<long_vector_size * long_vector_access_id[vector_access_dim]>{});
+
+            const auto src_coord = mSrcSliceOrigin + to_array(long_vector_data_begin_id);
+            auto src_buff =
+                vector_data_load<SrcData, SrcDataPerRead, long_vector_size>::run(p_src, src_coord);
+
+            constexpr auto reg_offset =
+                ThreadBufferDesc::CalculateOffset(long_vector_data_begin_id);
+
+            static_assert(reg_offset == 0 || reg_offset == 1, "");
+
+            ThreadBuffer.s4(Number<reg_offset>{}) = src_buff;
+        });
+    }
+
+
+    template <typename DstData>
+    __device__ void Store(DstData* p_dst,
+                          DstData src_out_of_bound_value = type_convert<DstData>{}(0.0f))
+    {
+        constexpr auto vector_access_dim = Number<SrcDstVectorReadWriteDim>{};
+
+        constexpr auto src_data_per_access = Number<SrcDataPerRead>{};
+        constexpr auto dst_data_per_access = Number<DstDataPerWrite>{};
+
+        constexpr auto long_vector_size = Number<math::lcm(SrcDataPerRead, DstDataPerWrite)>{};
+
+        constexpr auto long_vector_access_lengths = SliceLengths::Modify(
+            vector_access_dim, SliceLengths::Get(vector_access_dim) / long_vector_size);
+
+        constexpr auto seq_size = reduce_on_sequence(
+            long_vector_access_lengths, math::multiplies<index_t>{}, Number<1>{});
+        static_assert(seq_size == 4 && long_vector_size == 2, "");
+
         static_ford<decltype(long_vector_access_lengths), SrcDstDimAccessOrder>{}(
             [&](auto long_vector_access_id) {
 
@@ -289,11 +365,14 @@ struct ThreadwiseGenericTensorSliceCopy_v5
                 constexpr auto reg_offset =
                     ThreadBufferDesc::CalculateOffset(long_vector_data_begin_id) / long_vector_size;
 
+                static_assert(reg_offset == 0 || reg_offset == 1 || reg_offset == 2 || reg_offset == 3, "");
+
                 const auto dst_coord = mDstSliceOrigin + to_array(long_vector_data_begin_id);
                 vector_data_store<DstData, DstDataPerWrite, long_vector_size>::run(
                     p_dst, ThreadBuffer.s2[Number<reg_offset>{}], dst_coord);
             });
     }
+#endif
 
     // Modify Length to 1, if Mask is set to false
     // Used for isolating linear dimension from non-linear dimensions
