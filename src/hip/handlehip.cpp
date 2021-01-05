@@ -529,8 +529,7 @@ static std::string GetDeviceNameImpl(const std::unique_ptr<HandleImpl>& handle_i
     }
     hipDeviceProp_t props{};
     hipGetDeviceProperties(&props, handle_impl->device);
-    std::string n("gfx" + std::to_string(props.gcnArch));
-    return GetDeviceNameFromMap(n);
+    return GetDeviceNameFromMap(props.gcnArchName);
 }
 
 std::string Handle::GetDeviceName() const
