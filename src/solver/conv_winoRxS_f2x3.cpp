@@ -585,7 +585,7 @@ ConvBinWinogradRxSf2x3::GetSolution(const ConvolutionContext& params,
 
     if(is_gfx9)
     {
-        kernel_name += "_gfx9";
+        kernel_name += StartsWith(name, "gfx90a") ? "_gfx90a" : "_gfx9";
     }
     else // if(StartsWith(name, "gfx10"))
     {

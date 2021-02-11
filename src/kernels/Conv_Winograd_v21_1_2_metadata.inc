@@ -135,6 +135,26 @@ __sgpr_reserve_flatscr_default = 0
 
 .rodata
 .p2align 6
+.if (.amdgcn.gfx_generation_number == 9 && .amdgcn.gfx_generation_stepping == 10)
+.amdhsa_kernel \kernel_name
+    .amdhsa_group_segment_fixed_size 65536
+    .amdhsa_user_sgpr_private_segment_buffer 1
+    .amdhsa_user_sgpr_dispatch_ptr 1
+    .amdhsa_user_sgpr_kernarg_segment_ptr 1
+    .amdhsa_system_sgpr_workgroup_id_x 1
+    .amdhsa_system_sgpr_workgroup_id_y 0
+    .amdhsa_system_sgpr_workgroup_id_z 0
+    .amdhsa_system_vgpr_workitem_id 0
+    .amdhsa_next_free_vgpr .amdgcn.next_free_vgpr
+    .amdhsa_next_free_sgpr .amdgcn.next_free_sgpr
+    .amdhsa_reserve_vcc __sgpr_reserve_vcc_default
+    .amdhsa_reserve_xnack_mask __sgpr_reserve_xnack_default
+    .amdhsa_reserve_flat_scratch __sgpr_reserve_flatscr_default
+    .amdhsa_ieee_mode 0
+    .amdhsa_dx10_clamp 0
+    .amdhsa_accum_offset .amdgcn.next_free_vgpr
+.end_amdhsa_kernel
+.else 
 .amdhsa_kernel \kernel_name
     .amdhsa_group_segment_fixed_size 65536
     .amdhsa_user_sgpr_private_segment_buffer 1
@@ -152,6 +172,7 @@ __sgpr_reserve_flatscr_default = 0
     .amdhsa_ieee_mode 0
     .amdhsa_dx10_clamp 0
 .end_amdhsa_kernel
+.endif
 
 total_sgpr_count = .amdgcn.next_free_sgpr + 4 // vcc, xnack
 
