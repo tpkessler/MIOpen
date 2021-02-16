@@ -41,6 +41,9 @@
 #include <miopen/logger.hpp>
 #include <boost/optional.hpp>
 
+#if MIOPEN_USE_MLIR
+#include <mlir-miopen-lib.hpp>
+#endif
 #include <cstring>
 #include <mutex>
 #include <sstream>
@@ -178,6 +181,23 @@ hipModulePtr CreateModuleInMem(const T& blob)
 #endif
 }
 
+#if MIOPEN_USE_MLIR
+static std::string GenIgemmBin(std::string& params)
+{
+    MIOPEN_LOG_I2("populating mlir igemm kernel");
+
+    mlir::MlirHandle handle = mlir::CreateMlirHandle(params.c_str());
+    mlir::MlirLowerBin(handle);
+    char tmp[]   = "";
+    char* buffer = &tmp[0];
+    size_t size  = 0;
+    mlir::MlirGenIgemmBin(handle, &buffer, &size);
+    std::string bin(buffer, size);
+    MIOPEN_LOG_I2("Finished populating mlir igemm kernel");
+    return bin;
+}
+#endif
+
 struct HIPOCProgramImpl
 {
     HIPOCProgramImpl(const std::string& program_name, const boost::filesystem::path& filespec)
@@ -236,7 +256,12 @@ struct HIPOCProgramImpl
         dir.emplace(filename);
         hsaco_file = dir->path / (filename + ".o");
 
-        if(miopen::EndsWith(filename, ".so"))
+        if(miopen::EndsWith(filename, ".mlir"))
+        {
+            std::string bin = GenIgemmBin(params);
+            WriteFile(bin, hsaco_file);
+        }
+        else if(miopen::EndsWith(filename, ".so"))
         {
             WriteFile(src, hsaco_file);
         }
@@ -293,8 +318,7 @@ struct HIPOCProgramImpl
         std::string filename = is_kernel_str ? "tinygemm.cl" // Fixed name for miopengemm.
                                              : program;
         std::string src;
-        if((program.find("mlir_gen_igemm_conv2d_cpp") != std::string::npos) ||
-           (!kernel_src.empty()))
+        if((program.find("mlir_gen_igemm_conv2d") != std::string::npos) || (!kernel_src.empty()))
         {
             // For MLIR path, leave the kernel_src to be empty.
             src = kernel_src;
@@ -304,9 +328,7 @@ struct HIPOCProgramImpl
             src = is_kernel_str ? program : GetKernelSrc(program);
         }
 
-        if(program.find("mlir_gen_igemm_conv2d_cpp") != std::string::npos)
-        {
-        }
+        if(program.find("mlir_gen_igemm_conv2d") != std::string::npos) {}
         else if(miopen::EndsWith(filename, ".cpp"))
         {
 #if MIOPEN_BUILD_DEV

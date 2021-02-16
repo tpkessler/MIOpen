@@ -23,7 +23,7 @@
  * SOFTWARE.
  *
  *******************************************************************************/
-#include <miopen/conv/invokers/impl_gemm.hpp>
+#include <miopen/conv/invokers/mlir_impl_gemm.hpp>
 #include <miopen/solver.hpp>
 #include <miopen/handle.hpp>
 #include <miopen/generic_search.hpp>
@@ -83,9 +83,9 @@ ConvSolution ConvHipImplicitGemmMlirCppFwd::GetSolution(
     std::string operation = "conv2d";
 
     construction_parameters.kernel_file =
-        "mlir_gen_igemm_conv2d_cpp_" + version + "_" + direction + ".cpp";
+        "mlir_gen_igemm_conv2d_bin_" + version + "_" + direction + ".mlir";
 
-    construction_parameters.kernel_name = "mlir_gen_igemm_conv2d_cpp_" + version + "_" + direction;
+    construction_parameters.kernel_name = "mlir_gen_igemm_conv2d_bin_" + version + "_" + direction;
 
     // Arguments for mlir-miopen-driver.
     // clang-format off
@@ -115,7 +115,7 @@ ConvSolution ConvHipImplicitGemmMlirCppFwd::GetSolution(
 
     MIOPEN_LOG_I2("igemm comp options: " << construction_parameters.comp_options);
 
-    result.invoker_factory = conv::MakeImplGemmDataInvokerFactory(ctx);
+    result.invoker_factory = conv::MakeMlirFwdInvokerFactory(ctx);
     result.construction_params.push_back(construction_parameters);
     return result;
 }
