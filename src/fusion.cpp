@@ -971,6 +971,11 @@ miopenStatus_t FusionPlanDescriptor::Compile(Handle& handle)
                 MIOPEN_LOG_I2("Invalid FusionPlan");
                 MIOPEN_THROW(miopenStatusBadParm);
             }
+            auto d       = handle.GetDeviceName();
+        auto it =
+            std::find(kinder.first->supported_arch.begin(), kinder.first->supported_arch.end(), d);
+            if(!(kinder.first->supported_arch.empty() || (it != kinder.first->supported_arch.end())))
+		continue;
 
             success = true;
             solver::AnySolver sol;
@@ -979,7 +984,6 @@ miopenStatus_t FusionPlanDescriptor::Compile(Handle& handle)
                 sol = boost::any_cast<solver::AnySolver>(kinder.second.at("solver"));
             }
             program_name = kinder.first->vertex_data.at("program");
-            auto d       = handle.GetDeviceName();
             std::transform(d.begin(), d.end(), d.begin(), ::tolower);
             find_replace_first(program_name, "GFX*", d);
 

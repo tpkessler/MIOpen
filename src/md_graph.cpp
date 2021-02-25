@@ -549,6 +549,7 @@ void FusionMDGraph::InitConv(FusionMDGraph& g)
         auto vb =
             std::make_shared<MDGraph_vertex>(miopenFusionOpBiasForward, program, kernel, algo);
         vb->default_args                = WinogradNodeArgs();
+        vb->supported_arch = {"gfx803", "gfx900", "gfx906", "gfx908"};
         vb->default_args[6].default_val = OpKernelArg(1 << 7);
         // set the bias parameters
         vb->default_args[18].type   = OpArg;
@@ -558,6 +559,7 @@ void FusionMDGraph::InitConv(FusionMDGraph& g)
         auto vba_leaf = std::make_shared<MDGraph_vertex>(
             miopenFusionOpActivForward, program, kernel, algo, true);
         vba_leaf->default_args                = WinogradNodeArgs();
+        vba_leaf->supported_arch = {"gfx803", "gfx900", "gfx906", "gfx908"};
         vba_leaf->default_args[6].default_val = OpKernelArg((1 << 7) + (1 << 8));
         // set the bias parameters
         vba_leaf->default_args[18].type   = OpArg;
@@ -582,6 +584,7 @@ void FusionMDGraph::InitConv(FusionMDGraph& g)
         va_leaf->default_args[6].default_val = OpKernelArg((1 << 8));
         va_leaf->default_args[19].type       = OpArg;
         va_leaf->default_args[19].op_idx     = 1;
+        va_leaf->supported_arch = {"gfx803", "gfx900", "gfx906", "gfx908"};
 
         g.AddEdge(vc_s1, va_leaf, edg_activ_relu);
         g.AddEdge(vc_s1, va_leaf, edg_activ_leaky_relu);
@@ -651,6 +654,7 @@ void FusionMDGraph::InitConv(FusionMDGraph& g)
             // set the bias parameters
             bias_s2->default_args[18].type   = OpArg;
             bias_s2->default_args[18].op_idx = 1;
+            bias_s2->supported_arch = {"gfx803", "gfx900", "gfx906", "gfx908"};
             g.AddEdge(vc_s2, bias_s2, empty_map);
 
             auto vba_leaf_s2 = std::make_shared<MDGraph_vertex>(
@@ -663,6 +667,7 @@ void FusionMDGraph::InitConv(FusionMDGraph& g)
 
             vba_leaf_s2->default_args[19].type   = OpArg;
             vba_leaf_s2->default_args[19].op_idx = 2;
+            vba_leaf_s2->supported_arch = {"gfx803", "gfx900", "gfx906", "gfx908"};
 
             FusionMDGraph_Edge_Map edg_activ_relu_s2;
             edg_activ_relu_s2["constraints"] = {"activ_mode == miopenActivationRELU",
@@ -682,6 +687,7 @@ void FusionMDGraph::InitConv(FusionMDGraph& g)
             va_leaf_s2->default_args[6].default_val = OpKernelArg((1 << 8));
             va_leaf_s2->default_args[19].type       = OpArg;
             va_leaf_s2->default_args[19].op_idx     = 1;
+            va_leaf_s2->supported_arch = {"gfx803", "gfx900", "gfx906", "gfx908"};
 
             g.AddEdge(vc_s2, va_leaf_s2, edg_activ_relu_s2);
             g.AddEdge(vc_s2, va_leaf_s2, edg_activ_leaky_relu_s2);
@@ -704,11 +710,13 @@ void FusionMDGraph::InitConv(FusionMDGraph& g)
                                                            "conv1x1u_bias_activ.s",
                                                            "miopenGcnAsmConv1x1U",
                                                            "miopenConvolutionDirectBiasActivAsm");
+            bias_v->supported_arch = {"gfx803", "gfx900", "gfx906", "gfx908"};
             auto activ_v = std::make_shared<MDGraph_vertex>(miopenFusionOpActivForward,
                                                             "conv1x1u_bias_activ.s",
                                                             "miopenGcnAsmConv1x1U",
                                                             "miopenConvolutionDirectBiasActivAsm",
                                                             true);
+            activ_v->supported_arch = {"gfx803", "gfx900", "gfx906", "gfx908"};
             FusionMDGraph_Edge_Map map_asm_conv;
 
             map_asm_conv["constraints"] = {"group_count == 1",
@@ -751,11 +759,13 @@ void FusionMDGraph::InitConv(FusionMDGraph& g)
                                                            "conv1x1u_bias_activ.s",
                                                            "miopenGcnAsmConv1x1U",
                                                            "miopenConvolutionDirectBiasActivAsm");
+            bias_v->supported_arch = {"gfx803", "gfx900", "gfx906", "gfx908"};
             auto activ_v = std::make_shared<MDGraph_vertex>(miopenFusionOpActivForward,
                                                             "conv1x1u_bias_activ.s",
                                                             "miopenGcnAsmConv1x1U",
                                                             "miopenConvolutionDirectBiasActivAsm",
                                                             true);
+            activ_v->supported_arch = {"gfx803", "gfx900", "gfx906", "gfx908"};
             FusionMDGraph_Edge_Map map_asm_conv;
 
             map_asm_conv["constraints"] = {
