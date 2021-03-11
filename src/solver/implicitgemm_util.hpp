@@ -442,10 +442,13 @@ static inline bool IsXdlopsSupport(const ConvolutionContext& c)
     if(miopen::IsEnabled(MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_XDLOPS_EMULATE{}))
         return true;
 
+    bool is_supported_arch = StartsWith(c.GetStream().GetDeviceName(), "gfx908") ||
+                             StartsWith(c.GetStream().GetDeviceName(), "gfx90a");
+
     // disable xdlops kernels by default due to possible failures:
     // 1) inline asm may crash
     // 2) llvm intrin may has incorrect results
-    return StartsWith(c.GetStream().GetDeviceName(), "gfx908") &&
+    return is_supported_arch &&
 #if WORKAROUND_SWDEV_200782
            /// \todo Remove workaround when we drop suport of HCC older than 2.10.19392.
            ((miopen::HipCompilerVersion() >= external_tool_version_t{2, 10, 19392})
