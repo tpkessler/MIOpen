@@ -307,7 +307,7 @@ static void RemoveLinkOptionsUnwanted(OptionList& list)
 /// \todo Get list of supported isa names from comgr and select.
 static std::string GetIsaName(const std::string& device)
 {
-    const char* const ecc_suffix = IsEnabledFeatureSramEcc(device) ? "+sram-ecc" : "";
+    const char* const ecc_suffix = IsEnabledFeatureSramEcc(device) ? ":sramecc+" : "";
     return {"amdgcn-amd-amdhsa--" + device + ecc_suffix};
 }
 
