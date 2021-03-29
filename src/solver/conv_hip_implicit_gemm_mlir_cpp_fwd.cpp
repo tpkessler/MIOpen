@@ -67,9 +67,6 @@ bool ConvHipImplicitGemmMlirCppFwd::IsApplicable(const ConvolutionContext& ctx) 
     // Future: MLIR-binary solutions do not use HIP kernels.
     if(!ctx.use_hip_kernels)
         return false;
-    // Future: MLIR will support non-default layouts.
-    if(!ctx.IsLayoutDefault())
-        return false;
     // Future: MLIR will support 3d convolution
     if(!ctx.Is2d())
         return false;

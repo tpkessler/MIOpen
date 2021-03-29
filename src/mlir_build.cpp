@@ -25,6 +25,7 @@
 *******************************************************************************/
 
 #include <miopen/config.h>
+#include <miopen/env.hpp>
 #include <miopen/hip_build_utils.hpp>
 #include <miopen/logger.hpp>
 #include <miopen/mlir_build.hpp>
@@ -59,6 +60,9 @@ void check_miir_error(MiirStatus status, const std::string& miir_fn_name)
     }
 }
 } // namespace
+
+MIOPEN_DECLARE_ENV_VAR(MIOPEN_DEBUG_DUMP_MLIR)
+
 /// Generates HIP source, header and options for HIP compiler.
 /// Writes HIP source and header into output directory.
 ///
@@ -99,15 +103,21 @@ static void MiirGenerateSourcesForHipBuild(const boost::optional<TmpDir>& tmp_di
     std::ofstream cpp_ofs(cpp_filename);
     throw_if_error("miirGenIgemmSource", cpp_text, &cpp_ofs, cpp_filename);
     cpp_ofs << cpp_text;
+    if(miopen::IsEnabled(MIOPEN_DEBUG_DUMP_MLIR{}))
+        std::cout << cpp_text << std::endl;
 
     const std::string hpp_text = miirGenIgemmHeader(handle());
     std::ofstream hpp_ofs(hpp_filename);
     throw_if_error("miirGenIgemmHeader", hpp_text, &hpp_ofs, hpp_filename);
     hpp_ofs << hpp_text;
+    if(miopen::IsEnabled(MIOPEN_DEBUG_DUMP_MLIR{}))
+        std::cout << hpp_text << std::endl;
 
     // Get mlir kernel compilation flags.
     cflags = miirGenIgemmCflags(handle());
     throw_if_error("miirGenIgemmCflags", cflags);
+    if(miopen::IsEnabled(MIOPEN_DEBUG_DUMP_MLIR{}))
+        std::cout << cflags << std::endl;
 
     ///\todo This smells:
     cflags     = cflags.substr(cflags.find("\n") + 1); // Skip first line.
