@@ -202,7 +202,7 @@ pipeline {
             name: "PACKAGES",
             defaultValue: true,
             description: "")
-        stringParam(
+        string(
             name: "BuildPriority",
             defaultValue: "3'", 
             description: "Specify the priority of this build")
