@@ -202,7 +202,10 @@ pipeline {
             name: "PACKAGES",
             defaultValue: true,
             description: "")
-        stringParam('BuildPriority', '3', 'Specify the priority of this build.')
+        stringParam(
+            name: "BuildPriority",
+            defaultValue: "3'", 
+            description: "Specify the priority of this build")
     }
     stages{
         stage("Static checks"){
