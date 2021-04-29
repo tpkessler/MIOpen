@@ -185,6 +185,10 @@ pipeline {
             defaultValue: true,
             description: "")
         booleanParam(
+            name: "SMOKE_MLIR",
+            defaultValue: true,
+            description: "")
+        booleanParam(
             name: "SMOKE_MIOPENTENSILE_LATEST",
             defaultValue: true,
             description: "")
@@ -300,6 +304,24 @@ pipeline {
                         script{
                             try{
                                 buildHipClangJob('g++', flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release')
+                            }
+                            catch(e){
+                                echo "throwing error exception for the stage"
+                                echo 'Exception occurred: ' + e.toString()
+                                throw e
+                            }
+                            finally{
+                                reboot()
+                            }
+                        }
+                    }
+                }
+                stage('Fp32 Hip') {
+                    agent{ label rocmnode("vega") }
+                    steps{
+                        script{
+                            try{
+                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release')
                             }
                             catch(e){
                                 echo "throwing error exception for the stage"
@@ -471,11 +493,6 @@ pipeline {
                         }
                     }
                 }
-            }
-        }
-        stage("Smoke Aux 2"){
-            when { expression { params.SMOKE_TESTS } }
-            parallel{
                 stage('Fp32 Hip Normal-Find') {
                     agent{ label rocmnode("vega") }
                     environment{
@@ -530,25 +547,12 @@ pipeline {
                         }
                     }
                 }
-                stage('Fp32 Hip') {
-                    agent{ label rocmnode("vega") }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release')
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-                stage('Fp32 Hip MLIR') {
+            }
+        }
+        stage("Smoke MLIR"){
+            when { expression { params.SMOKE_MLIR } }
+            parallel{
+               stage('Fp32 Hip MLIR') {
                     agent{ label rocmnode("vega") }
                     environment{
                         cmd = """
