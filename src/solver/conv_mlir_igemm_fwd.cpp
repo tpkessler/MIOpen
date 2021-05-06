@@ -94,68 +94,76 @@ ConvSolution ConvMlirIgemmFwd::GetSolution(const ConvolutionContext& ctx) const
 {
 #if MIOPEN_USE_MLIR
     ConvSolution result;
-    KernelInfo construction_parameters;
 
-    std::string version   = "_v4r4";
-    std::string direction = "_fwd";
-    std::string operation = "conv2d";
+    std::string options = PopulateMlirHandle(ctx, "conv2d", "conv2d", false);
+    int kernel_count    = MiirGetKernelCount(options);
 
-    construction_parameters.kernel_name = "mlir_gen_igemm_conv2d" + version + direction;
-    construction_parameters.kernel_file = construction_parameters.kernel_name + ".mlir";
+    for(std::size_t kernel_id = 0; kernel_id < kernel_count; ++kernel_id)
+    {
+        KernelInfo construction_parameters;
 
-    // Arguments for mlir-miopen-driver.
-    // clang-format off
-    using CI = ConvolutionContextInterpreter;
+        std::string version   = "_v4r4";
+        std::string direction = "_fwd";
+        std::string operation = "conv2d";
+        construction_parameters.kernel_name =
+            "mlir_gen_igemm_conv2d" + version + direction + std::to_string(kernel_id);
+        construction_parameters.kernel_file = construction_parameters.kernel_name + ".mlir";
 
-    std::string in_layout = InsertGToLayout(CI::GetInputLayout(ctx), 'C');
-    std::string fil_layout = InsertGToLayout(CI::GetFilterLayout(ctx), 'N');
-    std::string out_layout = InsertGToLayout(CI::GetOutputLayout(ctx), 'C');
+        // Arguments for mlir-miopen-driver.
+        // clang-format off
+        using CI = ConvolutionContextInterpreter;
 
-    std::string data_type = ctx.IsFp32() ? "fp32" : "fp16";
+        std::string in_layout = InsertGToLayout(CI::GetInputLayout(ctx), 'C');
+        std::string fil_layout = InsertGToLayout(CI::GetFilterLayout(ctx), 'N');
+        std::string out_layout = InsertGToLayout(CI::GetOutputLayout(ctx), 'C');
 
-    construction_parameters.comp_options =
-        std::string(" --operation ") + operation +
-        std::string(" --num_cu ") + std::to_string(ctx.GetStream().GetMaxComputeUnits()) +
-        std::string(" --arch ") + ctx.GetStream().GetDeviceName() +
-        std::string(" --groupsize ") + std::to_string(CI::GetGroupCountG(ctx)) +
-        std::string(" --fil_layout ") + fil_layout +
-        std::string(" --fil_type ") + data_type +
-        std::string(" --in_layout ") + in_layout +
-        std::string(" --in_type ") + data_type +
-        std::string(" --out_layout ") + out_layout +
-        std::string(" --out_type ") + data_type +
-        std::string(" --batchsize ") + std::to_string(CI::GetBatchN(ctx)) +
-        std::string(" --in_channels ") + std::to_string(CI::GetInputChannelC(ctx)) +
-        std::string(" --out_channels ") + std::to_string(CI::GetOutputChannelK(ctx)) +
-        std::string(" --in_h ") + std::to_string(CI::GetInputHeightHi(ctx)) +
-        std::string(" --in_w ") + std::to_string(CI::GetInputWidthWi(ctx)) +
-        std::string(" --out_h ") + std::to_string(CI::GetOutputHeightHo(ctx)) +
-        std::string(" --out_w ") + std::to_string(CI::GetOutputWidthWo(ctx)) +
-        std::string(" --fil_h ") + std::to_string(CI::GetFilterHeightY(ctx)) +
-        std::string(" --fil_w ") + std::to_string(CI::GetFilterWidthX(ctx)) +
-        std::string(" --dilation_h ") + std::to_string(CI::GetAdjustedConvolutionDilationH(ctx)) +
-        std::string(" --dilation_w ") + std::to_string(CI::GetAdjustedConvolutionDilationW(ctx)) +
-        std::string(" --conv_stride_h ") + std::to_string(CI::GetAdjustedConvolutionStrideH(ctx)) +
-        std::string(" --conv_stride_w ") + std::to_string(CI::GetAdjustedConvolutionStrideW(ctx)) +
-        std::string(" --padding_h ") + std::to_string(CI::GetInputLeftPadH(ctx)) +
-        std::string(" --padding_w ") + std::to_string(CI::GetInputLeftPadW(ctx)) +
-        std::string(" --kernel_name ") + construction_parameters.kernel_name;
-    // clang-format on
+        std::string data_type = ctx.IsFp32() ? "fp32" : "fp16";
 
-    size_t local_size  = 0;
-    size_t global_size = 0;
-    MiirGenLaunchParams(construction_parameters.comp_options, local_size, global_size);
+        construction_parameters.comp_options =
+            std::string(" --operation ") + operation +
+            std::string(" --kernel_id ") + std::to_string(kernel_id) +
+            std::string(" --num_cu ") + std::to_string(ctx.GetStream().GetMaxComputeUnits()) +
+            std::string(" --arch ") + ctx.GetStream().GetDeviceName() +
+            std::string(" --groupsize ") + std::to_string(CI::GetGroupCountG(ctx)) +
+            std::string(" --fil_layout ") + fil_layout +
+            std::string(" --fil_type ") + data_type +
+            std::string(" --in_layout ") + in_layout +
+            std::string(" --in_type ") + data_type +
+            std::string(" --out_layout ") + out_layout +
+            std::string(" --out_type ") + data_type +
+            std::string(" --batchsize ") + std::to_string(CI::GetBatchN(ctx)) +
+            std::string(" --in_channels ") + std::to_string(CI::GetInputChannelC(ctx)) +
+            std::string(" --out_channels ") + std::to_string(CI::GetOutputChannelK(ctx)) +
+            std::string(" --in_h ") + std::to_string(CI::GetInputHeightHi(ctx)) +
+            std::string(" --in_w ") + std::to_string(CI::GetInputWidthWi(ctx)) +
+            std::string(" --out_h ") + std::to_string(CI::GetOutputHeightHo(ctx)) +
+            std::string(" --out_w ") + std::to_string(CI::GetOutputWidthWo(ctx)) +
+            std::string(" --fil_h ") + std::to_string(CI::GetFilterHeightY(ctx)) +
+            std::string(" --fil_w ") + std::to_string(CI::GetFilterWidthX(ctx)) +
+            std::string(" --dilation_h ") + std::to_string(CI::GetAdjustedConvolutionDilationH(ctx)) +
+            std::string(" --dilation_w ") + std::to_string(CI::GetAdjustedConvolutionDilationW(ctx)) +
+            std::string(" --conv_stride_h ") + std::to_string(CI::GetAdjustedConvolutionStrideH(ctx)) +
+            std::string(" --conv_stride_w ") + std::to_string(CI::GetAdjustedConvolutionStrideW(ctx)) +
+            std::string(" --padding_h ") + std::to_string(CI::GetInputLeftPadH(ctx)) +
+            std::string(" --padding_w ") + std::to_string(CI::GetInputLeftPadW(ctx)) +
+            std::string(" --kernel_name ") + construction_parameters.kernel_name;
+        // clang-format on
 
-    construction_parameters.l_wk.push_back(local_size);
-    construction_parameters.l_wk.push_back(1);
-    construction_parameters.l_wk.push_back(1);
+        size_t local_size  = 0;
+        size_t global_size = 0;
+        MiirGenLaunchParams(construction_parameters.comp_options, local_size, global_size);
 
-    construction_parameters.g_wk.push_back(global_size);
-    construction_parameters.g_wk.push_back(1);
-    construction_parameters.g_wk.push_back(1);
+        construction_parameters.l_wk.push_back(local_size);
+        construction_parameters.l_wk.push_back(1);
+        construction_parameters.l_wk.push_back(1);
 
+        construction_parameters.g_wk.push_back(global_size);
+        construction_parameters.g_wk.push_back(1);
+        construction_parameters.g_wk.push_back(1);
+
+        result.construction_params.push_back(construction_parameters);
+    }
     result.invoker_factory = conv::MakeMlirFwdInvokerFactory(ctx);
-    result.construction_params.push_back(construction_parameters);
     return result;
 #else
     std::ignore = ctx;

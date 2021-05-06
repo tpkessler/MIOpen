@@ -168,4 +168,13 @@ void MiirGenBin(const std::string& params, std::vector<char>& buffer)
     check_miir_error(status, "miirBufferGet");
 }
 
+int MiirGetKernelCount(const std::string& params)
+{
+    AutoMiirHandle handle(params);
+    int kernel_count = miirGetKernelCount(handle());
+    if(kernel_count < 1)
+        MIOPEN_THROW("miirGetKernelCount invalid count");
+    return kernel_count;
+}
+
 } // namespace miopen

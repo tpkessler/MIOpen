@@ -206,7 +206,18 @@ InvokerFactory MakeMlirFwdInvokerFactory(const ConvolutionContext& ctx)
             const auto& tensors = forward_invoke_params.tensors;
 
             SetMlirConvArgsPtr(tensors.in, tensors.out, tensors.w, args);
-            handle.Run(kernels[0])(args);
+            float elapsed = 0;
+            for(const auto& k : kernels)
+            {
+                handle.Run(k)(args);
+                elapsed += handle.GetKernelTime();
+            }
+
+            if(handle.IsProfilingEnabled())
+            {
+                handle.ResetKernelTime();
+                handle.AccumKernelTime(elapsed);
+            }
         };
     };
 #else
