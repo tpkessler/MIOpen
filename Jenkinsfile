@@ -192,27 +192,27 @@ pipeline {
     parameters {
         booleanParam(
             name: "STATIC_CHECKS",
-            defaultValue: true,
+            defaultValue: false,
             description: "")
         booleanParam(
             name: "SMOKE_TESTS",
-            defaultValue: true,
+            defaultValue: false,
             description: "")
         booleanParam(
             name: "SMOKE_MLIR",
-            defaultValue: true,
+            defaultValue: false,
             description: "")
         booleanParam(
             name: "SMOKE_MIOPENTENSILE_LATEST",
-            defaultValue: true,
+            defaultValue: false,
             description: "")
         booleanParam(
             name: "FULL_TESTS",
-            defaultValue: true,
+            defaultValue: false,
             description: "")
         booleanParam(
             name: "MIOPENTENSILE",
-            defaultValue: false,
+            defaultValue: true,
             description: "")
         booleanParam(
             name: "MIOPENTENSILE_LATEST",
@@ -1077,70 +1077,6 @@ pipeline {
                     steps{
                         script{
                             tensileStage(cmd, "gfx906:xnack-", "default", "ON")
-                        }
-                    }
-                }
-                stage('Fp32 Hip Tensile All gfx908') {
-                    agent{ label rocmnode("gfx908") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx908:xnack-", "default", "ON")
-                        }
-                    }
-                }
-                stage('Fp16 Hip Tensile All gfx908') {
-                    agent{ label rocmnode("gfx908") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_HALF=On -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx908:xnack-", "default", "ON")
-                        }
-                    }
-                }
-                stage('Bf16 Hip Tensile All gfx908') {
-                    agent{ label rocmnode("gfx908") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_BFLOAT16=On -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx908:xnack-", "default", "ON")
-                        }
-                    }
-                }
-                stage('Int8 Hip Tensile All gfx908') {
-                    agent{ label rocmnode("gfx908") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_INT8=On -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx908:xnack-", "default", "ON")
                         }
                     }
                 }

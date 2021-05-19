@@ -91,13 +91,13 @@ if(NOT MIOPEN_TEST_MIOTENSILE)
 	endif()
 else()
 	if(MIOPEN_TEST_HALF)
-	    set(SKIP_ALL_EXCEPT_TESTS test_conv2d test_conv3d test_immed_conv2d test_immed_conv3d test_gru test_rnn_vanilla test_lstm test_gru_extra test_rnn_extra test_lstm_extra )
+	    set(SKIP_ALL_EXCEPT_TESTS test_tensile_convs test_conv2d test_conv3d test_immed_conv2d test_immed_conv3d test_gru test_rnn_vanilla test_lstm test_gru_extra test_rnn_extra test_lstm_extra )
 	elseif(MIOPEN_TEST_INT8)
-	    set(SKIP_ALL_EXCEPT_TESTS test_conv2d)
+	    set(SKIP_ALL_EXCEPT_TESTS test_tensile_convs test_conv2d)
 	elseif(MIOPEN_TEST_BFLOAT16)
-	    set(SKIP_ALL_EXCEPT_TESTS test_conv2d test_immed_conv2d)
+	    set(SKIP_ALL_EXCEPT_TESTS test_tensile_convs test_conv2d test_immed_conv2d)
     else()
-        set(SKIP_ALL_EXCEPT_TESTS test_conv2d test_conv3d test_immed_conv2d test_immed_conv3d test_gru test_rnn_vanilla test_lstm test_gru_extra test_rnn_extra test_lstm_extra )
+        set(SKIP_ALL_EXCEPT_TESTS test_tensile_convs test_conv2d test_conv3d test_immed_conv2d test_immed_conv3d test_gru test_rnn_vanilla test_lstm test_gru_extra test_rnn_extra test_lstm_extra )
 	endif()
 endif()
 
@@ -276,6 +276,17 @@ function(add_perf_test NAME)
         endif()
     endif()
 endfunction()
+
+add_custom_test(test_tensile_convs  ALLOW_BFLOAT16 ALLOW_HALF ALLOW_NONXDLOPS
+    COMMAND $<TARGET_FILE:test_conv3d> --pmode valid --input 8 32 4 9 9 --weights 64 32 1 1 1  --pads_strides_dilations 1 1 1 1 1 1 1 1 1
+    COMMAND $<TARGET_FILE:test_conv3d> --pmode same --input 8 32 4 9 9 --weights 32 32 1 1 1  --pads_strides_dilations 0 0 0 1 1 1 1 1 1
+    
+    COMMAND $<TARGET_FILE:test_immed_conv3d> --pmode default --input 8 16 3 4 4 --weights 32 16 1 1 1  --pads_strides_dilations 0 0 0 1 1 1 1 1 1
+
+    COMMAND $<TARGET_FILE:test_immed_conv2d> --pmode default --input 8 16 14 14 --weights 32 16 1 1 1  --pads_strides_dilations 0 0 0 1 1 1 1 1 1
+    COMMAND $<TARGET_FILE:test_immed_conv2d> --pmode default --input 8 16 28 28 --weights 32 16 1 1 1  --pads_strides_dilations 0 0 0 1 1 1 1 1 1
+)
+
 
 set(IMPLICITGEMM_ARGS ${MIOPEN_TEST_FLOAT_ARG})
 
