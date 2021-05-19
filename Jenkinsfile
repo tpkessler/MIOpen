@@ -134,9 +134,9 @@ def reboot(){
     build job: 'reboot-slaves', propagate: false , parameters: [string(name: 'server', value: "${env.NODE_NAME}"),]
 }
 
-def tensileStage(cmd, gpu_arch, miotensile_version, target_id){
+def tensileStage(compiler, Map conf){
     try{
-        buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: gpu_arch, miotensile_version: miotensile_version, target_id: target_id)
+        buildHipClangJob(compiler, conf)
     }
     catch(e){
         echo "throwing error exception for the stage"
@@ -216,6 +216,10 @@ pipeline {
             description: "")
         booleanParam(
             name: "MIOPENTENSILE_LATEST",
+            defaultValue: false,
+            description: "")
+        booleanParam(
+            name: "OPENCL_MIOPENTENSILE_LATEST",
             defaultValue: false,
             description: "")
         booleanParam(
@@ -1028,7 +1032,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage(cmd, "gfx906:xnack-", "default", "ON")
+                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "default", target_id: "ON")
                         }
                     }
                 }
@@ -1044,7 +1048,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage(cmd, "gfx906:xnack-", "default", "ON")
+                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "default", target_id: "ON")
                         }
                     }
                 }
@@ -1060,7 +1064,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage(cmd, "gfx906:xnack-", "default", "ON")
+                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "default", target_id: "ON")
                         }
                     }
                 }
@@ -1076,7 +1080,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage(cmd, "gfx906:xnack-", "default", "ON")
+                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "default", target_id: "ON")
                         }
                     }
                 }
@@ -1092,7 +1096,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage(cmd, "gfx908:xnack-", "default", "ON")
+                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "default", target_id: "ON")
                         }
                     }
                 }
@@ -1108,7 +1112,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage(cmd, "gfx908:xnack-", "default", "ON")
+                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "default", target_id: "ON")
                         }
                     }
                 }
@@ -1124,7 +1128,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage(cmd, "gfx908:xnack-", "default", "ON")
+                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "default", target_id: "ON")
                         }
                     }
                 }
@@ -1140,7 +1144,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage(cmd, "gfx908:xnack-", "default", "ON")
+                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "default", target_id: "ON")
                         }
                     }
                 }
@@ -1161,7 +1165,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage(cmd, "gfx906:xnack-", "latest", "ON")
+                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "latest", target_id: "ON")
                         }
                     }
                 }
@@ -1177,7 +1181,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage(cmd, "gfx906:xnack-", "latest", "ON")
+                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "latest", target_id: "ON")
                         }
                     }
                 }
@@ -1193,7 +1197,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage(cmd, "gfx906:xnack-", "latest", "ON")
+                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "latest", target_id: "ON")
                         }
                     }
                 }
@@ -1209,7 +1213,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage(cmd, "gfx906:xnack-", "latest", "ON")
+                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "latest", target_id: "ON")
                         }
                     }
                 }
@@ -1225,7 +1229,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage(cmd, "gfx908:xnack-", "latest", "ON")
+                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "latest", target_id: "ON")
                         }
                     }
                 }
@@ -1241,7 +1245,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage(cmd, "gfx908:xnack-", "latest", "ON")
+                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "latest", target_id: "ON")
                         }
                     }
                 }
@@ -1257,7 +1261,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage(cmd, "gfx908:xnack-", "latest", "ON")
+                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "latest", target_id: "ON")
                         }
                     }
                 }
@@ -1273,7 +1277,28 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage(cmd, "gfx908:xnack-", "latest", "ON")
+                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "latest", target_id: "ON")
+                        }
+                    }
+                }
+            }
+        }
+        stage("OPENCL MIOpenTensile Latest"){
+            when { expression { params.OPENCL_MIOPENTENSILE_LATEST } }
+            parallel{
+                stage('Fp32 OpenCL Tensile-Latest Debug + Codecov') {
+                    agent{ label rocmnode("vega20") }
+                    steps{
+                        script{
+                            tensileStage('g++', gpu_arch: "gfx908:xnack-", miotensile_version: "latest", target_id: "ON", flags: "-DBUILD_DEV=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_MIOPENGEMM=OFF -DCMAKE_BUILD_TYPE=debug", codecov: true)
+                        }
+                    }
+                }
+                stage('Fp32 OpenCL Tensile-Latest Install All') {
+                    agent{ label rocmnode("vega20") }
+                    steps{
+                        script{
+                            tensileStage('g++', gpu_arch: "gfx908:xnack-", miotensile_version: "latest", target_id: "ON", flags: "-DBUILD_DEV=Off -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_MIOPENGEMM=OFF -DMIOPEN_TEST_ALL=On -DCMAKE_BUILD_TYPE=release")
                         }
                     }
                 }

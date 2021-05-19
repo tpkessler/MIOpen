@@ -360,17 +360,15 @@ miopenStatus_t CallGemmMIOpenTensile(const Handle& handle,
     if(handle.IsProfilingEnabled())
         ProfilingRecordStop(handle, start, stop);
 #else
-    (void)handle;
-    (void)mtA;
-    (void)mtB;
-    (void)mtC;
+    mt_status = miopen_tensile_gemm_ocl(
+        handle.GetStream(), &mtA, &mtB, &mtC, double(gemm_desc.alpha), double(gemm_desc.beta));
 #endif
 
     if(kcache_key != nullptr)
         *kcache_key = FindDbKCacheKey::MakeUnused("MIOpenTensile");
 
     if(mt_status != miopen_tensile_status_success)
-        MIOPEN_THROW(miopenStatusInternalError, "Failed to run miopen_tensile_gemm_hip");
+        MIOPEN_THROW(miopenStatusInternalError, "Failed to run miopen_tensile_gemm");
 
     return miopenStatusSuccess;
 }
