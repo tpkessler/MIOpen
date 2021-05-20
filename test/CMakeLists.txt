@@ -292,13 +292,13 @@ function(add_perf_test NAME)
 endfunction()
 
 add_custom_test(test_tensile_convs  ALLOW_BFLOAT16 ALLOW_HALF ALLOW_NONXDLOPS ALLOW_GEMM_FEATURE
-    COMMAND $<TARGET_FILE:test_conv3d> --pmode valid --input 8 32 4 9 9 --weights 64 32 1 1 1  --pads_strides_dilations 1 1 1 1 1 1 1 1 1
-    COMMAND $<TARGET_FILE:test_conv3d> --pmode same --input 8 32 4 9 9 --weights 32 32 1 1 1  --pads_strides_dilations 0 0 0 1 1 1 1 1 1
+    COMMAND $<TARGET_FILE:test_conv3d> ${MIOPEN_TEST_FLOAT_ARG} --pmode valid --input 8 32 4 9 9 --weights 64 32 1 1 1  --pads_strides_dilations 1 1 1 1 1 1 1 1 1
+    COMMAND $<TARGET_FILE:test_conv3d> ${MIOPEN_TEST_FLOAT_ARG} --pmode same --input 8 32 4 9 9 --weights 32 32 1 1 1  --pads_strides_dilations 0 0 0 1 1 1 1 1 1
     
-    COMMAND $<TARGET_FILE:test_immed_conv3d> --pmode default --input 8 16 3 4 4 --weights 32 16 1 1 1  --pads_strides_dilations 0 0 0 1 1 1 1 1 1
+    COMMAND $<TARGET_FILE:test_immed_conv3d> --pmode default ${MIOPEN_TEST_FLOAT_ARG} --input 8 16 3 4 4 --weights 32 16 1 1 1  --pads_strides_dilations 0 0 0 1 1 1 1 1 1
 
-    COMMAND $<TARGET_FILE:test_immed_conv2d> --pmode default --input 8 16 14 14 --weights 32 16 1 1 1  --pads_strides_dilations 0 0 0 1 1 1 1 1 1
-    COMMAND $<TARGET_FILE:test_immed_conv2d> --pmode default --input 8 16 28 28 --weights 32 16 1 1 1  --pads_strides_dilations 0 0 0 1 1 1 1 1 1
+    COMMAND $<TARGET_FILE:test_immed_conv2d> --pmode default ${MIOPEN_TEST_FLOAT_ARG} --input 8 16 14 14 --weights 32 16 1 1 1  --pads_strides_dilations 0 0 0 1 1 1 1 1 1
+    COMMAND $<TARGET_FILE:test_immed_conv2d> --pmode default ${MIOPEN_TEST_FLOAT_ARG} --input 8 16 28 28 --weights 32 16 1 1 1  --pads_strides_dilations 0 0 0 1 1 1 1 1 1
 )
 
 
