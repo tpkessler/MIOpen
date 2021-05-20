@@ -277,7 +277,7 @@ function(add_perf_test NAME)
     endif()
 endfunction()
 
-add_custom_test(test_tensile_convs  ALLOW_BFLOAT16 ALLOW_HALF ALLOW_NONXDLOPS
+add_custom_test(test_tensile_convs  ALLOW_BFLOAT16 ALLOW_HALF ALLOW_NONXDLOPS ALLOW_GEMM_FEATURE
     COMMAND $<TARGET_FILE:test_conv3d> --pmode valid --input 8 32 4 9 9 --weights 64 32 1 1 1  --pads_strides_dilations 1 1 1 1 1 1 1 1 1
     COMMAND $<TARGET_FILE:test_conv3d> --pmode same --input 8 32 4 9 9 --weights 32 32 1 1 1  --pads_strides_dilations 0 0 0 1 1 1 1 1 1
     
