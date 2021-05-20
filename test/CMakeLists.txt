@@ -156,6 +156,7 @@ function(add_test_executable TEST_NAME)
         set(TEST_COMMAND ${TEST_NAME} ${MIOPEN_TEST_FLOAT_ARG} ${MIOPEN_TEST_FLAGS_ARGS})
     endif()
     add_test_command(${TEST_NAME} ${TEST_COMMAND})
+    rate_added_test(${TEST_NAME})
     add_dependencies(tests ${TEST_NAME})
     add_dependencies(check ${TEST_NAME})
     set_tests_properties(${TEST_NAME} PROPERTIES FAIL_REGULAR_EXPRESSION "FAILED")
@@ -196,29 +197,42 @@ file(GLOB TESTS *.cpp)
 # Please notice that each list is also sorted and it is highly recommended
 # to keep this sorting when adding new tests.
 
-set( LONG_TESTS
-    pooling2d.cpp
-    dropout.cpp
-    conv2d.cpp
-    pooling3d.cpp
-    soft_max.cpp
-    lrn_test.cpp
-    reduce_test.cpp
+set(WORK_FIRST
+    test_conv2d
+    test_conv3d
+    test_tensile_convs
+)
+
+set(LONG_TESTS
+    test_dropout
+
+    test_conv_group
+    test_soft_max
+    test_lrn_test
+    test_conv_for_implicit_gemm
+    test_immed_conv3d
+    test_conv3d_extra
+    test_conv_3d
+    test_pooling2d
     )
+
+function(rate_added_test NAME)
+    if(${NAME} IN_LIST WORK_FIRST)
+        set_tests_properties(${NAME} PROPERTIES COST 850)
+    elseif(${NAME} IN_LIST LONG_TESTS)
+        set_tests_properties(${NAME} PROPERTIES COST 800)
+    else()
+        set_tests_properties(${NAME} PROPERTIES COST 600)
+    endif()
+endfunction()
+
 
 foreach(TEST ${TESTS})
     get_filename_component(BASE_NAME ${TEST} NAME_WE)
     add_test_executable(test_${BASE_NAME} ${TEST})
 endforeach()
 
-set_tests_properties(
-    test_pooling2d
-    test_dropout
-    test_conv2d
-    test_pooling3d
-    test_soft_max
-    test_lrn_test
-    PROPERTIES COST 800)
+
 
 set_tests_properties(test_sqlite_perfdb test_perfdb
     PROPERTIES RUN_SERIAL On)
@@ -247,7 +261,7 @@ function(add_custom_test NAME)
         add_custom_target(${NAME} ${PARSE_UNPARSED_ARGUMENTS})
         if(NOT PARSE_SKIP_UNLESS_ALL OR MIOPEN_TEST_ALL)
             add_test(NAME ${NAME} COMMAND ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR} --target ${NAME})
-            set_tests_properties(${NAME} PROPERTIES COST 600)
+            rate_added_test(${NAME})
         endif()
     endif()
 endfunction()
@@ -272,7 +286,7 @@ function(add_perf_test NAME)
         if(NOT PARSE_SKIP_UNLESS_ALL OR MIOPEN_TEST_ALL)
             add_test(NAME ${NAME} COMMAND ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR} --target ${NAME})
             set_tests_properties(${NAME} PROPERTIES FAIL_REGULAR_EXPRESSION "(FAILED)|(Perf Db: record not found)")
-            set_tests_properties(${NAME} PROPERTIES COST 600)
+            rate_added_test(${NAME})
         endif()
     endif()
 endfunction()
