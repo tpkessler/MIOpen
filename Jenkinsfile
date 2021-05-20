@@ -51,12 +51,13 @@ def cmake_build(compiler, flags, env4make, extradebugflags, prefixpath){
     }
 }
 
-def buildHipClangJob(Map conf, compiler){
+def buildhipclangjob(Map conf){
         show_node_info()
 
         env.HSA_ENABLE_SDMA=0
         env.CODECOV_TOKEN="aec031be-7673-43b5-9840-d8fb71a2354e"
         checkout scm
+        def compiler = conf.get("compiler", "/opt/rocm/llvm/bin/clang++")
         def prefixpath = conf.get("prefixpath", "/usr/local")
         def flags = conf.get("flags", "")
         def env4make = conf.get("env4make", "")
@@ -134,23 +135,10 @@ def reboot(){
     build job: 'reboot-slaves', propagate: false , parameters: [string(name: 'server', value: "${env.NODE_NAME}"),]
 }
 
-def tensileStage(compiler, Map conf){
+def runDockerJob(Map conf){
     try{
-        buildHipClangJob(compiler, conf)
-    }
-    catch(e){
-        echo "throwing error exception for the stage"
-        echo 'Exception occurred: ' + e.toString()
-        throw e
-    }
-    finally{
-        reboot()
-    }
-}
-
-def hipClangStage(cmd, gpu_arch){
-    try{
-        buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: gpu_arch)
+        def build_config = conf
+        buildhipclangjob(build_config)
     }
     catch(e){
         echo "throwing error exception for the stage"
@@ -239,7 +227,7 @@ pipeline {
                     steps{
                         script{
                             try{
-                                buildHipClangJob('clang++', flags: '-DCMAKE_BUILD_TYPE=release', cmd: cmd)
+                                buildhipclangjob(compiler: 'clang++', flags: '-DCMAKE_BUILD_TYPE=release', cmd: cmd)
                             }
                             catch(e){
                                 echo "throwing error exception for the stage"
@@ -257,7 +245,7 @@ pipeline {
                     steps{
                         script{
                             try{
-                                buildHipClangJob('clang++-3.8', flags: '-DCMAKE_BUILD_TYPE=release', cmd: cmd)
+                                buildhipclangjob(compiler: 'clang++-3.8', flags: '-DCMAKE_BUILD_TYPE=release', cmd: cmd)
                             }
                             catch(e){
                                 echo "throwing error exception for the stage"
@@ -283,7 +271,7 @@ pipeline {
                     steps{
                         script{
                             try{
-                                buildHipClangJob('clang++', flags: '-DCMAKE_BUILD_TYPE=release', cmd: cmd)
+                                buildhipclangjob(compiler: 'clang++', flags: '-DCMAKE_BUILD_TYPE=release', cmd: cmd)
                             }
                             catch(e){
                                 echo "throwing error exception for the stage"
@@ -302,17 +290,7 @@ pipeline {
                     agent{ label rocmnode("vega") }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('g++', flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug')
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(compiler: 'g++', flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug')
                         }
                     }
                 }
@@ -320,17 +298,7 @@ pipeline {
                     agent{ label rocmnode("vega") }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('g++', flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release')
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(compiler: 'g++', flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release')
                         }
                     }
                 }
@@ -338,17 +306,7 @@ pipeline {
                     agent{ label rocmnode("vega") }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release')
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release')
                         }
                     }
                 }
@@ -356,17 +314,7 @@ pipeline {
                     agent{ label rocmnode("vega") }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release', prefixpath: '/opt/rocm')
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release', prefixpath: '/opt/rocm')
                         }
                     }
                 }
@@ -382,17 +330,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            try{
-                                 buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(cmd: cmd)
                         }
                     }
                 }
@@ -400,17 +338,7 @@ pipeline {
                     agent{ label rocmnode("gfx908") }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DMIOPEN_TEST_GFX908=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug', prefixpath: '/opt/rocm', gpu_arch: "gfx908")
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(flags: '-DMIOPEN_TEST_GFX908=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug', prefixpath: '/opt/rocm', gpu_arch: "gfx908")
                         }
                     }
                 }
@@ -430,7 +358,7 @@ pipeline {
                         """
                     }
                     steps{
-                        buildHipClangJob('/opt/rocm/llvm/bin/clang++', env4make: "MIOPEN_LOG_LEVEL=5 MIOPEN_COMPILE_PARALLEL_LEVEL=1", cmd: cmd)
+                        buildhipclangjob(env4make: "MIOPEN_LOG_LEVEL=5 MIOPEN_COMPILE_PARALLEL_LEVEL=1", cmd: cmd)
                     }
                 }
                 stage('Fp32 Hip Debug COMGR') {
@@ -445,17 +373,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(cmd: cmd)
                         }
                     }
                 }
@@ -471,17 +389,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(cmd: cmd)
                         }
                     }
                 }
@@ -497,17 +405,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(cmd: cmd)
                         }
                     }
                 }
@@ -524,17 +422,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(cmd: cmd)
                         }
                     }
                 }
@@ -551,17 +439,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(cmd: cmd)
                         }
                     }
                 }
@@ -582,7 +460,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            hipClangStage(cmd, "gfx900;gfx906")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx900;gfx906")
                         }
                     }
                 }
@@ -598,7 +476,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            hipClangStage(cmd, "gfx900;gfx906")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx900;gfx906")
                         }
                     }
                 }
@@ -614,7 +492,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            hipClangStage(cmd, "gfx908")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx908")
                         }
                     }
                 }
@@ -630,7 +508,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            hipClangStage(cmd, "gfx908")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx908")
                         }
                     }
                 }
@@ -643,17 +521,7 @@ pipeline {
                     agent{ label rocmnode("vega20") }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DMIOPEN_TEST_HALF=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release', prefixpath: '/opt/rocm')
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(flags: '-DMIOPEN_TEST_HALF=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release', prefixpath: '/opt/rocm')
                         }
                     }
                 }
@@ -661,17 +529,7 @@ pipeline {
                     agent{ label rocmnode("vega20") }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('g++', flags: '-DMIOPEN_TEST_HALF=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release')
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(compiler: 'g++', flags: '-DMIOPEN_TEST_HALF=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release')
                         }
                     }
                 }
@@ -679,17 +537,7 @@ pipeline {
                     agent{ label rocmnode("vega20") }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('g++', flags: '-DMIOPEN_TEST_INT8=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release')
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(compiler: 'g++', flags: '-DMIOPEN_TEST_INT8=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release')
                         }
                     }
                 }
@@ -697,17 +545,7 @@ pipeline {
                     agent{ label rocmnode("vega20") }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DMIOPEN_TEST_BFLOAT16=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release', prefixpath: '/opt/rocm')
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(flags: '-DMIOPEN_TEST_BFLOAT16=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release', prefixpath: '/opt/rocm')
                         }
                     }
                 }
@@ -715,17 +553,7 @@ pipeline {
                     agent{ label rocmnode("gfx908") }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DMIOPEN_TEST_BFLOAT16=On -DMIOPEN_TEST_GFX908=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug', prefixpath: '/opt/rocm', gpu_arch: "gfx908")
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(flags: '-DMIOPEN_TEST_BFLOAT16=On -DMIOPEN_TEST_GFX908=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug', prefixpath: '/opt/rocm', gpu_arch: "gfx908")
                         }
                     }
                 }
@@ -733,17 +561,7 @@ pipeline {
                     agent{ label rocmnode("gfx908") }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DMIOPEN_TEST_BFLOAT16=On -DMIOPEN_TEST_GFX908=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug', prefixpath: '/opt/rocm', gpu_arch: "gfx908")
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(flags: '-DMIOPEN_TEST_BFLOAT16=On -DMIOPEN_TEST_GFX908=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug', prefixpath: '/opt/rocm', gpu_arch: "gfx908")
                         }
                     }
                 }
@@ -764,7 +582,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage(cmd, "gfx906:xnack-", "latest", "ON")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "latest", target_id: "ON")
                         }
                     }
                 }
@@ -780,7 +598,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage(cmd, "gfx906:xnack-", "latest", "ON")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "latest", target_id: "ON")
                         }
                     }
                 }
@@ -796,7 +614,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage(cmd, "gfx908:xnack-", "latest", "ON")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "latest", target_id: "ON")
                         }
                     }
                 }
@@ -812,7 +630,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage(cmd, "gfx908:xnack-", "latest", "ON")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "latest", target_id: "ON")
                         }
                     }
                 }
@@ -825,17 +643,7 @@ pipeline {
                     agent{ label rocmnode("vega") }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('g++', flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug', codecov: true)
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(compiler: 'g++', flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug', codecov: true)
                         }
                     }
                 }
@@ -843,17 +651,7 @@ pipeline {
                     agent{ label rocmnode("vega20") }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DMIOPEN_TEST_INT8=On -DBUILD_DEV=On -DMIOPEN_TEST_ALL=On -DCMAKE_BUILD_TYPE=release', prefixpath: '/opt/rocm')
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(flags: '-DMIOPEN_TEST_INT8=On -DBUILD_DEV=On -DMIOPEN_TEST_ALL=On -DCMAKE_BUILD_TYPE=release', prefixpath: '/opt/rocm')
                         }
                     }
                 }
@@ -869,17 +667,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908")
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx908")
                         }
                     }
                 }
@@ -892,17 +680,7 @@ pipeline {
                     agent{ label rocmnode("vega") }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('g++', flags: '-DBUILD_DEV=Off -DMIOPEN_TEST_ALL=On -DCMAKE_BUILD_TYPE=release')
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(compiler: 'g++', flags: '-DBUILD_DEV=Off -DMIOPEN_TEST_ALL=On -DCMAKE_BUILD_TYPE=release')
                         }
                     }
                 }
@@ -918,17 +696,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908")
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx908")
                         }
                     }
                 }
@@ -944,17 +712,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908")
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx908")
                         }
                     }
                 }
@@ -975,17 +733,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(cmd: cmd)
                         }
                     }
                 }
@@ -1001,17 +749,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(cmd: cmd)
                         }
                     }
                 }
@@ -1032,7 +770,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "default", target_id: "ON")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "default", target_id: "ON")
                         }
                     }
                 }
@@ -1048,7 +786,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "default", target_id: "ON")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "default", target_id: "ON")
                         }
                     }
                 }
@@ -1064,7 +802,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "default", target_id: "ON")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "default", target_id: "ON")
                         }
                     }
                 }
@@ -1080,7 +818,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "default", target_id: "ON")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "default", target_id: "ON")
                         }
                     }
                 }
@@ -1096,7 +834,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "default", target_id: "ON")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "default", target_id: "ON")
                         }
                     }
                 }
@@ -1112,7 +850,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "default", target_id: "ON")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "default", target_id: "ON")
                         }
                     }
                 }
@@ -1128,7 +866,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "default", target_id: "ON")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "default", target_id: "ON")
                         }
                     }
                 }
@@ -1144,7 +882,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "default", target_id: "ON")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "default", target_id: "ON")
                         }
                     }
                 }
@@ -1165,7 +903,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "latest", target_id: "ON")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "latest", target_id: "ON")
                         }
                     }
                 }
@@ -1181,7 +919,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "latest", target_id: "ON")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "latest", target_id: "ON")
                         }
                     }
                 }
@@ -1197,7 +935,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "latest", target_id: "ON")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "latest", target_id: "ON")
                         }
                     }
                 }
@@ -1213,7 +951,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "latest", target_id: "ON")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx906:xnack-", miotensile_version: "latest", target_id: "ON")
                         }
                     }
                 }
@@ -1229,7 +967,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "latest", target_id: "ON")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "latest", target_id: "ON")
                         }
                     }
                 }
@@ -1245,7 +983,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "latest", target_id: "ON")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "latest", target_id: "ON")
                         }
                     }
                 }
@@ -1261,7 +999,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "latest", target_id: "ON")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "latest", target_id: "ON")
                         }
                     }
                 }
@@ -1277,7 +1015,7 @@ pipeline {
                     }
                     steps{
                         script{
-                            tensileStage('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "latest", target_id: "ON")
+                            runDockerJob(cmd: cmd, gpu_arch: "gfx908:xnack-", miotensile_version: "latest", target_id: "ON")
                         }
                     }
                 }
@@ -1290,7 +1028,7 @@ pipeline {
                     agent{ label rocmnode("vega20") }
                     steps{
                         script{
-                            tensileStage('g++', gpu_arch: "gfx908:xnack-", miotensile_version: "latest", target_id: "ON", flags: "-DBUILD_DEV=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_MIOPENGEMM=OFF -DCMAKE_BUILD_TYPE=debug", codecov: true)
+                            runDockerJob(compiler: 'g++', gpu_arch: "gfx908:xnack-", miotensile_version: "latest", target_id: "ON", flags: "-DBUILD_DEV=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_MIOPENGEMM=OFF -DCMAKE_BUILD_TYPE=debug", codecov: true)
                         }
                     }
                 }
@@ -1298,7 +1036,7 @@ pipeline {
                     agent{ label rocmnode("vega20") }
                     steps{
                         script{
-                            tensileStage('g++', gpu_arch: "gfx908:xnack-", miotensile_version: "latest", target_id: "ON", flags: "-DBUILD_DEV=Off -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_MIOPENGEMM=OFF -DMIOPEN_TEST_ALL=On -DCMAKE_BUILD_TYPE=release")
+                            runDockerJob(compiler: 'g++', gpu_arch: "gfx908:xnack-", miotensile_version: "latest", target_id: "ON", flags: "-DBUILD_DEV=Off -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_MIOPENGEMM=OFF -DMIOPEN_TEST_ALL=On -DCMAKE_BUILD_TYPE=release")
                         }
                     }
                 }
@@ -1311,17 +1049,7 @@ pipeline {
                     agent{ label rocmnode("nogpu") }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('g++', flags: '-DCMAKE_BUILD_TYPE=release', gpu_arch: "gfx900;gfx906;gfx908")
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(compiler: 'g++', flags: '-DCMAKE_BUILD_TYPE=release', gpu_arch: "gfx900;gfx906;gfx908")
                         }
                     }
                 }
@@ -1329,17 +1057,7 @@ pipeline {
                     agent{ label rocmnode("nogpu") }
                     steps{
                         script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DCMAKE_BUILD_TYPE=release', prefixpath: '/opt/rocm', gpu_arch: "gfx900;gfx906;gfx908")
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
+                            runDockerJob(flags: '-DCMAKE_BUILD_TYPE=release', prefixpath: '/opt/rocm', gpu_arch: "gfx900;gfx906;gfx908")
                         }
                     }
                 }
