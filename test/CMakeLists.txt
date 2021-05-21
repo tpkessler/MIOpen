@@ -261,6 +261,7 @@ function(add_custom_test NAME)
         add_custom_target(${NAME} ${PARSE_UNPARSED_ARGUMENTS})
         if(NOT PARSE_SKIP_UNLESS_ALL OR MIOPEN_TEST_ALL)
             add_test(NAME ${NAME} COMMAND ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR} --target ${NAME})
+            set_tests_properties(${NAME} PROPERTIES FAIL_REGULAR_EXPRESSION "FAILED")
             rate_added_test(${NAME})
         endif()
     endif()
@@ -297,8 +298,8 @@ add_custom_test(test_tensile_convs  ALLOW_BFLOAT16 ALLOW_HALF ALLOW_NONXDLOPS AL
     
     COMMAND $<TARGET_FILE:test_immed_conv3d> --pmode default ${MIOPEN_TEST_FLOAT_ARG} --input 8 16 3 4 4 --weights 32 16 1 1 1  --pads_strides_dilations 0 0 0 1 1 1 1 1 1
 
-    COMMAND $<TARGET_FILE:test_immed_conv2d> --pmode default ${MIOPEN_TEST_FLOAT_ARG} --input 8 16 14 14 --weights 32 16 1 1 1  --pads_strides_dilations 0 0 0 1 1 1 1 1 1
-    COMMAND $<TARGET_FILE:test_immed_conv2d> --pmode default ${MIOPEN_TEST_FLOAT_ARG} --input 8 16 28 28 --weights 32 16 1 1 1  --pads_strides_dilations 0 0 0 1 1 1 1 1 1
+    COMMAND $<TARGET_FILE:test_immed_conv2d> --pmode default ${MIOPEN_TEST_FLOAT_ARG} --input 8 16 14 14 --weights 32 16 1 1  --pads_strides_dilations 0 0 1 1 1 1 
+    COMMAND $<TARGET_FILE:test_immed_conv2d> --pmode default ${MIOPEN_TEST_FLOAT_ARG} --input 8 16 28 28 --weights 32 16 1 1  --pads_strides_dilations 0 0 1 1 1 1 
 )
 
 
