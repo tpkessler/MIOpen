@@ -100,8 +100,7 @@ def buildHipClangJob(Map conf, compiler){
 
             withDockerContainer(image: image, args: dockerOpts + ' -v=/var/jenkins/:/var/jenkins') {
                 timeout(time: 5, unit: 'HOURS')
-                {   echo 
-                    '''
+                {   echo '''
                         rm -rf build
                         mkdir build
                         rm -rf install
