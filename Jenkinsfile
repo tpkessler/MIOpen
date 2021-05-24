@@ -44,7 +44,7 @@ def cmake_build(compiler, flags, env4make, extradebugflags, prefixpath){
         MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_XDLOPS=1 CTEST_PARALLEL_LEVEL=4 MIOPEN_VERIFY_CACHE_PATH=${vcache} MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 ${env4make} dumb-init make -j\$(nproc) ${config_targets}
     """
     echo cmd
-    sh cmd
+    //sh cmd
     // Only archive from master or develop
     if (archive == true && (env.BRANCH_NAME == "develop" || env.BRANCH_NAME == "master")) {
         archiveArtifacts artifacts: "build/*.deb", allowEmptyArchive: true, fingerprint: true
@@ -100,8 +100,8 @@ def buildHipClangJob(Map conf, compiler){
 
             withDockerContainer(image: image, args: dockerOpts + ' -v=/var/jenkins/:/var/jenkins') {
                 timeout(time: 5, unit: 'HOURS')
-                {
-                    sh '''
+                {   echo 
+                    '''
                         rm -rf build
                         mkdir build
                         rm -rf install
@@ -112,10 +112,11 @@ def buildHipClangJob(Map conf, compiler){
                     if(cmd == ""){
                         cmake_build(compiler, flags, env4make, extradebugflags, prefixpath)
                     }else{
-                        sh cmd
+                        echo cmd
+                        //sh cmd
                     }
                     if (codecov) {
-                        sh '''
+                        echo '''
                             cd build
                             lcov --directory . --capture --output-file $(pwd)/coverage.info
                             lcov --remove $(pwd)/coverage.info '/usr/*' --output-file $(pwd)/coverage.info
