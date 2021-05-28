@@ -128,7 +128,7 @@ def buildHipClangJob(Map conf, compiler){
                         '''
                     }
 //                }
-            }
+//            }
         }
 //        return retimage
 }
