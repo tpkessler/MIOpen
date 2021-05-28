@@ -1,15 +1,15 @@
 def rocmnode(name) {
-    return 'rocmtest && miopen && ' + name
+    return 'rocmtest-artem && miopen && ' + name
 }
 
 def show_node_info() {
-    sh """
-        echo "NODE_NAME = \$NODE_NAME"
-        lsb_release -sd
-        uname -r
-        cat /sys/module/amdgpu/version
-        ls /opt/ -la
-    """
+//    sh """
+//        echo "NODE_NAME = \$NODE_NAME"
+//        lsb_release -sd
+//        uname -r
+//        cat /sys/module/amdgpu/version
+//        ls /opt/ -la
+//    """
 }
 
 def cmake_build(compiler, flags, env4make, extradebugflags, prefixpath){
@@ -47,7 +47,7 @@ def cmake_build(compiler, flags, env4make, extradebugflags, prefixpath){
     //sh cmd
     // Only archive from master or develop
     if (archive == true && (env.BRANCH_NAME == "develop" || env.BRANCH_NAME == "master")) {
-        archiveArtifacts artifacts: "build/*.deb", allowEmptyArchive: true, fingerprint: true
+//        archiveArtifacts artifacts: "build/*.deb", allowEmptyArchive: true, fingerprint: true
     }
 }
 
@@ -76,36 +76,39 @@ def buildHipClangJob(Map conf, compiler){
         def retimage
         gitStatusWrapper(credentialsId: '7126e5fe-eb51-4576-b52b-9aaf1de8f0fd', gitHubContext: "Jenkins - ${variant}", account: 'ROCmSoftwarePlatform', repo: 'MIOpen') {
             try {
-                retimage = docker.build("${image}", dockerArgs + '.')
-                withDockerContainer(image: image, args: dockerOpts) {
-                    timeout(time: 5, unit: 'MINUTES')
-                    {
-                        sh 'PATH="/opt/rocm/opencl/bin:/opt/rocm/opencl/bin/x86_64:$PATH" clinfo'
-                    }
-                }
+                println("docker.build(${image}, ${dockerArgs} + '.')")
+//                retimage = docker.build("${image}", dockerArgs + '.')
+//                withDockerContainer(image: image, args: dockerOpts) {
+//                    timeout(time: 5, unit: 'MINUTES')
+//                    {
+//                        sh 'PATH="/opt/rocm/opencl/bin:/opt/rocm/opencl/bin/x86_64:$PATH" clinfo'
+//                    }
+//                }
             }
             catch (org.jenkinsci.plugins.workflow.steps.FlowInterruptedException e){
                 echo "The job was cancelled or aborted"
                 throw e
             }
             catch(Exception ex) {
-                retimage = docker.build("${image}", dockerArgs + "--no-cache .")
-                withDockerContainer(image: image, args: dockerOpts) {
-                    timeout(time: 5, unit: 'MINUTES')
-                    {
-                        sh 'PATH="/opt/rocm/opencl/bin:/opt/rocm/opencl/bin/x86_64:$PATH" clinfo'
-                    }
-                }
+//                retimage = docker.build("${image}", dockerArgs + "--no-cache .")
+//                withDockerContainer(image: image, args: dockerOpts) {
+//                    timeout(time: 5, unit: 'MINUTES')
+//                    {
+//                        sh 'PATH="/opt/rocm/opencl/bin:/opt/rocm/opencl/bin/x86_64:$PATH" clinfo'
+//                    }
+//                }
             }
 
-            withDockerContainer(image: image, args: dockerOpts + ' -v=/var/jenkins/:/var/jenkins') {
-                timeout(time: 5, unit: 'HOURS')
-                {   echo '''
+            println("withDockerContainer(image: ${image}, args: ${dockerOpts} + ' -v=/var/jenkins/:/var/jenkins')")
+//            withDockerContainer(image: image, args: dockerOpts + ' -v=/var/jenkins/:/var/jenkins') {
+//                timeout(time: 5, unit: 'HOURS')
+//                {
+                    echo '''
                         rm -rf build
                         mkdir build
                         rm -rf install
                         mkdir install
-                        rm -f src/kernels/*.ufdb.txt
+                        rm -f src/kernels/*.ufdb.txt	//*/
                         rm -f src/kernels/miopen*.udb
                     '''
                     if(cmd == ""){
@@ -124,14 +127,14 @@ def buildHipClangJob(Map conf, compiler){
                             echo "Uploaded"
                         '''
                     }
-                }
+//                }
             }
         }
-        return retimage
+//        return retimage
 }
 
 def reboot(){
-    build job: 'reboot-slaves', propagate: false , parameters: [string(name: 'server', value: "${env.NODE_NAME}"),]
+//    build job: 'reboot-slaves', propagate: false , parameters: [string(name: 'server', value: "${env.NODE_NAME}"),]
 }
 
 def tensileStage(cmd, gpu_arch, miotensile_version, target_id){
