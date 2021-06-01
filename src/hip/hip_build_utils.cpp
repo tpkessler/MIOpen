@@ -105,7 +105,7 @@ static boost::filesystem::path HipBuildImpl(boost::optional<TmpDir>& tmp_dir,
         for(auto inc_file : inc_list)
         {
             auto inc_src = GetKernelInc(inc_file);
-            WriteFile(inc_src, inc_path / inc_file);
+            WriteFile({inc_src.data, inc_src.size}, inc_path / inc_file);
         }
     }
 

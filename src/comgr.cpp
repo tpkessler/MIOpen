@@ -732,7 +732,10 @@ void BuildHip(const std::string& name,
         // Note that we do not need any "subdirs" in the include "pathnames" so far.
         const auto incNames = miopen::GetHipKernelIncList();
         for(const auto& inc : incNames)
-            inputs.AddData(inc, miopen::GetKernelInc(inc), AMD_COMGR_DATA_KIND_INCLUDE);
+        {
+            const auto incText = miopen::GetKernelInc(inc)
+            inputs.AddData(inc, {incText.data, incText.size}, AMD_COMGR_DATA_KIND_INCLUDE);
+        }
 
 #if COMGR_SUPPORTS_PCH
         if(compiler::lc::hip::IsPchEnabled())

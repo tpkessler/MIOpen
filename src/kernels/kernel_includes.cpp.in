@@ -33,9 +33,9 @@
 
 namespace miopen {
 
-const std::map<std::string, std::string>& kernel_includes()
+const std::map<const std::string, const kernel_text_t>& kernel_includes()
 {
-    static const std::map<std::string, std::string> data{
+    static const std::map<const std::string, const kernel_text_t> data{
 #ifndef MIOPEN_USE_CLANG_TIDY // Huge generated source
         ${INIT_KERNELS}
 #endif
@@ -43,7 +43,7 @@ const std::map<std::string, std::string>& kernel_includes()
     return data;
 }
 
-std::string GetKernelInc(std::string key)
+kernel_text_t GetKernelInc(std::string key)
 {
     auto it = kernel_includes().find(key);
     if(it == kernel_includes().end())

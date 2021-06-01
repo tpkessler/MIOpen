@@ -32,10 +32,19 @@
 #include <miopen/config.h>
 
 namespace miopen {
+
+struct kernel_text_t
+{
+    const char * const data;
+    const size_t size;
+    kernel_text_t(const unsigned char * data_, size_t size_) : data(reinterpret_cast<const char*>(data_)), size(size_) {}
+};
+
 std::string GetKernelSrc(std::string name);
-std::string GetKernelInc(std::string key);
+kernel_text_t GetKernelInc(std::string key);
 std::vector<std::string> GetKernelIncList();
 std::vector<std::string> GetHipKernelIncList();
+
 } // namespace miopen
 
 #if MIOPEN_BACKEND_OPENCL
