@@ -224,664 +224,739 @@ pipeline {
             description: "")
     }
     stages{
-        stage("Static checks"){
-            when { expression { params.STATIC_CHECKS } }
-            parallel{
-                stage('Hip Tidy') {
-                    agent{  label rocmnode("nogpu") }
-                    environment{
-                        cmd = "cd build; CXX='/opt/rocm/llvm/bin/clang++' cmake -DMIOPEN_BACKEND=HIP -DBUILD_DEV=On ..; make -j\$(nproc) -k analyze;"
-                    }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('clang++', flags: '-DCMAKE_BUILD_TYPE=release', cmd: cmd)
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                        }
-                    }
-                }
-                stage('OpenCL Tidy') {
-                    agent{  label rocmnode("nogpu") }
-                    environment{
-                        cmd = "cd build; CXX='clang++-3.8' cmake -DMIOPEN_BACKEND=OpenCL -DBUILD_DEV=On ..; make -j\$(nproc) -k analyze;"
-                    }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('clang++-3.8', flags: '-DCMAKE_BUILD_TYPE=release', cmd: cmd)
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                        }
-                    }
-                }
-                stage('Clang Format') {
-                    agent{ label rocmnode("nogpu") }
-                    environment{
-                        cmd = "find . -iname \'*.h\' \
-                                -o -iname \'*.hpp\' \
-                                -o -iname \'*.cpp\' \
-                                -o -iname \'*.h.in\' \
-                                -o -iname \'*.hpp.in\' \
-                                -o -iname \'*.cpp.in\' \
-                                -o -iname \'*.cl\' \
-                                | grep -v 'build/' \
-                                | xargs -n 1 -P 1 -I{} -t sh -c \'clang-format-3.8 -style=file {} | diff - {}\'"
-                    }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('clang++', flags: '-DCMAKE_BUILD_TYPE=release', cmd: cmd)
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        stage("Smoke Fp32"){
-            when { expression { params.SMOKE_TESTS } }
-            parallel{
-               stage('Fp32 OpenCL Debug') {
-                    agent{ label rocmnode("vega") }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('g++', flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug')
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-                stage('Fp32 OpenCL') {
-                    agent{ label rocmnode("vega") }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('g++', flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release')
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-                stage('Fp32 Hip') {
-                    agent{ label rocmnode("vega") }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release')
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-                stage('Fp32 Hip /opt/rocm') {
-                    agent{ label rocmnode("vega") }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release', prefixpath: '/opt/rocm')
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-                stage('Fp32 Hip Debug') {
-                    agent{ label rocmnode("vega") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug -DMIOPEN_TEST_FLAGS=--disable-verification-cache ..
-                            CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            try{
-                                 buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-                stage('Fp32 Hip Debug gfx908 /opt/rocm') {
-                    agent{ label rocmnode("gfx908") }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DMIOPEN_TEST_GFX908=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug', prefixpath: '/opt/rocm', gpu_arch: "gfx908")
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        stage("Smoke Aux 1"){
-            when { expression { params.SMOKE_TESTS } }
-            parallel{
-                stage('Fp32 HipNoGPU Debug') {
-                    agent{  label rocmnode("nogpu") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug -DMIOPEN_BACKEND=HIPNOGPU -DMIOPEN_INSTALL_CXX_HEADERS=On ..
-                            make -j\$(nproc)
-                        """
-                    }
-                    steps{
-                        buildHipClangJob('/opt/rocm/llvm/bin/clang++', env4make: "MIOPEN_LOG_LEVEL=5 MIOPEN_COMPILE_PARALLEL_LEVEL=1", cmd: cmd)
-                    }
-                }
-                stage('Fp32 Hip Debug COMGR') {
-                    agent{ label rocmnode("vega") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_USE_COMGR=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
-                            CTEST_PARALLEL_LEVEL=2 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 MIOPEN_LOG_LEVEL=5 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-                stage('Fp32 Hip Debug Embedded Vega20') {
-                    agent{ label rocmnode("vega20") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_EMBED_DB="gfx906_60;gfx906_64" -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
-                            MIOPEN_LOG_LEVEL=5 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-                stage('Fp32 Hip Static') {
-                    agent{ label rocmnode("vega") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DBUILD_SHARED_LIBS=Off -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_FLAGS=--disable-verification-cache ..
-                            CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-                stage('Fp32 Hip Normal-Find') {
-                    agent{ label rocmnode("vega") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release ..
-                            make -j test_conv2d
-                            MIOPEN_FIND_MODE=normal CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 bin/test_conv2d --disable-verification-cache
-                        """
-                    }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-                stage('Fp32 Hip Fast-Find') {
-                    agent{ label rocmnode("vega") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release ..
-                            make -j test_conv2d
-                            MIOPEN_FIND_MODE=fast CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 bin/test_conv2d --disable-verification-cache
-                        """
-                    }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        stage("Smoke MLIR"){
-            when { expression { params.SMOKE_MLIR } }
-            parallel{
-                stage('Fp32 Hip MLIR') {
-                    agent{ label rocmnode("vega") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_USE_MLIR=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
-                            CTEST_PARALLEL_LEVEL=4 MIOPEN_LOG_LEVEL=5 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            hipClangStage(cmd, "gfx900;gfx906")
-                        }
-                    }
-                }
-                stage('Fp16 Hip MLIR') {
-                    agent{ label rocmnode("vega") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_HALF=On -DMIOPEN_USE_MLIR=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
-                            CTEST_PARALLEL_LEVEL=4 MIOPEN_LOG_LEVEL=5 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            hipClangStage(cmd, "gfx900;gfx906")
-                        }
-                    }
-                }
-                stage('Fp32 Hip MLIR Xdlops') {
-                    agent{ label rocmnode("gfx908") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_USE_MLIR=On -DMIOPEN_TEST_GFX908=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
-                            CTEST_PARALLEL_LEVEL=4 MIOPEN_LOG_LEVEL=5 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            hipClangStage(cmd, "gfx908")
-                        }
-                    }
-                }
-                stage('Fp16 Hip MLIR Xdlops') {
-                    agent{ label rocmnode("gfx908") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake  -DMIOPEN_TEST_HALF=On -DMIOPEN_USE_MLIR=On -DMIOPEN_TEST_GFX908=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
-                            CTEST_PARALLEL_LEVEL=4 MIOPEN_LOG_LEVEL=5 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            hipClangStage(cmd, "gfx908")
-                        }
-                    }
-                }
-            }
-        }
-        stage("Smoke Fp16/Bf16/Int8"){
-            when { expression { params.SMOKE_TESTS } }
-            parallel{
-                stage('Fp16 Hip Vega20 /opt/rocm') {
-                    agent{ label rocmnode("vega20") }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DMIOPEN_TEST_HALF=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release', prefixpath: '/opt/rocm')
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-                stage('Fp16 OpenCL Vega20') {
-                    agent{ label rocmnode("vega20") }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('g++', flags: '-DMIOPEN_TEST_HALF=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release')
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-                stage('Int8 OpenCL Vega20') {
-                    agent{ label rocmnode("vega20") }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('g++', flags: '-DMIOPEN_TEST_INT8=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release')
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-                stage('Bf16 Hip Vega20 /opt/rocm') {
-                    agent{ label rocmnode("vega20") }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DMIOPEN_TEST_BFLOAT16=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release', prefixpath: '/opt/rocm')
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-                stage('Bf16 Hip Debug gfx908 /opt/rocm') {
-                    agent{ label rocmnode("gfx908") }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DMIOPEN_TEST_BFLOAT16=On -DMIOPEN_TEST_GFX908=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug', prefixpath: '/opt/rocm', gpu_arch: "gfx908")
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-                stage('Fp16 Hip Debug gfx908 /opt/rocm') {
-                    agent{ label rocmnode("gfx908") }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DMIOPEN_TEST_BFLOAT16=On -DMIOPEN_TEST_GFX908=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug', prefixpath: '/opt/rocm', gpu_arch: "gfx908")
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        stage("Smoke MIOpenTensile Latest"){
-            when { expression { params.SMOKE_MIOPENTENSILE_LATEST } }
-            parallel{
-                stage('Fp16 Hip Tensile-Latest Vega20') {
-                    agent{ label rocmnode("vega20") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_HALF=On -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF -DMIOPEN_TEST_FLAGS=--disable-verification-cache ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx906:xnack-", "latest", "ON")
-                        }
-                    }
-                }
-                stage('Int8 Hip Tensile-Latest Vega20') {
-                    agent{ label rocmnode("vega20") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_INT8=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx906:xnack-", "latest", "ON")
-                        }
-                    }
-                }
-                stage('Fp32 Hip Tensile-Latest gfx908') {
-                    agent{ label rocmnode("gfx908") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx908:xnack-", "latest", "ON")
-                        }
-                    }
-                }
-                stage('Bf16 Hip Tensile-Latest gfx908') {
-                    agent{ label rocmnode("gfx908") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_BFLOAT16=On -DMIOPEN_TEST_GFX908=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx908:xnack-", "latest", "ON")
-                        }
-                    }
-                }
-            }
-        }
-        stage("Full tests I"){
-            when { expression { params.FULL_TESTS } }
-            parallel{
-                stage('Fp32 OpenCL Debug + Codecov') {
-                    agent{ label rocmnode("vega") }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('g++', flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug', codecov: true)
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-                stage('Int8 Hip All Vega20 /opt/rocm') {
-                    agent{ label rocmnode("vega20") }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DMIOPEN_TEST_INT8=On -DBUILD_DEV=On -DMIOPEN_TEST_ALL=On -DCMAKE_BUILD_TYPE=release', prefixpath: '/opt/rocm')
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-                stage('Bf16 Hip Install All gfx908') {
-                    agent{ label rocmnode("gfx908") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_BFLOAT16=On -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=Off -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
-                            MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) install check
-                        """
-                    }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908")
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        stage("Full tests II"){
+        // stage("Static checks"){
+        //     when { expression { params.STATIC_CHECKS } }
+        //     parallel{
+        //         stage('Hip Tidy') {
+        //             agent{  label rocmnode("nogpu") }
+        //             environment{
+        //                 cmd = "cd build; CXX='/opt/rocm/llvm/bin/clang++' cmake -DMIOPEN_BACKEND=HIP -DBUILD_DEV=On ..; make -j\$(nproc) -k analyze;"
+        //             }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('clang++', flags: '-DCMAKE_BUILD_TYPE=release', cmd: cmd)
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         stage('OpenCL Tidy') {
+        //             agent{  label rocmnode("nogpu") }
+        //             environment{
+        //                 cmd = "cd build; CXX='clang++-3.8' cmake -DMIOPEN_BACKEND=OpenCL -DBUILD_DEV=On ..; make -j\$(nproc) -k analyze;"
+        //             }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('clang++-3.8', flags: '-DCMAKE_BUILD_TYPE=release', cmd: cmd)
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         stage('Clang Format') {
+        //             agent{ label rocmnode("nogpu") }
+        //             environment{
+        //                 cmd = "find . -iname \'*.h\' \
+        //                         -o -iname \'*.hpp\' \
+        //                         -o -iname \'*.cpp\' \
+        //                         -o -iname \'*.h.in\' \
+        //                         -o -iname \'*.hpp.in\' \
+        //                         -o -iname \'*.cpp.in\' \
+        //                         -o -iname \'*.cl\' \
+        //                         | grep -v 'build/' \
+        //                         | xargs -n 1 -P 1 -I{} -t sh -c \'clang-format-3.8 -style=file {} | diff - {}\'"
+        //             }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('clang++', flags: '-DCMAKE_BUILD_TYPE=release', cmd: cmd)
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+        // stage("Smoke Fp32"){
+        //     when { expression { params.SMOKE_TESTS } }
+        //     parallel{
+        //        stage('Fp32 OpenCL Debug') {
+        //             agent{ label rocmnode("vega") }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('g++', flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug')
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp32 OpenCL') {
+        //             agent{ label rocmnode("vega") }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('g++', flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release')
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp32 Hip') {
+        //             agent{ label rocmnode("vega") }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release')
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp32 Hip /opt/rocm') {
+        //             agent{ label rocmnode("vega") }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release', prefixpath: '/opt/rocm')
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp32 Hip Debug') {
+        //             agent{ label rocmnode("vega") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug -DMIOPEN_TEST_FLAGS=--disable-verification-cache ..
+        //                     CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                          buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp32 Hip Debug gfx908 /opt/rocm') {
+        //             agent{ label rocmnode("gfx908") }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DMIOPEN_TEST_GFX908=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug', prefixpath: '/opt/rocm', gpu_arch: "gfx908")
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+        // stage("Smoke Aux 1"){
+        //     when { expression { params.SMOKE_TESTS } }
+        //     parallel{
+        //         stage('Fp32 HipNoGPU Debug') {
+        //             agent{  label rocmnode("nogpu") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug -DMIOPEN_BACKEND=HIPNOGPU -DMIOPEN_INSTALL_CXX_HEADERS=On ..
+        //                     make -j\$(nproc)
+        //                 """
+        //             }
+        //             steps{
+        //                 buildHipClangJob('/opt/rocm/llvm/bin/clang++', env4make: "MIOPEN_LOG_LEVEL=5 MIOPEN_COMPILE_PARALLEL_LEVEL=1", cmd: cmd)
+        //             }
+        //         }
+        //         stage('Fp32 Hip Debug COMGR') {
+        //             agent{ label rocmnode("vega") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_USE_COMGR=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
+        //                     CTEST_PARALLEL_LEVEL=2 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 MIOPEN_LOG_LEVEL=5 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp32 Hip Debug Embedded Vega20') {
+        //             agent{ label rocmnode("vega20") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_EMBED_DB="gfx906_60;gfx906_64" -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
+        //                     MIOPEN_LOG_LEVEL=5 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp32 Hip Static') {
+        //             agent{ label rocmnode("vega") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DBUILD_SHARED_LIBS=Off -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_FLAGS=--disable-verification-cache ..
+        //                     CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp32 Hip Normal-Find') {
+        //             agent{ label rocmnode("vega") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release ..
+        //                     make -j test_conv2d
+        //                     MIOPEN_FIND_MODE=normal CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 bin/test_conv2d --disable-verification-cache
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp32 Hip Fast-Find') {
+        //             agent{ label rocmnode("vega") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release ..
+        //                     make -j test_conv2d
+        //                     MIOPEN_FIND_MODE=fast CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 bin/test_conv2d --disable-verification-cache
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+        // stage("Smoke MLIR"){
+        //     when { expression { params.SMOKE_MLIR } }
+        //     parallel{
+        //         stage('Fp32 Hip MLIR') {
+        //             agent{ label rocmnode("vega") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_USE_MLIR=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
+        //                     CTEST_PARALLEL_LEVEL=4 MIOPEN_LOG_LEVEL=5 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     hipClangStage(cmd, "gfx900;gfx906")
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp16 Hip MLIR') {
+        //             agent{ label rocmnode("vega") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_HALF=On -DMIOPEN_USE_MLIR=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
+        //                     CTEST_PARALLEL_LEVEL=4 MIOPEN_LOG_LEVEL=5 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     hipClangStage(cmd, "gfx900;gfx906")
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp32 Hip MLIR Xdlops') {
+        //             agent{ label rocmnode("gfx908") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_USE_MLIR=On -DMIOPEN_TEST_GFX908=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
+        //                     CTEST_PARALLEL_LEVEL=4 MIOPEN_LOG_LEVEL=5 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     hipClangStage(cmd, "gfx908")
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp16 Hip MLIR Xdlops') {
+        //             agent{ label rocmnode("gfx908") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake  -DMIOPEN_TEST_HALF=On -DMIOPEN_USE_MLIR=On -DMIOPEN_TEST_GFX908=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
+        //                     CTEST_PARALLEL_LEVEL=4 MIOPEN_LOG_LEVEL=5 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     hipClangStage(cmd, "gfx908")
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+        // stage("Smoke Fp16/Bf16/Int8"){
+        //     when { expression { params.SMOKE_TESTS } }
+        //     parallel{
+        //         stage('Fp16 Hip Vega20 /opt/rocm') {
+        //             agent{ label rocmnode("vega20") }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DMIOPEN_TEST_HALF=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release', prefixpath: '/opt/rocm')
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp16 OpenCL Vega20') {
+        //             agent{ label rocmnode("vega20") }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('g++', flags: '-DMIOPEN_TEST_HALF=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release')
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         stage('Int8 OpenCL Vega20') {
+        //             agent{ label rocmnode("vega20") }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('g++', flags: '-DMIOPEN_TEST_INT8=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release')
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         stage('Bf16 Hip Vega20 /opt/rocm') {
+        //             agent{ label rocmnode("vega20") }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DMIOPEN_TEST_BFLOAT16=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release', prefixpath: '/opt/rocm')
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         stage('Bf16 Hip Debug gfx908 /opt/rocm') {
+        //             agent{ label rocmnode("gfx908") }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DMIOPEN_TEST_BFLOAT16=On -DMIOPEN_TEST_GFX908=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug', prefixpath: '/opt/rocm', gpu_arch: "gfx908")
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp16 Hip Debug gfx908 /opt/rocm') {
+        //             agent{ label rocmnode("gfx908") }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DMIOPEN_TEST_BFLOAT16=On -DMIOPEN_TEST_GFX908=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug', prefixpath: '/opt/rocm', gpu_arch: "gfx908")
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+        // stage("Smoke MIOpenTensile Latest"){
+        //     when { expression { params.SMOKE_MIOPENTENSILE_LATEST } }
+        //     parallel{
+        //         stage('Fp16 Hip Tensile-Latest Vega20') {
+        //             agent{ label rocmnode("vega20") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_HALF=On -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF -DMIOPEN_TEST_FLAGS=--disable-verification-cache ..
+        //                     MIOPEN_DEBUG_HIP_KERNELS=0 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     tensileStage(cmd, "gfx906:xnack-", "latest", "ON")
+        //                 }
+        //             }
+        //         }
+        //         stage('Int8 Hip Tensile-Latest Vega20') {
+        //             agent{ label rocmnode("vega20") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_INT8=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
+        //                     MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     tensileStage(cmd, "gfx906:xnack-", "latest", "ON")
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp32 Hip Tensile-Latest gfx908') {
+        //             agent{ label rocmnode("gfx908") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
+        //                     MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     tensileStage(cmd, "gfx908:xnack-", "latest", "ON")
+        //                 }
+        //             }
+        //         }
+        //         stage('Bf16 Hip Tensile-Latest gfx908') {
+        //             agent{ label rocmnode("gfx908") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_BFLOAT16=On -DMIOPEN_TEST_GFX908=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
+        //                     MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     tensileStage(cmd, "gfx908:xnack-", "latest", "ON")
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+        // stage("Full tests I"){
+        //     when { expression { params.FULL_TESTS } }
+        //     parallel{
+        //         stage('Fp32 OpenCL Debug + Codecov') {
+        //             agent{ label rocmnode("vega") }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('g++', flags: '-DBUILD_DEV=On -DCMAKE_BUILD_TYPE=debug', codecov: true)
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         stage('Int8 Hip All Vega20 /opt/rocm') {
+        //             agent{ label rocmnode("vega20") }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DMIOPEN_TEST_INT8=On -DBUILD_DEV=On -DMIOPEN_TEST_ALL=On -DCMAKE_BUILD_TYPE=release', prefixpath: '/opt/rocm')
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         stage('Bf16 Hip Install All gfx908') {
+        //             agent{ label rocmnode("gfx908") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_BFLOAT16=On -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=Off -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
+        //                     MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) install check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908")
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+        // stage("Full tests II"){
+        //     when { expression { params.FULL_TESTS } }
+        //     parallel{
+        //         stage('Fp32 OpenCL Install All') {
+        //             agent{ label rocmnode("vega") }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('g++', flags: '-DBUILD_DEV=Off -DMIOPEN_TEST_ALL=On -DCMAKE_BUILD_TYPE=release')
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp32 Hip All gfx908') {
+        //             agent{ label rocmnode("gfx908") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
+        //                     MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908")
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp16 Hip Install All gfx908') {
+        //             agent{ label rocmnode("gfx908") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_HALF=On -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=Off -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
+        //                     MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) install check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd, gpu_arch: "gfx908")
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+        stage("Full tests II (Debug)"){
             when { expression { params.FULL_TESTS } }
             parallel{
                 stage('Fp32 OpenCL Install All') {
@@ -889,7 +964,7 @@ pipeline {
                     steps{
                         script{
                             try{
-                                buildHipClangJob('g++', flags: '-DBUILD_DEV=Off -DMIOPEN_TEST_ALL=On -DCMAKE_BUILD_TYPE=release')
+                                buildHipClangJob('g++', flags: '-DBUILD_DEV=Off -DADDRESS_SANITIZER=On -DMIOPEN_TEST_ALL=On -DCMAKE_BUILD_TYPE=debug')
                             }
                             catch(e){
                                 echo "throwing error exception for the stage"
@@ -908,7 +983,7 @@ pipeline {
                         cmd = """
                             ulimit -c unlimited
                             cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
+                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DADDRESS_SANITIZER=On -DCMAKE_BUILD_TYPE=debug -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
                             MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
                         """
                     }
@@ -934,7 +1009,7 @@ pipeline {
                         cmd = """
                             ulimit -c unlimited
                             cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_HALF=On -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=Off -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
+                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_HALF=On -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=Off -DCMAKE_INSTALL_PREFIX=../install -DADDRESS_SANITIZER=On -DCMAKE_BUILD_TYPE=debug -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
                             MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) install check
                         """
                     }
@@ -956,369 +1031,369 @@ pipeline {
                 }
             }
         }
-        stage("Full tests III"){
-            when { expression { params.FULL_TESTS } }
-            parallel{
-                stage('Fp16 Hip Install All Vega20') {
-                    agent{ label rocmnode("vega20") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=Off -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_HALF=On -DMIOPEN_TEST_ALL=On -DMIOPEN_TEST_FLAGS=--disable-verification-cache ..
-                            CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) install check
-                        """
-                    }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-                stage('Fp32 Hip All Vega20') {
-                    agent{ label rocmnode("vega20") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_ALL=On -DMIOPEN_TEST_FLAGS=--disable-verification-cache ..
-                            CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        stage("MIOpenTensile"){
-            when { expression { params.MIOPENTENSILE } }
-            parallel{
-                stage('Fp32 Hip Tensile All Vega20') {
-                    agent{ label rocmnode("vega20") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_ALL=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF -DMIOPEN_TEST_FLAGS=--disable-verification-cache ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx906:xnack-", "default", "ON")
-                        }
-                    }
-                }
-                stage('Fp16 Hip Tensile All Vega20') {
-                    agent{ label rocmnode("vega20") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_HALF=On -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_ALL=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF -DMIOPEN_TEST_FLAGS=--disable-verification-cache ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx906:xnack-", "default", "ON")
-                        }
-                    }
-                }
-                stage('Bf16 Hip Tensile All Vega20') {
-                    agent{ label rocmnode("vega20") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_BFLOAT16=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx906:xnack-", "default", "ON")
-                        }
-                    }
-                }
-                stage('Int8 Hip Tensile All Vega20') {
-                    agent{ label rocmnode("vega20") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_INT8=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx906:xnack-", "default", "ON")
-                        }
-                    }
-                }
-                stage('Fp32 Hip Tensile All gfx908') {
-                    agent{ label rocmnode("gfx908") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx908:xnack-", "default", "ON")
-                        }
-                    }
-                }
-                stage('Fp16 Hip Tensile All gfx908') {
-                    agent{ label rocmnode("gfx908") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_HALF=On -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx908:xnack-", "default", "ON")
-                        }
-                    }
-                }
-                stage('Bf16 Hip Tensile All gfx908') {
-                    agent{ label rocmnode("gfx908") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_BFLOAT16=On -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx908:xnack-", "default", "ON")
-                        }
-                    }
-                }
-                stage('Int8 Hip Tensile All gfx908') {
-                    agent{ label rocmnode("gfx908") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_INT8=On -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx908:xnack-", "default", "ON")
-                        }
-                    }
-                }
-            }
-        }
-        stage("MIOpenTensile Latest"){
-            when { expression { params.MIOPENTENSILE_LATEST } }
-            parallel{
-                stage('Fp32 Hip Tensile-Latest All Vega20') {
-                    agent{ label rocmnode("vega20") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_ALL=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF -DMIOPEN_TEST_FLAGS=--disable-verification-cache ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx906:xnack-", "latest", "ON")
-                        }
-                    }
-                }
-                stage('Fp16 Hip Tensile-Latest All Vega20') {
-                    agent{ label rocmnode("vega20") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_HALF=On -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_ALL=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF -DMIOPEN_TEST_FLAGS=--disable-verification-cache ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx906:xnack-", "latest", "ON")
-                        }
-                    }
-                }
-                stage('Bf16 Hip Tensile-Latest All Vega20') {
-                    agent{ label rocmnode("vega20") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_BFLOAT16=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx906:xnack-", "latest", "ON")
-                        }
-                    }
-                }
-                stage('Int8 Hip Tensile-Latest All Vega20') {
-                    agent{ label rocmnode("vega20") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_INT8=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx906:xnack-", "latest", "ON")
-                        }
-                    }
-                }
-                stage('Fp32 Hip Tensile-Latest All gfx908') {
-                    agent{ label rocmnode("gfx908") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx908:xnack-", "latest", "ON")
-                        }
-                    }
-                }
-                stage('Fp16 Hip Tensile-Latest All gfx908') {
-                    agent{ label rocmnode("gfx908") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_HALF=On -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx908:xnack-", "latest", "ON")
-                        }
-                    }
-                }
-                stage('Bf16 Hip Tensile-Latest All gfx908') {
-                    agent{ label rocmnode("gfx908") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_BFLOAT16=On -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx908:xnack-", "latest", "ON")
-                        }
-                    }
-                }
-                stage('Int8 Hip Tensile-Latest All gfx908') {
-                    agent{ label rocmnode("gfx908") }
-                    environment{
-                        cmd = """
-                            ulimit -c unlimited
-                            cd build
-                            CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_INT8=On -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
-                            MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
-                        """
-                    }
-                    steps{
-                        script{
-                            tensileStage(cmd, "gfx908:xnack-", "latest", "ON")
-                        }
-                    }
-                }
-            }
-        }
-        stage("Packages"){
-            when { expression { params.PACKAGES } }
-            parallel {
-                stage('OpenCL Package') {
-                    agent{ label rocmnode("nogpu") }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('g++', flags: '-DCMAKE_BUILD_TYPE=release', gpu_arch: "gfx900;gfx906;gfx908")
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-                stage("HIP Package /opt/rocm"){
-                    agent{ label rocmnode("nogpu") }
-                    steps{
-                        script{
-                            try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DCMAKE_BUILD_TYPE=release', prefixpath: '/opt/rocm', gpu_arch: "gfx900;gfx906;gfx908")
-                            }
-                            catch(e){
-                                echo "throwing error exception for the stage"
-                                echo 'Exception occurred: ' + e.toString()
-                                throw e
-                            }
-                            finally{
-                                reboot()
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        // stage("Full tests III"){
+        //     when { expression { params.FULL_TESTS } }
+        //     parallel{
+        //         stage('Fp16 Hip Install All Vega20') {
+        //             agent{ label rocmnode("vega20") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=Off -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_HALF=On -DMIOPEN_TEST_ALL=On -DMIOPEN_TEST_FLAGS=--disable-verification-cache ..
+        //                     CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) install check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp32 Hip All Vega20') {
+        //             agent{ label rocmnode("vega20") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_ALL=On -DMIOPEN_TEST_FLAGS=--disable-verification-cache ..
+        //                     CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('/opt/rocm/llvm/bin/clang++', cmd: cmd)
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+        // stage("MIOpenTensile"){
+        //     when { expression { params.MIOPENTENSILE } }
+        //     parallel{
+        //         stage('Fp32 Hip Tensile All Vega20') {
+        //             agent{ label rocmnode("vega20") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_ALL=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF -DMIOPEN_TEST_FLAGS=--disable-verification-cache ..
+        //                     MIOPEN_DEBUG_HIP_KERNELS=0 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     tensileStage(cmd, "gfx906:xnack-", "default", "ON")
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp16 Hip Tensile All Vega20') {
+        //             agent{ label rocmnode("vega20") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_HALF=On -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_ALL=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF -DMIOPEN_TEST_FLAGS=--disable-verification-cache ..
+        //                     MIOPEN_DEBUG_HIP_KERNELS=0 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     tensileStage(cmd, "gfx906:xnack-", "default", "ON")
+        //                 }
+        //             }
+        //         }
+        //         stage('Bf16 Hip Tensile All Vega20') {
+        //             agent{ label rocmnode("vega20") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_BFLOAT16=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
+        //                     MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     tensileStage(cmd, "gfx906:xnack-", "default", "ON")
+        //                 }
+        //             }
+        //         }
+        //         stage('Int8 Hip Tensile All Vega20') {
+        //             agent{ label rocmnode("vega20") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_INT8=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
+        //                     MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     tensileStage(cmd, "gfx906:xnack-", "default", "ON")
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp32 Hip Tensile All gfx908') {
+        //             agent{ label rocmnode("gfx908") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
+        //                     MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     tensileStage(cmd, "gfx908:xnack-", "default", "ON")
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp16 Hip Tensile All gfx908') {
+        //             agent{ label rocmnode("gfx908") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_HALF=On -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
+        //                     MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     tensileStage(cmd, "gfx908:xnack-", "default", "ON")
+        //                 }
+        //             }
+        //         }
+        //         stage('Bf16 Hip Tensile All gfx908') {
+        //             agent{ label rocmnode("gfx908") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_BFLOAT16=On -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
+        //                     MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     tensileStage(cmd, "gfx908:xnack-", "default", "ON")
+        //                 }
+        //             }
+        //         }
+        //         stage('Int8 Hip Tensile All gfx908') {
+        //             agent{ label rocmnode("gfx908") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_INT8=On -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
+        //                     MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     tensileStage(cmd, "gfx908:xnack-", "default", "ON")
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+        // stage("MIOpenTensile Latest"){
+        //     when { expression { params.MIOPENTENSILE_LATEST } }
+        //     parallel{
+        //         stage('Fp32 Hip Tensile-Latest All Vega20') {
+        //             agent{ label rocmnode("vega20") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_ALL=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF -DMIOPEN_TEST_FLAGS=--disable-verification-cache ..
+        //                     MIOPEN_DEBUG_HIP_KERNELS=0 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     tensileStage(cmd, "gfx906:xnack-", "latest", "ON")
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp16 Hip Tensile-Latest All Vega20') {
+        //             agent{ label rocmnode("vega20") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_HALF=On -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_ALL=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF -DMIOPEN_TEST_FLAGS=--disable-verification-cache ..
+        //                     MIOPEN_DEBUG_HIP_KERNELS=0 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     tensileStage(cmd, "gfx906:xnack-", "latest", "ON")
+        //                 }
+        //             }
+        //         }
+        //         stage('Bf16 Hip Tensile-Latest All Vega20') {
+        //             agent{ label rocmnode("vega20") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_BFLOAT16=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
+        //                     MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     tensileStage(cmd, "gfx906:xnack-", "latest", "ON")
+        //                 }
+        //             }
+        //         }
+        //         stage('Int8 Hip Tensile-Latest All Vega20') {
+        //             agent{ label rocmnode("vega20") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_INT8=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
+        //                     MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     tensileStage(cmd, "gfx906:xnack-", "latest", "ON")
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp32 Hip Tensile-Latest All gfx908') {
+        //             agent{ label rocmnode("gfx908") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF -DMIOPEN_TEST_FLAGS='--verbose --disable-verification-cache' ..
+        //                     MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     tensileStage(cmd, "gfx908:xnack-", "latest", "ON")
+        //                 }
+        //             }
+        //         }
+        //         stage('Fp16 Hip Tensile-Latest All gfx908') {
+        //             agent{ label rocmnode("gfx908") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_HALF=On -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
+        //                     MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     tensileStage(cmd, "gfx908:xnack-", "latest", "ON")
+        //                 }
+        //             }
+        //         }
+        //         stage('Bf16 Hip Tensile-Latest All gfx908') {
+        //             agent{ label rocmnode("gfx908") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_BFLOAT16=On -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
+        //                     MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     tensileStage(cmd, "gfx908:xnack-", "latest", "ON")
+        //                 }
+        //             }
+        //         }
+        //         stage('Int8 Hip Tensile-Latest All gfx908') {
+        //             agent{ label rocmnode("gfx908") }
+        //             environment{
+        //                 cmd = """
+        //                     ulimit -c unlimited
+        //                     cd build
+        //                     CXX=/opt/rocm/llvm/bin/clang++ cmake -DMIOPEN_TEST_INT8=On -DMIOPEN_TEST_GFX908=On -DMIOPEN_TEST_ALL=On -DBUILD_DEV=On -DCMAKE_BUILD_TYPE=release -DMIOPEN_GPU_SYNC=On -DMIOPEN_TEST_MIOTENSILE=ON -DMIOPEN_USE_MIOPENTENSILE=ON -DMIOPEN_USE_ROCBLAS=OFF ..
+        //                     MIOPEN_DEBUG_HIP_KERNELS=0 MIOPEN_LOG_LEVEL=5 CTEST_PARALLEL_LEVEL=4 MIOPEN_CONV_PRECISE_ROCBLAS_TIMING=0 make -j\$(nproc) check
+        //                 """
+        //             }
+        //             steps{
+        //                 script{
+        //                     tensileStage(cmd, "gfx908:xnack-", "latest", "ON")
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+        // stage("Packages"){
+        //     when { expression { params.PACKAGES } }
+        //     parallel {
+        //         stage('OpenCL Package') {
+        //             agent{ label rocmnode("nogpu") }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('g++', flags: '-DCMAKE_BUILD_TYPE=release', gpu_arch: "gfx900;gfx906;gfx908")
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         stage("HIP Package /opt/rocm"){
+        //             agent{ label rocmnode("nogpu") }
+        //             steps{
+        //                 script{
+        //                     try{
+        //                         buildHipClangJob('/opt/rocm/llvm/bin/clang++', flags: '-DCMAKE_BUILD_TYPE=release', prefixpath: '/opt/rocm', gpu_arch: "gfx900;gfx906;gfx908")
+        //                     }
+        //                     catch(e){
+        //                         echo "throwing error exception for the stage"
+        //                         echo 'Exception occurred: ' + e.toString()
+        //                         throw e
+        //                     }
+        //                     finally{
+        //                         reboot()
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
     }
 }

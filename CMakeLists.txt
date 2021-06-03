@@ -65,6 +65,14 @@ if(MIOPEN_ENABLE_SQLITE_KERN_CACHE AND NOT MIOPEN_ENABLE_SQLITE)
 endif()
 set(MIOPEN_LOG_FUNC_TIME_ENABLE Off CACHE BOOL "")
 set(MIOPEN_ENABLE_SQLITE_BACKOFF On CACHE BOOL "")
+set(ADDRESS_SANITIZER Off CACHE BOOL "Enable address sanitizer")
+
+if(ADDRESS_SANITIZER)
+    add_compile_options("-fsanitize=address")
+    add_compile_options("-fno-omit-frame-pointer")
+    link_libraries(-fsanitize=address)
+    message("Address sanitizer is enabled")
+endif()
 
 option( BUILD_DEV "Build for development only" OFF)
 
