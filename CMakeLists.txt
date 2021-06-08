@@ -70,7 +70,9 @@ set(ADDRESS_SANITIZER Off CACHE BOOL "Enable address sanitizer")
 if(ADDRESS_SANITIZER)
     add_compile_options("-fsanitize=address")
     add_compile_options("-fno-omit-frame-pointer")
+    add_compile_options("-shared-libasan")
     link_libraries(-fsanitize=address)
+    string(APPEND CMAKE_MODULE_LINKER_FLAGS " -fuse-ld-lld")
     message("Address sanitizer is enabled")
 endif()
 
@@ -221,6 +223,9 @@ if( DEFINED MIOPEN_OVERRIDE_HIP_VERSION_PATCH )
     message(STATUS "MIOPEN_hip_VERSION_PATCH overriden with ${MIOPEN_OVERRIDE_HIP_VERSION_PATCH}")
 endif()
 
+if(ADDRESS_SANITIZER)
+    string(APPEND HIP_COMPILER_FLAGS " -fsanitize=address -fno-omit-frame-pointer -shared-libasan")
+endif()
 
 message(STATUS "Hip compiler flags: ${HIP_COMPILER_FLAGS}")
 
