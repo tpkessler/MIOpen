@@ -964,7 +964,7 @@ pipeline {
                     steps{
                         script{
                             try{
-                                buildHipClangJob('g++', target_id: "ON", flags: '-DBUILD_DEV=Off -DADDRESS_SANITIZER=On -DMIOPEN_TEST_ALL=On -DCMAKE_BUILD_TYPE=debug')
+                                buildHipClangJob('g++', target_id: "ON", gpu_arch: "gfx906:xnack-", flags: '-DBUILD_DEV=Off -DADDRESS_SANITIZER=On -DMIOPEN_TEST_ALL=On -DCMAKE_BUILD_TYPE=debug')
                             }
                             catch(e){
                                 echo "throwing error exception for the stage"
@@ -990,7 +990,7 @@ pipeline {
                     steps{
                         script{
                             try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++',target_id: "ON", cmd: cmd, gpu_arch: "gfx908")
+                                buildHipClangJob('/opt/rocm/llvm/bin/clang++',target_id: "ON", cmd: cmd, gpu_arch: "gfx908:xnack-")
                             }
                             catch(e){
                                 echo "throwing error exception for the stage"
@@ -1016,7 +1016,7 @@ pipeline {
                     steps{
                         script{
                             try{
-                                buildHipClangJob('/opt/rocm/llvm/bin/clang++',target_id: "ON", cmd: cmd, gpu_arch: "gfx908")
+                                buildHipClangJob('/opt/rocm/llvm/bin/clang++',target_id: "ON", cmd: cmd, gpu_arch: "gfx908:xnack-")
                             }
                             catch(e){
                                 echo "throwing error exception for the stage"
