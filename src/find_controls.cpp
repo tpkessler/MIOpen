@@ -101,6 +101,7 @@ solver::Id GetEnvFindOnlySolverImpl()
 {
     static_assert(miopen::solver::Id::invalid_value == 0, "miopen::solver::Id::invalid_value == 0");
     const char* const p_asciz = miopen::GetStringEnv(MIOPEN_DEBUG_FIND_ONLY_SOLVER{});
+    std::cout << "Find only solver name: " << p_asciz << std::endl;
     if(p_asciz != nullptr && strlen(p_asciz) > 0)
     {
         auto numeric_id = std::strtoul(p_asciz, nullptr, 10);
