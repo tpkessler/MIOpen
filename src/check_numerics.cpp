@@ -76,6 +76,12 @@ bool checkNumericsImpl(
     std::string kernel_name       = "MIOpenCheckNumerics";
     const std::vector<size_t> vld = {size_t{blockSize}, size_t{1}, size_t{1}};
     const std::vector<size_t> vgd = {numGlobalWorkItems, size_t{1}, size_t{1}};
+    if(data == nullptr)
+    {
+        MIOPEN_LOG(miopen::LoggingLevel::Warning, "Null pointer passed to Check Numerics");
+        return true;
+    }
+
     handle.AddKernel("MIOpenCheckNumerics", "", program_name, kernel_name, vld, vgd, params)(
         data, numElements, abnormal_d.get(), computeStats);
 

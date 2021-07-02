@@ -103,8 +103,10 @@ void BatchNormForwardTraining(Handle& handle,
     if(miopen::CheckNumericsEnabled())
     {
         miopen::checkNumericsInput(handle, xDesc, x);
-        miopen::checkNumericsInput(handle, bnScaleBiasMeanVarDesc, bnScale);
-        miopen::checkNumericsInput(handle, bnScaleBiasMeanVarDesc, bnBias);
+        if(bnScale != nullptr)
+            miopen::checkNumericsInput(handle, bnScaleBiasMeanVarDesc, bnScale);
+        if(bnBias != nullptr)
+            miopen::checkNumericsInput(handle, bnScaleBiasMeanVarDesc, bnBias);
     }
 
     static const auto ctx = GetContext(handle);
@@ -628,10 +630,22 @@ void BatchNormForwardTraining(Handle& handle,
     if(miopen::CheckNumericsEnabled())
     {
         miopen::checkNumericsOutput(handle, yDesc, y);
-        miopen::checkNumericsOutput(handle, bnScaleBiasMeanVarDesc, resultRunningMean);
-        miopen::checkNumericsOutput(handle, bnScaleBiasMeanVarDesc, resultRunningVariance);
-        miopen::checkNumericsOutput(handle, bnScaleBiasMeanVarDesc, resultSaveMean);
-        miopen::checkNumericsOutput(handle, bnScaleBiasMeanVarDesc, resultSaveInvVariance);
+        if(resultRunningMean != nullptr)
+        {
+            miopen::checkNumericsOutput(handle, bnScaleBiasMeanVarDesc, resultRunningMean);
+        }
+        if(resultRunningVariance != nullptr)
+        {
+            miopen::checkNumericsOutput(handle, bnScaleBiasMeanVarDesc, resultRunningVariance);
+        }
+        if(resultSaveMean != nullptr)
+        {
+            miopen::checkNumericsOutput(handle, bnScaleBiasMeanVarDesc, resultSaveMean);
+        }
+        if(resultSaveInvVariance != nullptr)
+        {
+            miopen::checkNumericsOutput(handle, bnScaleBiasMeanVarDesc, resultSaveInvVariance);
+        }
     }
 }
 //================== END FWD TRAIN ===================
@@ -655,10 +669,14 @@ void BatchNormForwardInference(Handle& handle,
     if(miopen::CheckNumericsEnabled())
     {
         miopen::checkNumericsInput(handle, xDesc, x);
-        miopen::checkNumericsInput(handle, bnScaleBiasMeanVarDesc, bnScale);
-        miopen::checkNumericsInput(handle, bnScaleBiasMeanVarDesc, bnBias);
-        miopen::checkNumericsInput(handle, bnScaleBiasMeanVarDesc, estimatedMean);
-        miopen::checkNumericsInput(handle, bnScaleBiasMeanVarDesc, estimatedVariance);
+        if(bnScale != nullptr)
+            miopen::checkNumericsInput(handle, bnScaleBiasMeanVarDesc, bnScale);
+        if(bnBias != nullptr)
+            miopen::checkNumericsInput(handle, bnScaleBiasMeanVarDesc, bnBias);
+        if(estimatedMean != nullptr)
+            miopen::checkNumericsInput(handle, bnScaleBiasMeanVarDesc, estimatedMean);
+        if(estimatedVariance != nullptr)
+            miopen::checkNumericsInput(handle, bnScaleBiasMeanVarDesc, estimatedVariance);
     }
 
     if(estimatedMean != nullptr && estimatedVariance != nullptr)
@@ -840,10 +858,12 @@ void BatchNormBackward(Handle& handle,
     {
         miopen::checkNumericsInput(handle, xDesc, x);
         miopen::checkNumericsInput(handle, dyDesc, dy);
-        miopen::checkNumericsInput(handle, bnScaleBiasDiffDesc, bnScale);
-
-        miopen::checkNumericsInput(handle, bnScaleBiasDiffDesc, savedMean);
-        miopen::checkNumericsInput(handle, bnScaleBiasDiffDesc, savedInvVariance);
+        if(bnScale != nullptr)
+            miopen::checkNumericsInput(handle, bnScaleBiasDiffDesc, bnScale);
+        if(savedMean != nullptr)
+            miopen::checkNumericsInput(handle, bnScaleBiasDiffDesc, savedMean);
+        if(savedInvVariance != nullptr)
+            miopen::checkNumericsInput(handle, bnScaleBiasDiffDesc, savedInvVariance);
     }
 
     if(x == nullptr || dy == nullptr || bnScale == nullptr || dx == nullptr)
@@ -1374,8 +1394,10 @@ void BatchNormBackward(Handle& handle,
     if(miopen::CheckNumericsEnabled())
     {
         miopen::checkNumericsOutput(handle, dxDesc, dx);
-        miopen::checkNumericsOutput(handle, bnScaleBiasDiffDesc, resultBnScaleDiff);
-        miopen::checkNumericsOutput(handle, bnScaleBiasDiffDesc, resultBnBiasDiff);
+        if(resultBnScaleDiff != nullptr)
+            miopen::checkNumericsOutput(handle, bnScaleBiasDiffDesc, resultBnScaleDiff);
+        if(resultBnBiasDiff != nullptr)
+            miopen::checkNumericsOutput(handle, bnScaleBiasDiffDesc, resultBnBiasDiff);
     }
 }
 } // namespace miopen
