@@ -438,9 +438,9 @@ MIOpenCvFwd11x11(const __global _FLOAT* __restrict bot,
         }
 
 // all input maps
-#ifdef __AMDGCN__
-#pragma unroll 4
-#endif
+// #ifdef __AMDGCN__
+// #pragma unroll 4
+// #endif
         for(uint c = 0, gbl_in_scan_off = gbl_in_scan_off0; c < MLO_N_INPUTS;
             ++c, gbl_in_scan_off += MLO_IN_CHANNEL_STRIDE)
         {
@@ -467,7 +467,7 @@ MIOpenCvFwd11x11(const __global _FLOAT* __restrict bot,
 
 // convolution
 // along vertical filter
-#pragma unroll
+// #pragma unroll
                 for(uint m = 0; m < MLO_N_FILTER_SPLITS1; ++m)
                 {
 
@@ -526,7 +526,7 @@ MIOpenCvFwd11x11(const __global _FLOAT* __restrict bot,
 
 // convolution
 // along vertical filter
-#pragma unroll
+// #pragma unroll
                 for(uint m = 0; m < MLO_N_FILTER_SPLITS1 - 1; ++m)
                 {
 
