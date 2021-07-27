@@ -170,8 +170,8 @@ endif()
 if(MIOPEN_TEST_GFX908)
     set(SKIP_ALL_EXCEPT_TESTS test_main test_tensor_scale test_tensor_set test_tensor_transform
             test_tensor_vec test_w_supertensor test_dropout test_immed_conv3d test_conv3d
-            test_soft_max test_fusion_aux test_activation test_lrn_test test_ctc test_conv2d_bias
-            test_conv3d_bias test_cba_inference test_cbna_inference test_pooling2d test_na_train
+            test_fusion_aux test_lrn_test test_ctc test_conv2d_bias
+            test_conv3d_bias test_cba_inference test_cbna_inference test_na_train
             test_na_inference test_bn_aux)
 endif()
 # The usage is non-trivial, see function add_test_command.
