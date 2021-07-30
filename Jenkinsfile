@@ -457,6 +457,12 @@ pipeline {
                         buildHipClangJobAndReboot(setup_flags: MLIR_flags, build_env: extra_log_env, test_flags: ' --verbose ', gpu_arch: "gfx908", mlir_build: "ON")
                     }
                 }
+                stage('Fp32 OpenCL MLIR') {
+                    agent{ label rocmnode("vega") }
+                    steps{
+                        buildHipClangJobAndReboot(setup_flags: MLIR_flags, build_env: extra_log_env + " -DMIOPEN_BACKEND=OpenCL", test_flags: ' --verbose ', mlir_build: "ON")
+                    }
+                }
             }
         }
         stage("Smoke Fp16/Bf16/Int8"){
