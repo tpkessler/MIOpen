@@ -460,7 +460,7 @@ pipeline {
                 stage('Fp32 OpenCL MLIR') {
                     agent{ label rocmnode("vega") }
                     steps{
-                        buildHipClangJobAndReboot(setup_flags: MLIR_flags, build_env: extra_log_env + " -DMIOPEN_BACKEND=OpenCL", test_flags: ' --verbose ', mlir_build: "ON")
+                        buildHipClangJobAndReboot(setup_flags: MLIR_flags + " -DMIOPEN_BACKEND=OpenCL", build_env: extra_log_env , test_flags: ' --verbose ', mlir_build: "ON")
                     }
                 }
             }
