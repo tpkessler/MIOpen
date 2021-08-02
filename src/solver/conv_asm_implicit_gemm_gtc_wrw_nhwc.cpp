@@ -447,6 +447,7 @@ void PerformanceConfigAsmImplicitGemmGTCWrwXdlopsNHWC::HeuristicInit(const Convo
             if(m_per_block == config.gemm_m_per_block && n_per_block == config.gemm_n_per_block &&
                k_per_block == config.gemm_k_per_block)
             {
+                std::cout << __LINE__ << ":" << config.vector_store << std::endl;
                 size_t current_grid_size;
                 size_t occupancy;
                 std::tie(std::ignore, std::ignore, current_grid_size, occupancy) =
@@ -460,7 +461,17 @@ void PerformanceConfigAsmImplicitGemmGTCWrwXdlopsNHWC::HeuristicInit(const Convo
                 {
                     CopyParameters(config);
                     if(need_k_split)
-                        gemm_k_global_split = occupancy;
+                    {
+                        if(config.gemm_k_global_split == 0)
+                        {
+                            continue;
+                        }
+                        else
+                        {
+                            gemm_k_global_split = occupancy;
+                            vector_store        = config.vector_store;
+                        }
+                    }
                     return;
                 }
                 else
