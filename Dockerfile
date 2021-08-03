@@ -16,8 +16,8 @@ RUN dpkg --add-architecture i386
 RUN if [ "$USE_TARGETID" = "ON" ] ; \
         then export ROCM_APT_VER=.apt_4.1.1;\
     elif [ "$USE_MLIR" = "ON" ] ; \
-        then export ROCM_APT_VER=.apt_4.2;\
-    else export ROCM_APT_VER=.apt_4.2;  \
+        then export ROCM_APT_VER=.apt_4.1.1;\
+    else export ROCM_APT_VER=.apt_4.1.1;  \
     fi && \
 echo $ROCM_APT_VER &&\
 sh -c 'echo deb [arch=amd64 trusted=yes] http://repo.radeon.com/rocm/apt/$ROCM_APT_VER/ xenial main > /etc/apt/sources.list.d/rocm.list'
@@ -28,8 +28,8 @@ RUN sh -c "echo deb http://mirrors.kernel.org/ubuntu xenial main universe | tee 
 RUN if [ "$USE_TARGETID" = "ON" ]; \
         then export ROCM_KEY_VER=4.1.1; \
     elif [ "$USE_MLIR" = "ON" ] ; \
-        then export ROCM_KEY_VER=4.2;\
-    else export ROCM_KEY_VER=4.2; \
+        then export ROCM_KEY_VER=4.1.1;\
+    else export ROCM_KEY_VER=4.1.1; \
     fi && \
 apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --allow-unauthenticated \
     wget \
