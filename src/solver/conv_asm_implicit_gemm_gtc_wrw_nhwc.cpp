@@ -419,20 +419,31 @@ void PerformanceConfigAsmImplicitGemmGTCWrwXdlopsNHWC::HeuristicInit(const Convo
             {
                 min_pad_pixel  = cur_pad_pixel;
                 selected_index = i;
+
+                size_t current_grid_size;
+                size_t occupancy;
+                std::tie(std::ignore, std::ignore, current_grid_size, occupancy) =
+                    GetImplicitGemmGtcDynamicWrwXdlopsNHWCKernel(ctx, config_list[selected_index]);
+                bool need_k_split = current_grid_size <= non_split_gridsize;
+                size_t gks =
+                    ComputeGemmKGlobalSplitsWith2DMerge(current_grid_size, occupancy, num_cu);
+                need_k_split |= gks != 0;
+
+                CopyParameters(config_list[selected_index]);
+                if(need_k_split)
+                {
+                    if(config_list[selected_index].gemm_k_global_split == 0)
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        gemm_k_global_split = occupancy;
+                        vector_store        = config_list[selected_index].vector_store;
+                    }
+                }
             }
         }
-
-        size_t current_grid_size;
-        size_t occupancy;
-        std::tie(std::ignore, std::ignore, current_grid_size, occupancy) =
-            GetImplicitGemmGtcDynamicWrwXdlopsNHWCKernel(ctx, config_list[selected_index]);
-        bool need_k_split = current_grid_size <= non_split_gridsize;
-        size_t gks = ComputeGemmKGlobalSplitsWith2DMerge(current_grid_size, occupancy, num_cu);
-        need_k_split |= gks != 0;
-
-        CopyParameters(config_list[selected_index]);
-        if(need_k_split)
-            gemm_k_global_split = occupancy;
     }
     else
     {
