@@ -608,7 +608,7 @@ pipeline {
                 stage('Fp32 OpenCL Install All') {
                     agent{ label rocmnode("vega") }
                     steps{
-                        buildHipClangJobAndReboot(compiler: 'g++', setup_flags: Full_test, build_install: "true")
+                        buildHipClangJobAndReboot(compiler:  'g++', setup_flags: Full_test, build_install: "true")
                     }
                 }
                 stage('Bf16 Hip Install All gfx908') {
